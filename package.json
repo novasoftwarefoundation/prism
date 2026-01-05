@@ -1,6 +1,6 @@
 {
   "name": "@novasoftwarefoundation/prism",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "UI framework for building scientific software",
   "keywords": [
     "tailwind",

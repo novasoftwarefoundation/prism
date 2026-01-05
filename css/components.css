@@ -588,6 +588,7 @@
   font-weight: 700;
   font-size: 12px;
   line-height: 12px;
+  font-variant-numeric: tabular-nums;
 }
 
 /* Inactive state (default) */
