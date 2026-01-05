@@ -80,6 +80,25 @@ Import the base and component styles in your main CSS file:
 
 <!-- Spinner -->
 <div class="prism-spinner"></div>
+
+<!-- Tags / Badges -->
+<span class="prism-tag prism-tag-primary">
+  <span class="prism-tag-inner">New</span>
+</span>
+<span class="prism-tag prism-tag-success">
+  <span class="prism-tag-inner">Complete</span>
+</span>
+
+<!-- Alert Banners -->
+<div class="prism-alert prism-alert-info">Information message</div>
+<div class="prism-alert prism-alert-success">Success message</div>
+<div class="prism-alert prism-alert-warning">Warning message</div>
+<div class="prism-alert prism-alert-error">Error message</div>
+
+<!-- Number Icons (Step Indicators) -->
+<span class="prism-number-icon prism-number-icon-completed">1</span>
+<span class="prism-number-icon prism-number-icon-active">2</span>
+<span class="prism-number-icon prism-number-icon-inactive">3</span>
 ```
 
 ## Design Tokens
@@ -156,6 +175,38 @@ Font classes: `font-title0` through `font-title7`, `font-body`, `font-button`, `
 | `prism-spinner-lg`    | Large spinner (32px)  |
 | `prism-spinner-white` | White colored         |
 | `prism-spinner-primary`| Primary colored      |
+
+### Tags / Badges
+
+| Class                | Description                    |
+| -------------------- | ------------------------------ |
+| `prism-tag`          | Base tag container             |
+| `prism-tag-inner`    | Inner content with styling     |
+| `prism-tag-primary`  | Primary colored tag            |
+| `prism-tag-success`  | Success/green colored tag      |
+| `prism-tag-warning`  | Warning/orange colored tag     |
+| `prism-tag-error`    | Error/red colored tag          |
+| `prism-tag-danger`   | Alias for error                |
+| `prism-tag-secondary`| Grey/neutral colored tag       |
+
+### Alert Banners
+
+| Class                 | Description                   |
+| --------------------- | ----------------------------- |
+| `prism-alert`         | Base alert banner             |
+| `prism-alert-info`    | Info/primary colored alert    |
+| `prism-alert-success` | Success/green colored alert   |
+| `prism-alert-warning` | Warning/orange colored alert  |
+| `prism-alert-error`   | Error/red colored alert       |
+
+### Number Icons (Step Indicators)
+
+| Class                        | Description                    |
+| ---------------------------- | ------------------------------ |
+| `prism-number-icon`          | Base circular number badge     |
+| `prism-number-icon-inactive` | Grey/inactive state            |
+| `prism-number-icon-active`   | Primary/current step state     |
+| `prism-number-icon-completed`| Green/completed state          |
 
 ## License
 

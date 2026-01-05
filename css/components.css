@@ -471,3 +471,139 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+/* ==========================================================================
+   Tags / Badges
+   ========================================================================== */
+
+/* Base tag styles - colored label with background opacity */
+.prism-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.25rem;
+  background-color: #ffffff;
+}
+
+.prism-tag-inner {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  border-radius: 0.25rem;
+  padding: 6px 12px;
+  font-family: "Nunito Sans", sans-serif;
+  font-weight: 600;
+  font-size: 14px;
+  line-height: 16px;
+}
+
+/* Primary tag (default) */
+.prism-tag-primary .prism-tag-inner {
+  background-color: rgba(66, 114, 239, 0.2);
+  color: #4272ef;
+}
+
+/* Success tag */
+.prism-tag-success .prism-tag-inner {
+  background-color: rgba(82, 186, 18, 0.2);
+  color: #52ba12;
+}
+
+/* Warning tag */
+.prism-tag-warning .prism-tag-inner {
+  background-color: rgba(242, 141, 21, 0.2);
+  color: #f28d15;
+}
+
+/* Error/Danger tag */
+.prism-tag-error .prism-tag-inner,
+.prism-tag-danger .prism-tag-inner {
+  background-color: rgba(219, 30, 30, 0.2);
+  color: #db1e1e;
+}
+
+/* Secondary tag */
+.prism-tag-secondary .prism-tag-inner {
+  background-color: rgba(153, 153, 153, 0.2);
+  color: #666666;
+}
+
+/* ==========================================================================
+   Alert Banners
+   ========================================================================== */
+
+/* Base alert styles */
+.prism-alert {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 40px;
+  padding: 0 16px;
+  border-radius: 0.25rem;
+  font-family: "Nunito Sans", sans-serif;
+  font-weight: 600;
+  font-size: 14px;
+  line-height: 16px;
+}
+
+/* Info alert (default) */
+.prism-alert-info {
+  background-color: rgba(66, 114, 239, 0.15);
+  color: #4272ef;
+}
+
+/* Success alert */
+.prism-alert-success {
+  background-color: rgba(82, 186, 18, 0.15);
+  color: #52ba12;
+}
+
+/* Warning alert */
+.prism-alert-warning {
+  background-color: rgba(242, 141, 21, 0.15);
+  color: #f28d15;
+}
+
+/* Error alert */
+.prism-alert-error {
+  background-color: rgba(219, 30, 30, 0.15);
+  color: #db1e1e;
+}
+
+/* ==========================================================================
+   Number Icons (Step Indicators)
+   ========================================================================== */
+
+/* Base number icon - circular badge with number */
+.prism-number-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  font-family: "Nunito Sans", sans-serif;
+  font-weight: 700;
+  font-size: 12px;
+  line-height: 12px;
+}
+
+/* Inactive state (default) */
+.prism-number-icon-inactive {
+  background-color: #eeeeee;
+  color: #999999;
+}
+
+/* Active state */
+.prism-number-icon-active {
+  background-color: #4272ef;
+  color: #ffffff;
+}
+
+/* Completed state */
+.prism-number-icon-completed {
+  background-color: #52ba12;
+  color: #ffffff;
+}
