@@ -1,0 +1,473 @@
+/**
+ * Prism UI - Component Classes
+ *
+ * Pre-built component classes for common UI elements.
+ * These classes encapsulate the Tailwind utilities for easy reuse.
+ */
+
+/* ==========================================================================
+   Buttons
+   ========================================================================== */
+
+/* Base button styles */
+.prism-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "Nunito Sans", sans-serif;
+  font-weight: 700;
+  font-size: 18px;
+  line-height: 18px;
+  border-radius: 0.25rem;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.15s ease-in-out;
+}
+
+.prism-btn:focus {
+  outline: none;
+}
+
+/* Primary button - filled background */
+.prism-btn-primary {
+  background-color: #4272ef;
+  color: #ffffff;
+  padding: 15px 16px;
+}
+
+.prism-btn-primary:active {
+  padding-top: 16px;
+  padding-bottom: 14px;
+  box-shadow: inset 0 4px 0 0 rgba(0, 0, 0, 0.15);
+}
+
+.prism-btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Primary button with icon */
+.prism-btn-primary-icon {
+  background-color: #4272ef;
+  color: #ffffff;
+  padding: 4px 16px;
+  gap: 12px;
+}
+
+.prism-btn-primary-icon:active {
+  padding-top: 5px;
+  padding-bottom: 3px;
+  box-shadow: inset 0 4px 0 0 rgba(0, 0, 0, 0.15);
+}
+
+/* Secondary button - outlined */
+.prism-btn-secondary {
+  background-color: transparent;
+  color: #4272ef;
+  border: 2px solid #4272ef;
+  padding: 13px 16px;
+}
+
+.prism-btn-secondary:active {
+  padding-top: 14px;
+  padding-bottom: 12px;
+  box-shadow: inset 0 2px 0 0 rgba(0, 0, 0, 0.15);
+}
+
+.prism-btn-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Secondary button with icon */
+.prism-btn-secondary-icon {
+  background-color: transparent;
+  color: #4272ef;
+  border: 2px solid #4272ef;
+  padding: 13px 16px;
+  gap: 12px;
+}
+
+.prism-btn-secondary-icon:active {
+  padding-top: 14px;
+  padding-bottom: 12px;
+  box-shadow: inset 0 2px 0 0 rgba(0, 0, 0, 0.15);
+}
+
+/* Plain button - text only, no background */
+.prism-btn-plain {
+  background-color: transparent;
+  color: #222222;
+  padding: 4px 0;
+}
+
+.prism-btn-plain:active {
+  padding-top: 5px;
+  padding-bottom: 3px;
+}
+
+/* Plain button with icon */
+.prism-btn-plain-icon {
+  background-color: transparent;
+  color: #222222;
+  padding: 4px 0;
+  gap: 8px;
+}
+
+.prism-btn-plain-icon:active {
+  padding-top: 5px;
+  padding-bottom: 3px;
+}
+
+/* Link button - looks like a text link */
+.prism-btn-link {
+  background-color: transparent;
+  color: #4272ef;
+  text-decoration: underline;
+  padding: 0;
+  font-weight: 500;
+}
+
+.prism-btn-link:hover {
+  text-decoration: none;
+}
+
+/* Label button - for wrapping labels, minimal styling */
+.prism-btn-label {
+  color: #4272ef;
+  padding: 1px 16px;
+}
+
+.prism-btn-label:active {
+  padding-top: 2px;
+  padding-bottom: 0;
+}
+
+/* Button with loading state */
+.prism-btn-loading {
+  position: relative;
+}
+
+.prism-btn-loading .prism-btn-content {
+  opacity: 0;
+}
+
+.prism-btn-loading .prism-spinner {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+/* Color variants */
+.prism-btn-success {
+  background-color: #52ba12;
+  color: #ffffff;
+}
+
+.prism-btn-warning {
+  background-color: #f28d15;
+  color: #ffffff;
+}
+
+.prism-btn-danger,
+.prism-btn-delete {
+  background-color: #db1e1e;
+  color: #ffffff;
+}
+
+/* ==========================================================================
+   Inputs
+   ========================================================================== */
+
+/* Base input styles */
+.prism-input {
+  display: block;
+  width: 100%;
+  height: 44px;
+  padding-left: 12px;
+  padding-right: 12px;
+  font-family: "Nunito Sans", sans-serif;
+  font-weight: 300;
+  font-size: 20px;
+  line-height: 30px;
+  color: #222222;
+  background-color: #ffffff;
+  border: 2px solid #cccccc;
+  border-radius: 0.25rem;
+  outline: none;
+  transition: border-color 0.15s ease-in-out;
+}
+
+.prism-input::placeholder {
+  color: #999999;
+}
+
+.prism-input:focus {
+  border-color: #4272ef;
+}
+
+.prism-input:disabled {
+  color: #cccccc;
+  background-color: #f6f6f6;
+  cursor: not-allowed;
+}
+
+/* Input with error state */
+.prism-input-error {
+  border-color: #f28d15;
+}
+
+/* Input with dark background */
+.prism-input-dark:focus {
+  border-color: #ffcf60;
+}
+
+/* Textarea */
+.prism-textarea {
+  display: block;
+  width: 100%;
+  min-height: 256px;
+  padding: 8px 12px;
+  font-family: "Nunito Sans", sans-serif;
+  font-weight: 300;
+  font-size: 20px;
+  line-height: 30px;
+  color: #222222;
+  background-color: #ffffff;
+  border: 2px solid #cccccc;
+  border-radius: 0.25rem;
+  outline: none;
+  resize: vertical;
+  transition: border-color 0.15s ease-in-out;
+}
+
+.prism-textarea::placeholder {
+  color: #999999;
+}
+
+.prism-textarea:focus {
+  border-color: #4272ef;
+}
+
+/* ==========================================================================
+   Form Labels
+   ========================================================================== */
+
+.prism-label {
+  display: block;
+  font-family: "Nunito Sans", sans-serif;
+  font-weight: 700;
+  font-size: 20px;
+  line-height: 22px;
+  color: #222222;
+  margin-bottom: 8px;
+}
+
+.prism-label-error {
+  font-family: "Nunito Sans", sans-serif;
+  font-weight: 500;
+  font-size: 14px;
+  line-height: 18px;
+  color: #f28d15;
+  margin-top: 4px;
+}
+
+/* ==========================================================================
+   Radio Buttons
+   ========================================================================== */
+
+.prism-radio-group {
+  display: flex;
+  flex-direction: row;
+  gap: 32px;
+  margin-left: 6px;
+}
+
+.prism-radio-label {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 18px;
+  cursor: pointer;
+}
+
+.prism-radio-label.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.prism-radio {
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  outline: 2px solid #cccccc;
+  outline-offset: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+}
+
+.prism-radio:checked {
+  background-color: #4272ef;
+  outline-color: #4272ef;
+}
+
+.prism-radio:disabled {
+  cursor: not-allowed;
+}
+
+.prism-radio-text {
+  font-family: "Nunito Sans", sans-serif;
+  font-weight: 700;
+  font-size: 16px;
+  line-height: 16px;
+  color: #222222;
+  user-select: none;
+  margin-top: 2px;
+}
+
+/* ==========================================================================
+   Dropdown / Select
+   ========================================================================== */
+
+.prism-dropdown {
+  position: relative;
+  width: 100%;
+}
+
+.prism-dropdown-input {
+  display: block;
+  width: 100%;
+  height: 44px;
+  padding-left: 12px;
+  padding-right: 40px;
+  font-family: "Nunito Sans", sans-serif;
+  font-weight: 300;
+  font-size: 20px;
+  line-height: 30px;
+  color: #222222;
+  background-color: #ffffff;
+  border: 2px solid #cccccc;
+  border-radius: 0.25rem;
+  outline: none;
+  cursor: pointer;
+  white-space: pre-wrap;
+}
+
+.prism-dropdown-input:focus {
+  border-color: #4272ef;
+}
+
+.prism-dropdown-icon {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.prism-dropdown-options {
+  position: absolute;
+  z-index: 20;
+  left: 0;
+  top: 48px;
+  width: 100%;
+  background-color: #ffffff;
+  border-radius: 0.25rem;
+  box-shadow: 0px 5px 20px 0px rgba(0, 0, 0, 0.1);
+  max-height: 317px;
+  overflow-y: auto;
+  padding: 16px 0;
+}
+
+.prism-dropdown-option {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  height: 40px;
+  padding: 0 32px;
+  font-family: "Nunito Sans", sans-serif;
+  font-weight: 700;
+  font-size: 18px;
+  line-height: 18px;
+  color: #222222;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 0.1s ease-in-out;
+}
+
+.prism-dropdown-option:hover {
+  background-color: #f6f6f6;
+}
+
+.prism-dropdown-option.selected {
+  color: #4272ef;
+}
+
+/* ==========================================================================
+   Spinner
+   ========================================================================== */
+
+.prism-spinner {
+  width: 24px;
+  height: 24px;
+  animation: prism-spin 1s linear infinite;
+}
+
+.prism-spinner-sm {
+  width: 16px;
+  height: 16px;
+}
+
+.prism-spinner-lg {
+  width: 32px;
+  height: 32px;
+}
+
+@keyframes prism-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Spinner colors - use with filter for different colors */
+.prism-spinner-white {
+  filter: brightness(0) invert(1);
+}
+
+.prism-spinner-primary {
+  filter: brightness(0) saturate(100%) invert(39%) sepia(70%) saturate(2238%)
+    hue-rotate(209deg) brightness(97%) contrast(91%);
+}
+
+/* ==========================================================================
+   Checkbox (bonus component)
+   ========================================================================== */
+
+.prism-checkbox {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border: 2px solid #cccccc;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+}
+
+.prism-checkbox:checked {
+  background-color: #4272ef;
+  border-color: #4272ef;
+  background-image: url("data:image/svg+xml,%3csvg viewBox='0 0 16 16' fill='white' xmlns='http://www.w3.org/2000/svg'%3e%3cpath d='M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2-2a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z'/%3e%3c/svg%3e");
+  background-size: 100% 100%;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.prism-checkbox:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

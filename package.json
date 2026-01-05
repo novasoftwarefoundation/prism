@@ -1,0 +1,27 @@
+{
+  "name": "@novasoftwarefoundation/prism",
+  "version": "0.1.0",
+  "description": "UI framework for building scientific software",
+  "keywords": [
+    "tailwind",
+    "css",
+    "ui",
+    "framework",
+    "scientific"
+  ],
+  "license": "MIT",
+  "author": "Nova Software Foundation",
+  "main": "tailwind.preset.js",
+  "files": [
+    "tailwind.preset.js",
+    "css/",
+    "fonts/"
+  ],
+  "peerDependencies": {
+    "tailwindcss": ">=3.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/novasoftwarefoundation/prism"
+  }
+}
