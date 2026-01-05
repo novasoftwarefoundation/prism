@@ -1,6 +1,6 @@
 # @novasoftwarefoundation/prism
 
-A playful but professional Tailwind-based UI framework for scientific software.
+A Tailwind-based UI framework for scientific software.
 
 Part of the [Nova Software Foundation](https://novasf.org) - open source software for science.
 
