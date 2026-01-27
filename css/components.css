@@ -156,7 +156,11 @@
   position: absolute;
   top: 50%;
   left: 50%;
-  transform: translate(-50%, -50%);
+  /* Use margins instead of transform for centering because
+     the spinner animation uses transform: rotate() which would
+     override translate(-50%, -50%) centering */
+  margin-top: -12px;
+  margin-left: -12px;
 }
 
 /* Color variants */
