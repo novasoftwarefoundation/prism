@@ -38,6 +38,12 @@ module.exports = {
     },
     extend: {
       boxShadow: {
+        // Nova effect styles
+        "prism-btn-pressed": "inset 0 4px 0 0 rgba(0, 0, 0, 0.15)",
+        "prism-container": "0 10px 30px 0 rgba(0, 0, 0, 0.05)",
+        "prism-card": "0 5px 20px 0 rgba(0, 0, 0, 0.10)",
+        "prism-text-overlay": "0 8px 16px 0 rgba(0, 0, 0, 0.30)",
+        // Deprecated — use btn-pressed / card instead
         top4px: "inset 0 4px 0 0 rgba(0, 0, 0, 0.15)",
         top2px: "inset 0 2px 0 0 rgba(0, 0, 0, 0.15)",
         floating: "0px 5px 20px 0px rgba(0, 0, 0, 0.10)",
