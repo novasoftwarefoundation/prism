@@ -273,12 +273,8 @@ defmodule Prism.Generator.React do
     head = "export type #{item_type(spec, list)} = { #{Enum.join(fields, "; ")} } &"
     attrs = "ComponentPropsWithoutRef<#{js_str(list.item_element)}>;"
 
-    type =
-      if String.length("#{head} #{attrs}") <= @width,
-        do: "#{head} #{attrs}",
-        else: "#{head}\n  #{attrs}"
-
-    "\n/** One of the #{words(list.item)} parts: its attributes, and its states. */\n#{type}\n"
+    "\n/** One of the #{words(list.item)} parts: its attributes, and its states. */\n" <>
+      wrap(head, attrs) <> "\n"
   end
 
   defp axis_classes(spec, a) do
@@ -323,7 +319,11 @@ defmodule Prism.Generator.React do
 
         [
           "\n/** The attributes of one of the elements a #{words(spec.name)} can be. */\n",
-          "type #{attrs}<E extends #{name}Element> = Omit<ComponentPropsWithoutRef<E>, #{omit} | \"as\">;\n",
+          wrap(
+            "type #{attrs}<E extends #{name}Element> =",
+            "Omit<ComponentPropsWithoutRef<E>, #{omit} | \"as\">;"
+          ),
+          "\n",
           "\n/** The attributes only the other elements have, which a #{words(spec.name)} without `as` refuses. */\n",
           "type #{others} = Exclude<\n  #{Enum.join(keys, " | ")},\n  keyof #{attrs}<#{js_str(default)}>\n>;\n",
           "\nexport type #{name}Props = #{own} &\n  (\n",
@@ -334,11 +334,15 @@ defmodule Prism.Generator.React do
       _ ->
         head = "export type #{name}Props = #{own} &"
         omitted = "Omit<ComponentPropsWithoutRef<#{js_str(rest_tag)}>, #{omit}>;"
-
-        if String.length("#{head} #{omitted}") <= @width,
-          do: "\n#{head} #{omitted}\n",
-          else: "\n#{head}\n  #{omitted}\n"
+        "\n" <> wrap(head, omitted) <> "\n"
     end
+  end
+
+  # A type on one line, or wrapped after its `=` or `&` when that is past the width.
+  defp wrap(head, rest) do
+    if String.length("#{head} #{rest}") <= @width,
+      do: "#{head} #{rest}",
+      else: "#{head}\n  #{rest}"
   end
 
   defp function(spec, name, rest_tag) do
