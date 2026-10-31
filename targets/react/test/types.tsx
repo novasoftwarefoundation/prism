@@ -59,3 +59,21 @@ export const oldName = <Button variant="label">Save</Button>;
 
 // @ts-expect-error: danger is the red tone, error is no tone
 export const errorTone = <Tag tone="error">Failed</Tag>;
+
+// @ts-expect-error: without `as`, a button refuses a link's attributes
+export const hrefWithoutAs = <Button href="/next">Next</Button>;
+
+// @ts-expect-error: the same for any attribute only another element has
+export const targetWithoutAs = <Button target="_blank">Next</Button>;
+
+// A button's own attributes still work without `as`, and a link's with `as="a"`.
+export const ownAttributes = (
+  <>
+    <Button type="submit" form="profile">
+      Save
+    </Button>
+    <Button as="a" href="/next" target="_blank" rel="noopener">
+      Next
+    </Button>
+  </>
+);

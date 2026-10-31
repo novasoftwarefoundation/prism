@@ -142,6 +142,16 @@ defmodule Prism.Generator.React do
             "the React target can't name a prop of #{inspect(spec.name)} #{inspect(name)}"
     end
 
+    own_types =
+      Enum.map(~w(Props OwnProps Element Attributes OtherAttributes), &(pascal(spec.name) <> &1)) ++
+        for(%{as: :list} = list <- spec.children, do: item_type(spec, list))
+
+    for a <- spec.axes, type_name(spec, a.name) in own_types do
+      raise ArgumentError,
+            "the React target can't name an axis of #{inspect(spec.name)} #{inspect(a.name)}: " <>
+              "its type, #{type_name(spec, a.name)}, is one of the component's own types"
+    end
+
     case names -- Enum.uniq(names) do
       [] ->
         :ok
@@ -296,15 +306,30 @@ defmodule Prism.Generator.React do
     omit = if no_content, do: "keyof #{own} | \"children\"", else: "keyof #{own}"
 
     case spec.element do
+      # One member per element. Without `as`, the default member can't be told
+      # apart from the others, so it refuses their own attributes (`never`).
       {:as, default} ->
+        attrs = "#{name}Attributes"
+        others = "#{name}OtherAttributes"
+        keys = for tag <- Elements.as(), tag != default, do: "keyof #{attrs}<#{js_str(tag)}>"
+
         members =
           for tag <- Elements.as() do
-            as = if tag == default, do: "as?: #{js_str(tag)}", else: "as: #{js_str(tag)}"
-
-            "    | ({ #{as} } & Omit<ComponentPropsWithoutRef<#{js_str(tag)}>, #{omit} | \"as\">)\n"
+            if tag == default,
+              do:
+                "    | ({ as?: #{js_str(tag)} } & #{attrs}<#{js_str(tag)}> & { [K in #{others}]?: never })\n",
+              else: "    | ({ as: #{js_str(tag)} } & #{attrs}<#{js_str(tag)}>)\n"
           end
 
-        ["\nexport type #{name}Props = #{own} &\n  (\n", members, "  );\n"]
+        [
+          "\n/** The attributes of one of the elements a #{words(spec.name)} can be. */\n",
+          "type #{attrs}<E extends #{name}Element> = Omit<ComponentPropsWithoutRef<E>, #{omit} | \"as\">;\n",
+          "\n/** The attributes only the other elements have, which a #{words(spec.name)} without `as` refuses. */\n",
+          "type #{others} = Exclude<\n  #{Enum.join(keys, " | ")},\n  keyof #{attrs}<#{js_str(default)}>\n>;\n",
+          "\nexport type #{name}Props = #{own} &\n  (\n",
+          members,
+          "  );\n"
+        ]
 
       _ ->
         head = "export type #{name}Props = #{own} &"

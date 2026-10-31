@@ -179,6 +179,30 @@ defmodule Prism.Generator.ReactTest do
       end
     end
 
+    test "an axis whose type would be one of the component's own types" do
+      for axis <- [:props, :own_props, :attributes, :other_attributes] do
+        assert_raise ArgumentError,
+                     ~r/can't name an axis of :button #{inspect(axis)}: its type, Button#{Macro.camelize(Atom.to_string(axis))}, is one of the component's own types/,
+                     fn ->
+                       React.files(
+                         design(
+                           "  component :button do\n    variants #{inspect(axis)} do\n      variant :a\n    end\n  end"
+                         )
+                       )
+                     end
+      end
+
+      assert_raise ArgumentError,
+                   ~r/its type, SelectOption, is one of the component's own types/,
+                   fn ->
+                     React.files(
+                       design(
+                         "  component :select do\n    part :listbox\n    part :option\n    variants :option do\n      variant :a\n    end\n  end"
+                       )
+                     )
+                   end
+    end
+
     test "a name that is a prop of every component, or a keyword" do
       assert_raise ArgumentError, ~r/can't name a prop of :tag "as"/, fn ->
         React.files(

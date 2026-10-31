@@ -46,12 +46,21 @@ export interface ButtonOwnProps {
   children?: ReactNode;
 }
 
+/** The attributes of one of the elements a button can be. */
+type ButtonAttributes<E extends ButtonElement> = Omit<ComponentPropsWithoutRef<E>, keyof ButtonOwnProps | "as">;
+
+/** The attributes only the other elements have, which a button without `as` refuses. */
+type ButtonOtherAttributes = Exclude<
+  keyof ButtonAttributes<"a"> | keyof ButtonAttributes<"span"> | keyof ButtonAttributes<"div">,
+  keyof ButtonAttributes<"button">
+>;
+
 export type ButtonProps = ButtonOwnProps &
   (
-    | ({ as?: "button" } & Omit<ComponentPropsWithoutRef<"button">, keyof ButtonOwnProps | "as">)
-    | ({ as: "a" } & Omit<ComponentPropsWithoutRef<"a">, keyof ButtonOwnProps | "as">)
-    | ({ as: "span" } & Omit<ComponentPropsWithoutRef<"span">, keyof ButtonOwnProps | "as">)
-    | ({ as: "div" } & Omit<ComponentPropsWithoutRef<"div">, keyof ButtonOwnProps | "as">)
+    | ({ as?: "button" } & ButtonAttributes<"button"> & { [K in ButtonOtherAttributes]?: never })
+    | ({ as: "a" } & ButtonAttributes<"a">)
+    | ({ as: "span" } & ButtonAttributes<"span">)
+    | ({ as: "div" } & ButtonAttributes<"div">)
   );
 
 /** The design's `button` component. */
