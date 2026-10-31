@@ -11,7 +11,7 @@ defmodule Prism.Design.TokensTest do
     diff =
       for {path, source} <- Prism.Generator.Web.generate(Prism.Design.Tokens.__schema__()) do
         [header, body] = String.split(source, "\n", parts: 2)
-        assert header == Prism.Generator.Web.header(path)
+        assert header == Prism.Generator.Web.header(path, "lib/design/tokens.ex")
 
         generated = Path.join(dir, String.replace(path, "/", "_"))
         File.write!(generated, body)

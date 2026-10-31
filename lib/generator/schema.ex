@@ -32,7 +32,7 @@ defmodule Prism.Generator.Schema do
   Generators read `__schema__/0`, never the source or this module's internals.
   It returns
 
-      %{tokens: [token], web: web | nil}
+      %{tokens: [token], web: web | nil, file: file}
 
   - Every token is a map with `kind`, `name` (an atom) and `group` (its
     group's text or `nil`), in the order of the design, plus per kind:
@@ -47,6 +47,8 @@ defmodule Prism.Generator.Schema do
       keyword list with `name`, `faces` and, on the web, `fallback`);
     - `:font`: `family`, `weight`, and `italic` when given;
     - `:text`: `size` and `line_height` (px).
+  - `file` is the design's source file relative to the project
+    (`"lib/design/tokens.ex"`), which generated files name in their header.
   - `web` is the `web` declaration as a map with every key (`prefix`,
     `fonts_url`, `line_clamps`, `preset_doc`, `base_doc`, `font_classes_doc`),
     or `nil` without one.
@@ -234,11 +236,20 @@ defmodule Prism.Generator.Schema do
     web =
       env.module |> Module.get_attribute(:prism_web) |> Enum.reverse() |> validate_web!(env.file)
 
-    schema = %{tokens: Enum.map(tokens, &Map.delete(&1, :line)), web: web}
+    schema = %{tokens: Enum.map(tokens, &Map.delete(&1, :line)), web: web, file: file(env.file)}
 
     quote do
       @doc "The design as plain data, for generators."
       def __schema__, do: unquote(Macro.escape(schema))
+    end
+  end
+
+  # The design's file relative to the project, for the headers of generated files;
+  # just its name when it lies outside the project, so no machine paths leak out.
+  defp file(path) do
+    case Path.relative_to(path, File.cwd!()) do
+      "/" <> _ -> Path.basename(path)
+      relative -> relative
     end
   end
 
