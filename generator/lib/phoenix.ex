@@ -49,8 +49,10 @@ if Code.ensure_loaded?(Phoenix.Component) do
       global attributes (`id`, `phx-*`, `aria-*`, `data-*`) and the element's
       own (`type`, `name`, `value`, …).
 
-    Class names come from `Prism.Generator.Web.Classes`, the same functions
-    that name the classes of the web target's CSS.
+    The markup comes from `Prism.Generator.Web.Elements`, which the React
+    components (`Prism.Generator.React`) render from too, and its class names
+    from `Prism.Generator.Web.Classes`, the same functions that name the
+    classes of the web target's CSS.
 
     ## Elements
 
@@ -88,55 +90,7 @@ if Code.ensure_loaded?(Phoenix.Component) do
     where the app still passes a removed one.
     """
 
-    alias Prism.Generator.Web.Classes
-
-    # Per component: its element, its parts (what each one is, and its element), and
-    # where the inner block goes when no part holds it (`:end`, `{:after, part}`,
-    # `:value` for a text area, `nil` for none).
-    @kinds %{
-      button: %{
-        element: {:as, "button"},
-        parts: [label: {:content, "span"}, icon: {:slot, "span"}],
-        content: :end
-      },
-      text_field: %{element: "input", parts: [], content: nil},
-      text_area: %{element: "textarea", parts: [], content: :value},
-      field: %{
-        element: "div",
-        parts: [label: {:slot, "label"}, error_message: {:slot, "p"}],
-        content: {:after, :label}
-      },
-      radio_group: %{element: "div", attrs: [role: "radiogroup"], parts: [], content: :end},
-      radio: %{
-        element: "label",
-        parts: [control: {:control, "input", "radio"}, label: {:content, "span"}],
-        content: :end
-      },
-      select: %{
-        element: "div",
-        parts: [
-          field: {:content, "button", type: "button"},
-          icon: {:slot, "span"},
-          listbox: {:list, "ul", :option},
-          option: {:item, "li"}
-        ],
-        content: nil
-      },
-      spinner: %{element: "span", parts: [], content: nil},
-      checkbox: %{element: "input", attrs: [type: "checkbox"], parts: [], content: nil},
-      tag: %{element: "span", parts: [label: {:content, "span"}], content: :end},
-      message_bar: %{element: "div", parts: [], content: :end},
-      step_indicator: %{element: "span", parts: [], content: :end}
-    }
-
-    @void ["input"]
-
-    # The elements a component whose element is the app's choice (`as`) may be: what
-    # holds a look inside the app's own action, or is that action.
-    @as ~w(button a span div)
-
-    @doc false
-    def as, do: @as
+    alias Prism.Generator.Web.Elements
 
     # The element's own attributes `rest` takes, besides the globals.
     @own %{
@@ -147,12 +101,6 @@ if Code.ensure_loaded?(Phoenix.Component) do
       "textarea" =>
         ~w(autocomplete autofocus cols form maxlength minlength name placeholder readonly required rows wrap disabled)
     }
-
-    # The states, in the schema's order, for the order of the attributes.
-    @states [:pressed, :hovered, :focused, :disabled, :checked, :selected, :loading, :invalid]
-
-    # States a form control has as an attribute of its own.
-    @native [:disabled, :checked]
 
     # Names the components' own attributes and slots take.
     @reserved [:class, :rest, :as, :value, :inner_block]
@@ -193,260 +141,29 @@ if Code.ensure_loaded?(Phoenix.Component) do
 
     @doc false
     # The components of a design's `__schema__/0`, each as the data its function
-    # renders from.
-    def components(%{components: components, web: web}, env) do
-      unless web, do: fail(env, "the design has no `web` declaration, which names its classes")
-
-      for c <- components do
-        kind =
-          Map.get(@kinds, c.name) ||
-            fail(
-              env,
-              "the Phoenix target has no component #{inspect(c.name)}; it knows #{@kinds |> Map.keys() |> Enum.sort() |> Enum.map_join(", ", &inspect/1)}"
-            )
-
-        component(c, kind, web.prefix, components, env)
-      end
-    end
-
-    defp component(c, kind, prefix, components, env) do
-      known = Keyword.keys(kind.parts)
-
-      for %{component: nil, name: name} <- c.parts, name not in known do
-        fail(
-          env,
-          "the Phoenix target has no part #{inspect(name)} of #{inspect(c.name)}; " <>
-            if(known == [],
-              do: "it renders only parts that are other components there",
-              else: "it knows #{Enum.map_join(known, ", ", &inspect/1)}"
-            )
-        )
-      end
-
-      parts = Enum.map(c.parts, &part(c, kind, &1, prefix, components, env))
-      states = states(c, parts, prefix)
-      items = for %{as: :list, item: item} <- parts, do: item
-
-      spec = %{
-        name: c.name,
-        element: kind.element,
-        void: kind.element in @void,
-        class: Classes.component(prefix, c.name),
-        attrs: Map.get(kind, :attrs, []),
-        axes: axes(c, prefix),
-        states: states,
-        children: children(parts, kind, c),
-        withs: withs(c, prefix),
-        rest: if(Enum.any?(parts, &(&1.as == :control)), do: :control, else: :root)
-      }
-
-      names =
-        Enum.map(spec.axes, & &1.name) ++
-          Enum.map(states, & &1.name) ++ for(%{as: :slot, name: n} <- parts, do: n) ++ items
-
-      for name <- names, name in @reserved do
-        fail(env, "#{inspect(c.name)}: #{inspect(name)} is an attribute of every component")
-      end
-
-      spec
-    end
-
-    # A design part as what this target renders: the part's class and element, and
-    # what it is.
-    # A part that is another component has that component's element and class, with
-    # the classes of its axes' defaults that are variants.
-    defp part(c, _kind, %{component: ref} = p, prefix, components, _env) when ref != nil do
-      element =
-        case @kinds[ref] do
-          %{element: {:as, default}} -> default
-          %{element: element} -> element
-          nil -> "span"
+    # renders from (`Prism.Generator.Web.Elements`).
+    def components(schema, env) do
+      specs =
+        try do
+          Elements.components(schema, "the Phoenix target")
+        rescue
+          e in ArgumentError -> fail(env, Exception.message(e))
         end
 
-      other = Enum.find(components, &(&1.name == ref))
+      for spec <- specs do
+        names =
+          Enum.map(spec.axes, & &1.name) ++
+            Enum.map(spec.states, & &1.name) ++
+            for(%{as: :slot, name: n} <- spec.children, do: n) ++
+            for(%{as: :list, item: item} <- spec.children, do: item)
 
-      defaults =
-        for %{default: default, classes: classes} <- axes(other, prefix),
-            class = classes[default],
-            do: class
-
-      %{
-        name: p.name,
-        as: :component,
-        element: element,
-        class: [Classes.part(prefix, c, p.name) | defaults]
-      }
-    end
-
-    defp part(c, kind, p, prefix, _components, env) do
-      class = Classes.part(prefix, c, p.name)
-
-      case kind.parts[p.name] do
-        {:list, element, item} ->
-          unless Enum.any?(c.parts, &(&1.name == item)),
-            do: fail(env, "#{inspect(c.name)}: its #{inspect(p.name)} has no #{inspect(item)}")
-
-          item_states =
-            for name <- part_states(c, item),
-                pseudo(c.name, item, name) == nil,
-                do: %{name: name, class: Classes.part_modifier(prefix, c, item, name)}
-
-          %{
-            name: p.name,
-            as: :list,
-            element: element,
-            class: class,
-            item: item,
-            item_element: elem(kind.parts[item], 1),
-            item_class: Classes.part(prefix, c, item),
-            item_states: item_states
-          }
-
-        # An item is rendered inside its list, which the design must declare too.
-        {:item, _} ->
-          lists = for {name, {:list, _, item}} <- kind.parts, item == p.name, do: name
-
-          unless Enum.any?(c.parts, &(&1.name in lists)),
-            do:
-              fail(
-                env,
-                "#{inspect(c.name)}: its #{inspect(p.name)} goes in its #{Enum.map_join(lists, " or ", &inspect/1)}, which the design doesn't declare"
-              )
-
-          %{name: p.name, as: :item}
-
-        {:control, element, type} ->
-          %{name: p.name, as: :control, element: element, type: type, class: class}
-
-        {as, element} ->
-          %{name: p.name, as: as, element: element, attrs: [], class: class}
-
-        {as, element, attrs} ->
-          %{name: p.name, as: as, element: element, attrs: attrs, class: class}
-      end
-    end
-
-    # The children of the component's element, in the design's order, with the inner
-    # block where the component puts it.
-    defp children(parts, kind, c) do
-      loading? = loading?(c)
-
-      rendered =
-        for p <- parts, p.as != :item do
-          if p.as == :component, do: Map.put(p, :while_loading, loading?), else: p
+        for name <- names, name in @reserved do
+          fail(env, "#{inspect(spec.name)}: #{inspect(name)} is an attribute of every component")
         end
 
-      cond do
-        Enum.any?(rendered, &(&1.as == :content)) or kind.content == nil ->
-          rendered
-
-        kind.content == :value ->
-          rendered ++ [%{as: :value}]
-
-        match?({:after, _}, kind.content) ->
-          {:after, name} = kind.content
-
-          case Enum.find_index(rendered, &(&1.name == name)) do
-            nil -> [%{as: :inner_block} | rendered]
-            i -> List.insert_at(rendered, i + 1, %{as: :inner_block})
-          end
-
-        true ->
-          rendered ++ [%{as: :inner_block}]
+        spec
       end
     end
-
-    # The axes: `:variant` first, then the `variants` blocks in the design's order.
-    defp axes(c, prefix) do
-      own =
-        if Enum.any?(c.variants, &(&1.axis == :variant)), do: [{:variant, c.default}], else: []
-
-      for {axis, default} <- own ++ Enum.map(c.axes, &{&1.name, &1.default}) do
-        variants = for v <- c.variants, v.axis == axis, name <- [v.name | v.aliases], do: name
-        classes = Map.new(variants, &{&1, Classes.modifier(prefix, c.name, &1)})
-
-        values =
-          if default == nil or default in variants, do: variants, else: [default | variants]
-
-        %{name: axis, values: values, default: default, classes: classes}
-      end
-    end
-
-    # The states the app sets, each with what it does where it is declared: a class
-    # on the element or a part, or the element's own attribute.
-    defp states(c, parts, prefix) do
-      own =
-        c.states ++
-          Enum.flat_map(c.with_parts, & &1.states) ++
-          Enum.flat_map(
-            c.variants,
-            &(&1.states ++ Enum.flat_map(&1.with_parts, fn w -> w.states end))
-          )
-
-      # The form controls among the parts: a radio's control, a select's field.
-      controls =
-        for p <- parts,
-            p.as == :control or (p.as == :content and Classes.control?(c.name, p.name)),
-            do: p.name
-
-      single = for p <- parts, p.as in [:content, :control, :slot], do: p.name
-
-      places =
-        Enum.map(own, &{nil, &1.name}) ++
-          for part <- single, name <- part_states(c, part), do: {part, name}
-
-      places
-      |> Enum.uniq()
-      |> Enum.flat_map(fn {part, name} ->
-        effects =
-          case {pseudo(c.name, part, name), part} do
-            {nil, nil} ->
-              [{:class, nil, Classes.modifier(prefix, c.name, name)}]
-
-            {nil, part} ->
-              [{:class, part, Classes.part_modifier(prefix, c, part, name)}]
-
-            {_, part} ->
-              if name in @native and Classes.control?(c.name, part),
-                do: [{:native, part, name}],
-                else: []
-          end
-
-        # A disabled component disables its form controls too.
-        effects =
-          if name == :disabled and part == nil,
-            do: effects ++ for(cp <- controls, do: {:native, cp, :disabled}),
-            else: effects
-
-        for e <- effects, do: {name, e}
-      end)
-      |> Enum.group_by(&elem(&1, 0), &elem(&1, 1))
-      |> Enum.sort_by(fn {name, _} -> Enum.find_index(@states, &(&1 == name)) end)
-      |> Enum.map(fn {name, effects} -> %{name: name, effects: Enum.uniq(effects)} end)
-    end
-
-    # A part's states, in its own declaration and in each variant's change to it.
-    defp part_states(c, part) do
-      changes = for v <- c.variants, p <- v.parts, p.name == part, do: p
-
-      for p <- Enum.filter(c.parts, &(&1.name == part)) ++ changes,
-          s <- p.states,
-          uniq: true,
-          do: s.name
-    end
-
-    defp withs(c, prefix) do
-      for w <- c.with_parts ++ Enum.flat_map(c.variants, & &1.with_parts),
-          uniq: true,
-          into: %{},
-          do: {w.part, Classes.modifier(prefix, c.name, w.name)}
-    end
-
-    defp loading?(c) do
-      Enum.any?(c.states ++ Enum.flat_map(c.variants, & &1.states), &(&1.name == :loading))
-    end
-
-    defp pseudo(component, part, state), do: Classes.pseudo_classes(component, part)[state]
 
     # ------------------------------------------------------------ the function
 
@@ -496,7 +213,7 @@ if Code.ensure_loaded?(Phoenix.Component) do
                 do:
                   Phoenix.Component.attr(:as, :string,
                     default: unquote(default),
-                    values: unquote(@as),
+                    values: unquote(Elements.as()),
                     doc: "The element."
                   )
               )

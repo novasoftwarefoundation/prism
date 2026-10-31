@@ -30,12 +30,12 @@ if Code.ensure_loaded?(Phoenix.Component) do
     end
 
     defp as!(tag) do
-      if tag in Prism.Generator.Phoenix.as(),
+      if tag in Prism.Generator.Web.Elements.as(),
         do: tag,
         else:
           raise(
             ArgumentError,
-            "as: #{inspect(tag)} is not one of #{Enum.map_join(Prism.Generator.Phoenix.as(), ", ", &inspect/1)}"
+            "as: #{inspect(tag)} is not one of #{Enum.map_join(Prism.Generator.Web.Elements.as(), ", ", &inspect/1)}"
           )
     end
 
