@@ -275,11 +275,6 @@ defmodule Prism.Generator.Schema do
       if {t.kind, t.name} in seen, do: fail.(" is defined twice")
       t = merge_opts!(t, fail)
 
-      case Map.keys(t) -- [:kind, :name, :group, :line | @keys[t.kind]] do
-        [] -> :ok
-        extra -> fail.(": unknown option #{Enum.map_join(extra, ", ", &inspect/1)}")
-      end
-
       case check(t, seen) do
         :ok -> :ok
         {:error, message} -> fail.(": " <> message)
@@ -302,6 +297,12 @@ defmodule Prism.Generator.Schema do
     case Enum.filter(keys, &Map.has_key?(args, &1)) do
       [] -> :ok
       [key | _] -> fail.(": #{inspect(key)} is an argument, not an option")
+    end
+
+    # Only the kind's own keys, so an option can't replace the token's name or group.
+    case keys -- @keys[t.kind] do
+      [] -> :ok
+      extra -> fail.(": unknown option #{Enum.map_join(extra, ", ", &inspect/1)}")
     end
 
     t |> Map.drop([:args, :opts]) |> Map.merge(args) |> Map.merge(Map.new(opts))

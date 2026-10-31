@@ -38,7 +38,7 @@ Prism is a look for scientific software: a Tailwind preset plus component CSS, p
    | Type style | Font | Text size | Evidence |
    |---|---|---|---|
    | `body` | `body` (text, 300) | `bodymedium` (20/30) | The most common pair on screens: `font-body text-bodymedium` about 50 times, against about 25 for `bodysmall`. It is also the base of rich text, and what 0.1.7's input, textarea and dropdown use (300 at 20/30 in `css/components.css`). |
-   | `bold` | `bold` (text, 700) | `bodymedium` | Used for `strong` in rich text, on top of the rich text's base size, `text-bodymedium` (`text-bodylarge` from the small breakpoint). Its two other uses add it to a heading that already has a font class, with no size of its own. |
+   | `bold` | `bold` (text, 700) | `bodymedium` | Used for `strong` in rich text, on top of the rich text's base size, `text-bodymedium` (`text-bodylarge` from the small breakpoint). Its two other uses are on headings that bring their own size: one also has a font class and a title size, the other is a test-harness heading with Tailwind's `text-2xl` and no Prism font class. |
    | `bodymedium` | `body` | `bodymedium` | The reference page; about 50 uses on screens. |
    | `bodysmall` | `body` | `bodysmall` (16/24) | The reference page; about 25 uses on screens. |
    | `captionsmall` | `caption` (text, 500) | `captionsmall` (12/14) | The reference page; `font-caption text-captionsmall` in two components (a small tag and a button face). |

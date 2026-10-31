@@ -265,6 +265,43 @@ defmodule Prism.Generator.SchemaTest do
     )
   end
 
+  # The keys every token has besides its kind's own; options must not set them.
+  @reserved [:name, :group, :kind, :line]
+
+  # `declaration` ends in a token that takes options, on line 3 + `offset`.
+  defp assert_reserved_refused(declaration, offset) do
+    for key <- @reserved do
+      assert_compile_error(
+        "#{declaration}, #{key}: :x",
+        "unknown option #{inspect(key)}",
+        3 + offset
+      )
+    end
+  end
+
+  test "a shadow's options can't set its name, group, kind or line" do
+    assert_reserved_refused(
+      ~s(  color :ink, "#101010"\n  shadow :card, [y: 6, color: {:ink, 0.08}]),
+      1
+    )
+  end
+
+  test "a family's options can't set its name, group, kind or line" do
+    assert_reserved_refused(family(), 0)
+  end
+
+  test "a font's options can't set its name, group, kind or line" do
+    assert_reserved_refused(family() <> "\n  font :hint, :f, 300, italic: true", 1)
+  end
+
+  test "a typography's options can't set its name, group, kind or line" do
+    # `name: :x` used to compile into a second typography :x.
+    assert_reserved_refused(
+      typography("font: :b, text: :t") <> "\n  typography :y, font: :b, text: :t",
+      4
+    )
+  end
+
   test "lengths that can't be negative" do
     assert_compile_error("  text :t, -16, 20", "greater than 0", 3)
     assert_compile_error("  radius :r, -4", "is not a length", 3)
