@@ -31,8 +31,8 @@ defmodule Prism.Generator.DesignTools do
 
   - Data no DTCG type has goes under `$extensions`, in a `prism` key: a
     family's fallback and its iOS and Android binding (`"system"` or
-    `{"name": …}`), a font's family (a reference) and `italic`, and a type
-    style's `fontStyle` when its font is italic.
+    `{"name": …}`), a font's family (a reference) and `italic`, and a
+    typography token's `fontStyle` when its font is italic.
   - A deprecated shadow has `$deprecated: true`.
   - A length in percent has no DTCG unit, so such a radius is only in
     `tokens.css`.

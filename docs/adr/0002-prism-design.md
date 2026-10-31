@@ -36,7 +36,7 @@ Prism is a look for scientific software: a Tailwind preset plus component CSS, p
 8. **Typography.** Every role in either list (fonts and text sizes) has a `typography` token of the same name, and every font and text size is used by one; a test checks both. The format is in [ADR 0001](0001-design-format.md); this records Prism's pairings.
 
    - **A role in both lists pairs with itself**, 22 in all: `typography :title1, font: :title1, text: :title1`.
-   - **The nine roles in only one list** are paired as the main consumer app combines Prism 0.1.7's classes today (2026-10-31): its typography reference page (an admin page that shows each typography with its font and size class), its screens, and its rich-text styles. Where nothing uses a role, it pairs like its closest sibling.
+   - **The nine roles in only one list** are paired as the main consumer app combines Prism 0.1.7's classes today (2026-10-31): its typography reference page (an admin page that shows each typography token with its font and size class), its screens, and its rich-text styles. Where nothing uses a role, it pairs like its closest sibling.
 
    | Typography | Font | Text size | Evidence |
    |---|---|---|---|
