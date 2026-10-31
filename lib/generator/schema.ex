@@ -48,7 +48,7 @@ defmodule Prism.Generator.Schema do
     - `:font`: `family`, `weight`, and `italic` when given;
     - `:text`: `size` and `line_height` (px).
   - `file` is the design's source file relative to the project
-    (`"lib/design/tokens.ex"`), which generated files name in their header.
+    (`"lib/my_design.ex"`), which generated files name in their header.
   - `web` is the `web` declaration as a map with every key (`prefix`,
     `fonts_url`, `line_clamps`, `preset_doc`, `base_doc`, `font_classes_doc`),
     or `nil` without one.
@@ -366,7 +366,7 @@ defmodule Prism.Generator.Schema do
   defp check(%{kind: :font} = font, seen) do
     cond do
       font.weight not in 100..1000//100 ->
-        {:error, "weight #{inspect(font.weight)} is not 100..1000"}
+        {:error, "weight #{inspect(font.weight)} is not one of 100, 200, …, 1000"}
 
       Map.get(font, :italic, false) not in [true, false] ->
         {:error, "italic is a boolean"}
@@ -467,7 +467,8 @@ defmodule Prism.Generator.Schema do
         {&(is_binary(&1) and Regex.match?(~r/\A[a-z][a-z0-9-]*\z/, &1)),
          "a lower-case CSS class prefix"},
       fonts_url:
-        {&(is_binary(&1) and Regex.match?(~r/\A[A-Za-z0-9._\/-]+\z/, &1)), "a relative path"},
+        {&(is_binary(&1) and Regex.match?(~r/\A(?!\/)[A-Za-z0-9._\/-]+\z/, &1)),
+         "a relative path (no leading /)"},
       line_clamps: {&(is_integer(&1) and &1 >= 0), "a number >= 0"},
       preset_doc: {&(is_nil(&1) or block_text?(&1)), "text without */"},
       base_doc: {&(is_nil(&1) or block_text?(&1)), "text without */"},

@@ -26,7 +26,12 @@ jobs:
         run: .github/scripts/generator-boundary.sh
       # The generator's tests on the example design, and Prism's checks: the
       # 0.1.7 golden test, the version check and the font roles.
-      - run: mix test
+      # The test env also compiles test/generator/support/; mix test's flag covers
+      # the test files.
+      - run: mix compile --warnings-as-errors
+        env:
+          MIX_ENV: test
+      - run: mix test --warnings-as-errors
       # Writes into targets/web (config :prism, out: "targets/web").
       - run: mix prism.gen.web
       - name: Committed files match the design

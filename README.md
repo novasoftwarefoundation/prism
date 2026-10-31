@@ -32,11 +32,13 @@ mix test
 ## The generator
 
 - The schema turns a design into plain data, `__schema__/0`, whose shape is documented in `Prism.Generator.Schema`. The generators read only that data, never the schema's internals; a test checks that no generator calls into the schema.
-- The generator gets the design only from `--design MODULE` or `config :prism, design: MODULE`, never by naming it. CI fails when a file in `lib/generator/` depends on `lib/design/`, directly or through another file (`mix xref graph`, see `.github/scripts/generator-boundary.sh`), or when the generator's files mention Prism's values.
+- The generator gets the design only from `--design MODULE` or `config :prism, design: MODULE`, never by naming it. CI fails when any file in `lib/generator/`, subfolders included, depends on `lib/design/`, directly or through another file (`mix xref graph`, see `.github/scripts/generator-boundary.sh`), or when the generator's files mention Prism's values or the path `lib/design`.
 - Its tests use a neutral example design (`test/generator/support/example_design.ex`) and compare its output with reviewed fixtures in `test/generator/fixtures/`.
 - **Moving it to its own repository:** move `lib/generator/` and `test/generator/` into a new Mix project, and add one dependency line to this project's `mix.exs`, e.g. `{:prism_generator, git: "<url>", tag: "<version>"}`.
 
 ## Publish
+
+Install Prism from npm. The repository root is no longer the package (it lives in `targets/web/`), so installing from git or linking to files at the root of the repository no longer works.
 
 Publishing to npm is manual for now, from `targets/web/`:
 

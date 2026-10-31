@@ -6,16 +6,17 @@ set -euo pipefail
 
 failed=0
 
-for file in lib/generator/*.ex; do
+while IFS= read -r file; do
   deps=$(mix xref graph --source "$file" --format plain)
   if grep -q 'lib/design/' <<<"$deps"; then
     echo "::error file=$file::$file depends on lib/design/:"
     echo "$deps"
     failed=1
   fi
-done
+done < <(find lib/generator -name '*.ex' | sort)
 
-if grep -rniE 'nunito|novasoftwarefoundation|0\.1\.7|Prism\.Design|4272EF' \
+# `lib/design` also catches reading the design's files by path.
+if grep -rniE 'nunito|novasoftwarefoundation|0\.1\.7|Prism\.Design|lib/design|4272EF' \
   lib/generator test/generator; then
   echo "::error::The generator mentions Prism's design or package. Keep Prism-specific values in lib/design/."
   failed=1

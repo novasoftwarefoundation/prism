@@ -71,7 +71,7 @@ defmodule Prism.Generator.TasksTest do
 
   test "the generators read only the design's data, not the schema's internals" do
     for path <-
-          Path.wildcard("lib/generator/*.ex") -- ["lib/generator/schema.ex"],
+          Path.wildcard("lib/generator/**/*.ex") -- ["lib/generator/schema.ex"],
         File.regular?(path) do
       code = path |> File.read!() |> String.replace(~r/@(module)?doc\s+"""(?s:.*?)"""/, "")
       refute code =~ "Prism.Generator.Schema.", "#{path} calls into Prism.Generator.Schema"

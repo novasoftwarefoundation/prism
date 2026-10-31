@@ -89,7 +89,7 @@ Today the generator has the schema's token part and the web generator for `tailw
    - an unknown option, property or token kind;
    - a name that isn't a snake_case atom;
    - a duplicate, or a `web` declaration given twice;
-   - a value of the wrong type (a lower-case hex color, a weight outside 100..1000, face weights outside 1..1000, a negative size or blur);
+   - a value of the wrong type (a lower-case hex color, a font weight that isn't one of 100, 200, …, 1000, face weights outside 1..1000, a negative size or blur);
    - text that can't be written safely into the generated JavaScript and CSS: a quote, a backslash, a line break or `*/` in a group or doc, and anything but letters, digits, spaces, `_` and `-` in a font name or fallback;
    - a nested `group`;
    - a family that doesn't bind `web`, `ios` and `android`, or binds one to something other than `:system` or a named font with faces;

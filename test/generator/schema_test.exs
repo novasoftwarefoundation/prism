@@ -80,12 +80,16 @@ defmodule Prism.Generator.SchemaTest do
     assert_compile_error("  font :button, :display, 700", "unknown family :display", 3)
   end
 
-  test "a weight must be 100..1000" do
-    assert_compile_error(
-      family() <> ~s(\n  font :b, :f, 750),
-      "weight 750 is not 100..1000",
-      4
-    )
+  test "a font weight is one of 100, 200, …, 1000" do
+    compile(family() <> ~s(\n  font :b, :f, 100\n  font :c, :f, 1000))
+
+    for weight <- [0, 450, 750, 1100] do
+      assert_compile_error(
+        family() <> ~s(\n  font :b, :f, #{weight}),
+        "weight #{weight} is not one of 100, 200, …, 1000",
+        4
+      )
+    end
   end
 
   test "a family needs a doc and a web fallback" do
@@ -312,6 +316,14 @@ defmodule Prism.Generator.SchemaTest do
       "fonts_url must be a relative path",
       3
     )
+
+    for url <- ["/fonts", "//fonts.example/x"] do
+      assert_compile_error(
+        ~s(  web prefix: "acme", fonts_url: "#{url}"),
+        "fonts_url must be a relative path (no leading /)",
+        3
+      )
+    end
 
     assert_compile_error(
       ~s(  web prefix: "acme", fonts_url: "f", base_doc: "a */ b"),
