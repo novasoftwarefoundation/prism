@@ -65,6 +65,56 @@ jobs:
       # Prism's components rendered through Prism.Generator.Phoenix.
       - run: mix test --warnings-as-errors
 
+  react:
+    name: React components (React ${{ matrix.react }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # The peer range of the React package.
+        react: ["19", "18"]
+    env:
+      REACT: ${{ matrix.react }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .tool-versions
+      # The example design's components, as the generator's fixtures: a type check (an
+      # unknown variant must fail to compile) and render tests against the example's CSS.
+      - name: The example design's components
+        working-directory: generator/test/fixtures/react
+        run: |
+          npm ci
+          if [ "$REACT" != 19 ]; then
+            npm install --no-save "react@$REACT" "react-dom@$REACT" "@types/react@$REACT" "@types/react-dom@$REACT"
+          fi
+          npm run check
+          npm test
+      # Prism's package: built, type-checked, and rendered against the components.css
+      # of @novasoftwarefoundation/prism.
+      - name: Prism's React package
+        working-directory: targets/react
+        run: |
+          npm ci
+          if [ "$REACT" != 19 ]; then
+            npm install --no-save "react@$REACT" "react-dom@$REACT" "@types/react@$REACT" "@types/react-dom@$REACT"
+          fi
+          npm run check
+          npm test
+      - name: The package ships exactly the reviewed files
+        working-directory: targets/react
+        run: |
+          rm -rf dist
+          npm pack --dry-run --json | jq -r '.[0].files[].path' | LC_ALL=C sort > "$RUNNER_TEMP/npm-files-react.txt"
+          diff -u ../../.github/npm-files-react.txt "$RUNNER_TEMP/npm-files-react.txt" || {
+            echo "::error::npm would publish a different file list. Update targets/react/package.json 'files' or .github/npm-files-react.txt."
+            exit 1
+          }
+      - name: The package's LICENSE is the repository's
+        run: cmp LICENSE targets/react/LICENSE
+
   npm-package:
     name: npm file list
     runs-on: ubuntu-latest
