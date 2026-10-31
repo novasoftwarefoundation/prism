@@ -210,21 +210,24 @@ Font classes: `font-title0` through `font-title7`, `font-body`, `font-button`, `
 
 ## Spec and generators
 
-The design values live in an Elixir spec; the web files are generated from it. The repository has two parts:
+The design values live in an Elixir spec; the web files are generated from it. The repository has three parts:
 
-- `kit/`: the generic part, a Mix project of its own (`prism_kit`): the DSL a spec is written in, and the generators. See [kit/README.md](kit/README.md) and its [ADR 0001: spec format](kit/docs/adr/0001-spec-format.md).
-- The root: Prism itself. `lib/prism/tokens.ex` is Prism's spec, `config/config.exs` names it, and the generated files sit where npm publishes them from. Prism's own decisions are in [docs/adr/0001-prism-spec.md](docs/adr/0001-prism-spec.md).
+- `dsl/`: the language, a Mix project of its own (`prism_dsl`): the schema DSL a spec is written in, and the generators. It knows nothing about Prism. See [dsl/README.md](dsl/README.md) and its [ADR 0001: spec format](dsl/docs/adr/0001-spec-format.md).
+- `spec/`: Prism's spec, a Mix project (`prism_spec`) that depends on `dsl/`. `spec/lib/prism/tokens.ex` holds the tokens; Prism's own decisions are in [spec/docs/adr/0001-prism-spec.md](spec/docs/adr/0001-prism-spec.md).
+- The root: what the npm package ships (`package.json`, `tailwind.preset.js`, `css/`, `fonts/`).
 
 `tailwind.preset.js` and `css/base.css` are generated: don't edit them by hand. Change the spec, then regenerate and commit the result:
 
 ```sh
-mix prism.gen.web
+cd spec
+mix deps.get
+mix prism.gen.web   # writes ../tailwind.preset.js and ../css/base.css
 mix test
 ```
 
-`mix test` includes a golden test: the output must equal prism 0.1.7 apart from each file's header line and the reviewed diff in `test/golden/0.1.7.diff`. CI fails when the committed files differ from what the spec generates. `css/components.css` is still hand-written.
+`mix test` includes a golden test: the output must equal prism 0.1.7 apart from each file's header line and the reviewed diff in `spec/test/golden/0.1.7.diff`. CI fails when the committed files differ from what the spec generates. `css/components.css` is still hand-written.
 
-The Elixir files and the kit are not part of the npm package; it ships the same files as before (`.github/npm-files.txt`).
+`dsl/` and `spec/` are not part of the npm package; it ships the same files as before (`.github/npm-files.txt`).
 
 ## License
 

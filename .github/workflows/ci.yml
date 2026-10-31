@@ -9,8 +9,8 @@ permissions:
   contents: read
 
 jobs:
-  kit:
-    name: Kit on its own
+  dsl:
+    name: DSL on its own
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -18,45 +18,50 @@ jobs:
           persist-credentials: false
       - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
         with:
-          version-file: kit/.tool-versions
+          version-file: dsl/.tool-versions
           version-type: strict
-      # A copy outside the repository proves the kit needs nothing around it.
-      - run: cp -R kit "$RUNNER_TEMP/kit"
-      - name: The kit knows nothing about Prism's spec
+      # A copy outside the repository proves the DSL needs nothing around it.
+      - run: cp -R dsl "$RUNNER_TEMP/dsl"
+      - name: The DSL knows nothing about Prism's spec
         run: |
-          if grep -rniE 'nunito|novasoftwarefoundation|0\.1\.7|Prism\.Tokens|4272EF' "$RUNNER_TEMP/kit"; then
-            echo "::error::kit/ mentions Prism's spec or package. Keep Prism-specific values in the root project."
+          if grep -rniE 'nunito|novasoftwarefoundation|0\.1\.7|Prism\.Tokens|4272EF' "$RUNNER_TEMP/dsl"; then
+            echo "::error::dsl/ mentions Prism's spec or package. Keep Prism-specific values in spec/."
             exit 1
           fi
       - run: mix compile --warnings-as-errors
-        working-directory: ${{ runner.temp }}/kit
+        working-directory: ${{ runner.temp }}/dsl
       - run: mix format --check-formatted
-        working-directory: ${{ runner.temp }}/kit
+        working-directory: ${{ runner.temp }}/dsl
       - run: mix test
-        working-directory: ${{ runner.temp }}/kit
+        working-directory: ${{ runner.temp }}/dsl
 
   spec:
     name: Prism spec and generated files
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: spec
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
         with:
-          version-file: .tool-versions
+          version-file: spec/.tool-versions
           version-type: strict
+      - run: mix deps.get
       - run: mix compile --warnings-as-errors
       - run: mix format --check-formatted
-      # The 0.1.7 golden test and the mix.exs / package.json version check.
+      # The 0.1.7 golden test and the spec/mix.exs / package.json version check.
       - run: mix test
+      # Writes into the repository root (config :prism_dsl, out: "..").
       - run: mix prism.gen.web
       - name: Committed files match the spec
         run: |
           if [ -n "$(git status --porcelain)" ]; then
             git status --short
             git diff
-            echo "::error::Generated files differ from the spec. Run 'mix prism.gen.web' and commit the result."
+            echo "::error::Generated files differ from the spec. Run 'mix prism.gen.web' in spec/ and commit the result."
             exit 1
           fi
 
