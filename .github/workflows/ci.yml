@@ -65,6 +65,61 @@ jobs:
       # Prism's components rendered through Prism.Generator.Phoenix.
       - run: mix test --warnings-as-errors
 
+  react:
+    name: React components (React ${{ matrix.react }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # The peer range of the React package. 19 is the lockfiles'; 18 is installed
+        # over them at exact versions.
+        include:
+          - react: "19"
+            install: ""
+          - react: "18"
+            install: react@18.3.1 react-dom@18.3.1 @types/react@18.3.31 @types/react-dom@18.3.7
+    env:
+      INSTALL: ${{ matrix.install }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .tool-versions
+      # The example design's components, as the generator's fixtures: a type check (an
+      # unknown variant must fail to compile) and render tests against the example's CSS.
+      - name: The example design's components
+        working-directory: generator/test/fixtures/react
+        run: |
+          npm ci
+          if [ -n "$INSTALL" ]; then npm install --no-save $INSTALL; fi
+          npm run check
+          # The lockfile's TypeScript is 7; the types must hold on 5.9 too.
+          npx --yes --package typescript@5.9.3 tsc --noEmit -p test
+          npm test
+      # Prism's package: built, type-checked, and rendered against the components.css
+      # of @novasoftwarefoundation/prism.
+      - name: Prism's React package
+        working-directory: targets/react
+        run: |
+          npm ci
+          if [ -n "$INSTALL" ]; then npm install --no-save $INSTALL; fi
+          npm run check
+          # The lockfile's TypeScript is 7; the types must hold on 5.9 too.
+          npx --yes --package typescript@5.9.3 tsc --noEmit -p test
+          npm test
+      - name: The package ships exactly the reviewed files
+        working-directory: targets/react
+        run: |
+          rm -rf dist
+          npm pack --dry-run --json | jq -r '.[0].files[].path' | LC_ALL=C sort > "$RUNNER_TEMP/npm-files-react.txt"
+          diff -u ../../.github/npm-files-react.txt "$RUNNER_TEMP/npm-files-react.txt" || {
+            echo "::error::npm would publish a different file list. Update targets/react/package.json 'files' or .github/npm-files-react.txt."
+            exit 1
+          }
+      - name: The package's LICENSE is the repository's
+        run: cmp LICENSE targets/react/LICENSE
+
   npm-package:
     name: npm file list
     runs-on: ubuntu-latest

@@ -1,0 +1,63 @@
+# @novasoftwarefoundation/prism-react
+
+Prism's components for React, generated from Prism's design: one component per design component, with props typed from the design.
+
+Part of the [Nova Software Foundation](https://novasf.org) - open source software for science.
+
+The components render the look only: their element, classes and parts. What a component does stays in the app: `onClick` and the other DOM props go on the element.
+
+## Installation
+
+```bash
+npm install @novasoftwarefoundation/prism-react @novasoftwarefoundation/prism
+```
+
+The CSS comes from [`@novasoftwarefoundation/prism`](https://www.npmjs.com/package/@novasoftwarefoundation/prism), a peer dependency at the same version: this package ships no CSS of its own. React 18 and 19 work.
+
+## Import the CSS
+
+Import Prism's CSS once, in the app's main stylesheet:
+
+```css
+@import "@novasoftwarefoundation/prism/css/base.css";
+@import "@novasoftwarefoundation/prism/css/components.css";
+```
+
+With Tailwind, also add Prism's preset; see the CSS package's README.
+
+## Use the components
+
+```tsx
+import { Button, Field, Tag, TextField } from "@novasoftwarefoundation/prism-react";
+
+export function Profile({ saving, errors, onSave }) {
+  return (
+    <form>
+      <Field label="Email" labelProps={{ htmlFor: "email" }} errorMessage={errors[0]}>
+        <TextField id="email" name="email" invalid={errors.length > 0} />
+      </Field>
+
+      <Button variant="primary" tone="danger" loading={saving} icon={<CheckIcon />} onClick={onSave}>
+        Save
+      </Button>
+
+      <Tag tone="success">Done</Tag>
+    </form>
+  );
+}
+```
+
+- **Axes** (`variant`, `tone`, `size`, `status`) are props typed from the design, so TypeScript rejects `variant="primray"`. Without one, an axis has the design's default: a button's tone is `"accent"` and a spinner's size `"medium"` (no class), a tag's tone is `"accent"`, a message bar's `"info"`, a step indicator's `"incomplete"`. A button's `variant` and a spinner's color have no default.
+- **States the app sets** are boolean props: `loading`, `invalid`, `disabled`, `checked`. On a form control, `disabled` and `checked` set the element's own attribute; elsewhere a state adds its class (`prism-radio--disabled`). The browser's states (pressed, hovered, focused) need nothing.
+- **Parts** follow the design's order: `children` is the label, `icon` the icon (with it, the button gets `prism-button--with-icon`), and the spinner shows while `loading`. A part's element takes attributes through `<part>Props` (`labelProps`, `iconProps`). A select's options are `options`, each the attributes of its `<li>` plus `selected`.
+- **Adjusting**: `className` adds the app's classes after the component's own, the other props go on the element (on a radio, on its `<input>`), and so does the ref. A button's element is `as`: `"button"` by default, or `"a"`, `"span"` or `"div"` when the app wraps it in its own action.
+
+The components have no global side effects and need no context provider.
+
+## Generated
+
+The components are generated from Prism's design by `mix prism.gen`, with the same class names as the CSS, and built with `tsc` into ES modules and type declarations. To change one, change the design; see the [repository](https://github.com/novasoftwarefoundation/prism).
+
+## License
+
+MIT - See LICENSE file for details.

@@ -19,7 +19,7 @@ defmodule Prism.Generator.Header do
        do: raise(ArgumentError, "#{inspect(design_file)} can't be written in a comment")
 
     case Path.extname(path) do
-      ".js" -> "// #{text}"
+      ext when ext in [".js", ".ts", ".tsx"] -> "// #{text}"
       ".css" -> "/* #{text} */"
       other -> raise ArgumentError, "no comment syntax for #{other} files"
     end
