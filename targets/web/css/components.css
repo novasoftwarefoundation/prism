@@ -86,12 +86,12 @@
 .prism-button--plain {
   background-color: transparent;
   color: #222222;
-  padding: 4px 0;
+  padding: 1px 0;
 }
 
 .prism-button--plain:active {
-  padding-top: 5px;
-  padding-bottom: 3px;
+  padding-top: 2px;
+  padding-bottom: 0;
 }
 
 /* Plain button with icon */
@@ -115,12 +115,51 @@
 /* Text button - brand-colored text, minimal styling */
 .prism-button--text {
   color: #4272ef;
-  padding: 1px 16px;
+  padding: 1px 0;
 }
 
 .prism-button--text:active {
   padding-top: 2px;
   padding-bottom: 0;
+}
+
+/* Soft button - the tone's light color as its background */
+.prism-button--soft {
+  background-color: #e3eafd;
+  color: #4272ef;
+  padding: 15px 16px;
+}
+
+.prism-button--soft:active {
+  padding-top: 16px;
+  padding-bottom: 14px;
+  box-shadow: inset 0 4px 0 0 rgba(0, 0, 0, 0.15);
+}
+
+.prism-button--soft:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Soft button with icon */
+.prism-button--soft.prism-button--with-icon {
+  padding: 4px 16px;
+  gap: 12px;
+}
+
+.prism-button--soft.prism-button--with-icon:active {
+  padding-top: 5px;
+  padding-bottom: 3px;
+}
+
+/* Icon button - an icon only */
+.prism-button--icon {
+  width: 24px;
+  height: 24px;
+}
+
+.prism-button--icon:active {
+  opacity: 0.8;
 }
 
 /* Button with loading state */
@@ -148,19 +187,148 @@
 }
 
 /* Tones */
-.prism-button--success {
+.prism-button--primary.prism-button--success {
   background-color: #52ba12;
   color: #ffffff;
 }
 
-.prism-button--warning {
+.prism-button--secondary.prism-button--success {
+  color: #52ba12;
+  border-color: #52ba12;
+}
+
+.prism-button--plain.prism-button--success {
+  color: #52ba12;
+}
+
+.prism-button--link.prism-button--success {
+  color: #52ba12;
+}
+
+.prism-button--text.prism-button--success {
+  color: #52ba12;
+}
+
+.prism-button--soft.prism-button--success {
+  background-color: #ebffdf;
+  color: #52ba12;
+}
+
+.prism-button--primary.prism-button--warning {
   background-color: #f28d15;
   color: #ffffff;
 }
 
-.prism-button--danger {
+.prism-button--secondary.prism-button--warning {
+  color: #f28d15;
+  border-color: #f28d15;
+}
+
+.prism-button--plain.prism-button--warning {
+  color: #f28d15;
+}
+
+.prism-button--link.prism-button--warning {
+  color: #f28d15;
+}
+
+.prism-button--text.prism-button--warning {
+  color: #f28d15;
+}
+
+.prism-button--soft.prism-button--warning {
+  background-color: #ffefdc;
+  color: #f28d15;
+}
+
+.prism-button--primary.prism-button--danger {
   background-color: #db1e1e;
   color: #ffffff;
+}
+
+.prism-button--secondary.prism-button--danger {
+  color: #db1e1e;
+  border-color: #db1e1e;
+}
+
+.prism-button--plain.prism-button--danger {
+  color: #db1e1e;
+}
+
+.prism-button--link.prism-button--danger {
+  color: #db1e1e;
+}
+
+.prism-button--text.prism-button--danger {
+  color: #db1e1e;
+}
+
+.prism-button--soft.prism-button--danger {
+  background-color: #ffecec;
+  color: #db1e1e;
+}
+
+.prism-button--primary.prism-button--neutral {
+  background-color: #222222;
+  color: #ffffff;
+}
+
+.prism-button--secondary.prism-button--neutral {
+  color: #222222;
+  border-color: #222222;
+}
+
+.prism-button--plain.prism-button--neutral {
+  color: #222222;
+}
+
+.prism-button--link.prism-button--neutral {
+  color: #222222;
+}
+
+.prism-button--text.prism-button--neutral {
+  color: #222222;
+}
+
+.prism-button--primary.prism-button--highlight {
+  background-color: #ffcf60;
+  color: #222222;
+}
+
+.prism-button--secondary.prism-button--highlight {
+  color: #ffcf60;
+  border-color: #ffcf60;
+}
+
+.prism-button--plain.prism-button--highlight {
+  color: #ffcf60;
+}
+
+.prism-button--link.prism-button--highlight {
+  color: #ffcf60;
+}
+
+.prism-button--text.prism-button--highlight {
+  color: #ffcf60;
+}
+
+/* Plain and text buttons with padding */
+.prism-button--plain.prism-button--padded {
+  padding: 15px 16px;
+}
+
+.prism-button--plain.prism-button--padded:active {
+  padding-top: 16px;
+  padding-bottom: 14px;
+}
+
+.prism-button--text.prism-button--padded {
+  padding: 15px 16px;
+}
+
+.prism-button--text.prism-button--padded:active {
+  padding-top: 16px;
+  padding-bottom: 14px;
 }
 
 /* ==========================================================================

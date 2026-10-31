@@ -42,13 +42,63 @@ defmodule Prism.Design.PhoenixTest do
              "prism-button--danger",
              "prism-button--loading",
              "prism-button--with-icon",
-             "prism-button__label",
              "prism-button__icon",
+             "prism-button__label",
              "prism-spinner"
            ]
 
     # The icon part has no look of its own, so no rule: its class is a hook for the app.
     assert Enum.reject(classes(rendered), &in_css?/1) == ["prism-button__icon"]
+  end
+
+  test "the icon is at the start of the label, or at its end with icon_position={:end}" do
+    assigns = %{}
+
+    start =
+      rendered_to_string(~H"""
+      <UI.button variant={:plain}>Back<:icon>←</:icon></UI.button>
+      """)
+
+    finish =
+      rendered_to_string(~H"""
+      <UI.button variant={:plain} icon_position={:end}>Next<:icon>→</:icon></UI.button>
+      """)
+
+    assert start =~ ~r/prism-button__icon">←<\/span>\s*<span class="prism-button__label">Back/
+    assert finish =~ ~r/prism-button__label">Next<\/span>\s*<span class="prism-button__icon">→/
+  end
+
+  test "plain and text buttons are padded unless padded={false}; other variants get no class" do
+    assigns = %{}
+
+    rendered = ~H"""
+    <UI.button variant={:text}>A</UI.button>
+    <UI.button variant={:plain} padded={false}>B</UI.button>
+    <UI.button variant={:primary}>C</UI.button>
+    """
+
+    [text, plain, primary] =
+      Regex.scan(~r/<button class="([^"]*)"/, rendered_to_string(rendered),
+        capture: :all_but_first
+      )
+
+    assert text == ["prism-button prism-button--text prism-button--padded"]
+    assert plain == ["prism-button prism-button--plain"]
+    assert primary == ["prism-button prism-button--primary"]
+    assert @css =~ ".prism-button--text.prism-button--padded {\n  padding: 15px 16px;\n}"
+  end
+
+  test "every variant and tone the app can pick is a class of the CSS" do
+    for variant <- [:primary, :secondary, :plain, :link, :text, :soft, :icon],
+        tone <- [:success, :warning, :danger, :neutral, :highlight] do
+      assigns = %{variant: variant, tone: tone}
+
+      rendered = ~H"""
+      <UI.button variant={@variant} tone={@tone}>A</UI.button>
+      """
+
+      assert Enum.all?(classes(rendered), &in_css?/1), "#{variant} #{tone}"
+    end
   end
 
   # The example in the README.

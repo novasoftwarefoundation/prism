@@ -49,7 +49,10 @@ defmodule Prism.Generator.Web.Elements do
     - `%{as: :content, name, element, attrs, class}`: the part that holds the
       app's content;
     - `%{as: :slot, name, element, attrs, class}`: a part the app fills, such
-      as an icon;
+      as an icon. A part whose side the app picks (`positions`) is there
+      twice, just before and just after the content, each with `side`
+      (`:start`, `:end`) and `position`, its setting's name: it renders only
+      on the side the setting has;
     - `%{as: :control, name, element, type, class}`: a form control, which
       gets the app's attributes (`rest` is `:control`);
     - `%{as: :component, name, element, class, while_loading}`: a part that
@@ -63,6 +66,15 @@ defmodule Prism.Generator.Web.Elements do
     - `%{as: :value}`: a text area's value.
   - `withs`: `%{part => class}`, the class of the look with each part, added
     while that part is there.
+  - `flags`: `[%{name, default, class, only}]`, the looks the app turns on
+    or off: `class` is added while the flag is on, and `default` is whether
+    it is when the app sets nothing. A flag whose only looks are with
+    variants has `only`, `[{axis, values}]`: its class is added only while
+    one of those axes has one of those values (a variant or an alias), so a
+    variant it has no look on gets no class. `only` is `nil` otherwise.
+  - `positions`: `[%{name, part, default}]`, the parts whose side of the
+    content the app picks: `name` is the setting (`icon_position`), and
+    `default` the side without one, `:start` or `:end`.
   - `rest`: where the app's other attributes go, `:root` or `:control`.
 
   A design component or part this module doesn't know raises an
@@ -169,9 +181,49 @@ defmodule Prism.Generator.Web.Elements do
       states: states(c, parts, prefix),
       children: children(parts, kind, c),
       withs: withs(c, prefix),
+      flags: flags(c, prefix),
+      positions:
+        for(
+          %{position: side} = p <- c.parts,
+          side != nil,
+          do: %{name: position_name(p.name), part: p.name, default: side}
+        ),
       rest: if(Enum.any?(parts, &(&1.as == :control)), do: :control, else: :root)
     }
   end
+
+  defp position_name(part), do: :"#{part}_position"
+
+  # A flag's class, and the variants it is added with when its only looks are with
+  # variants.
+  defp flags(c, prefix) do
+    for f <- c.flags do
+      # A web binding's doc is no look.
+      web = Keyword.drop(f.web, Prism.Generator.Web.Components.bindings().flag)
+      own? = f.style != [] or f.states != [] or web != []
+
+      only =
+        if own? or f.with_variants == [] do
+          nil
+        else
+          f.with_variants
+          |> Enum.map(fn w -> Enum.find(c.variants, &(&1.name == w.name)) end)
+          |> Enum.group_by(& &1.axis, &[&1.name | &1.aliases])
+          |> Enum.map(fn {axis, names} -> {axis, List.flatten(names)} end)
+          |> Enum.sort_by(fn {axis, _} -> axis_index(c, axis) end)
+        end
+
+      %{
+        name: f.name,
+        default: f.default,
+        class: Classes.modifier(prefix, c.name, f.name),
+        only: only
+      }
+    end
+  end
+
+  defp axis_index(_c, :variant), do: -1
+  defp axis_index(c, axis), do: Enum.find_index(c.axes, &(&1.name == axis))
 
   # A design part as what the markup renders: the part's class and element, and
   # what it is.
@@ -262,6 +314,40 @@ defmodule Prism.Generator.Web.Elements do
         if p.as == :component, do: Map.put(p, :while_loading, loading?), else: p
       end
 
+    positioned = for p <- c.parts, p.position != nil, do: p.name
+    {moved, rendered} = Enum.split_with(rendered, &(&1[:name] in positioned))
+
+    rendered
+    |> with_content(kind)
+    |> around_content(moved, c)
+  end
+
+  # A part whose side the app picks, just before and just after the content.
+  defp around_content(children, [], _c), do: children
+
+  defp around_content(children, moved, c) do
+    for p <- moved, p.as != :slot do
+      raise ArgumentError,
+            "#{inspect(c.name)}: its #{inspect(p.name)} can't have position:, which is for a part the app fills"
+    end
+
+    i =
+      Enum.find_index(children, &(&1.as in [:content, :inner_block])) ||
+        raise(
+          ArgumentError,
+          "#{inspect(c.name)}: its #{Enum.map_join(moved, ", ", &inspect(&1.name))} goes beside its content, and it has none"
+        )
+
+    side = fn side ->
+      for p <- moved, do: Map.merge(p, %{side: side, position: position_name(p.name)})
+    end
+
+    {before, [content | rest]} = Enum.split(children, i)
+    before ++ side.(:start) ++ [content | side.(:end)] ++ rest
+  end
+
+  # The content where the component puts it, when no part holds it.
+  defp with_content(rendered, kind) do
     cond do
       Enum.any?(rendered, &(&1.as == :content)) or kind.content == nil ->
         rendered
@@ -301,13 +387,13 @@ defmodule Prism.Generator.Web.Elements do
   # The states the app sets, each with what it does where it is declared: a class
   # on the element or a part, or the element's own attribute.
   defp states(c, parts, prefix) do
+    withs = &Enum.flat_map(&1, fn w -> w.states end)
+
     own =
       c.states ++
-        Enum.flat_map(c.with_parts, & &1.states) ++
-        Enum.flat_map(
-          c.variants,
-          &(&1.states ++ Enum.flat_map(&1.with_parts, fn w -> w.states end))
-        )
+        withs.(c.with_parts) ++
+        Enum.flat_map(c.variants, &(&1.states ++ withs.(&1.with_parts ++ &1.with_variants))) ++
+        Enum.flat_map(c.flags, &(&1.states ++ withs.(&1.with_variants)))
 
     # The form controls among the parts: a radio's control, a select's field.
     controls =

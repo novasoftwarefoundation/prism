@@ -32,8 +32,8 @@ test("a button's classes are classes of the generated components.css", () => {
     "prism-button--danger",
     "prism-button--loading",
     "prism-button--with-icon",
-    "prism-button__label",
     "prism-button__icon",
+    "prism-button__label",
     "prism-spinner",
   ]);
 
@@ -44,11 +44,44 @@ test("a button's classes are classes of the generated components.css", () => {
   );
 });
 
+// A tone colors the background of a primary button, and the text of the others.
+test("a tone has a look with each variant it colors", () => {
+  for (const tone of ["success", "warning", "danger", "neutral", "highlight"]) {
+    for (const variant of ["primary", "secondary", "plain", "link", "text"]) {
+      assert.ok(
+        css.includes(`.prism-button--${variant}.prism-button--${tone} {`),
+        `${variant} ${tone}`,
+      );
+    }
+  }
+  for (const tone of ["success", "warning", "danger"]) {
+    assert.ok(css.includes(`.prism-button--soft.prism-button--${tone} {`), `soft ${tone}`);
+  }
+});
+
+test("the icon goes at the start of the label, or at its end", () => {
+  const start = renderToStaticMarkup(h(Prism.Button, { variant: "plain", icon: "<" }, "Back"));
+  const end = renderToStaticMarkup(
+    h(Prism.Button, { variant: "plain", icon: ">", iconPosition: "end" }, "Next"),
+  );
+  assert.match(start, /prism-button__icon">&lt;<\/span><span class="prism-button__label">Back/);
+  assert.match(end, /prism-button__label">Next<\/span><span class="prism-button__icon">&gt;/);
+});
+
+test("plain and text buttons are padded unless padded is false", () => {
+  const markup = (props) => renderToStaticMarkup(h(Prism.Button, props, "x"));
+  assert.match(markup({ variant: "text" }), /class="prism-button prism-button--text prism-button--padded"/);
+  assert.match(markup({ variant: "plain", padded: false }), /class="prism-button prism-button--plain"/);
+  assert.match(markup({ variant: "primary" }), /class="prism-button prism-button--primary"/);
+});
+
 test("every axis value and state of every component renders a class of the CSS", () => {
   const elements = [
-    ...["primary", "secondary", "plain", "link", "text"].flatMap((variant) =>
-      ["accent", "success", "warning", "danger"].map((tone) =>
-        h(Prism.Button, { variant, tone, loading: true, disabled: true, icon: "+" }, "x"),
+    ...["primary", "secondary", "plain", "link", "text", "soft", "icon"].flatMap((variant) =>
+      ["accent", "success", "warning", "danger", "neutral", "highlight"].flatMap((tone) =>
+        [true, false].map((padded) =>
+          h(Prism.Button, { variant, tone, padded, loading: true, disabled: true, icon: "+" }, "x"),
+        ),
       ),
     ),
     h(Prism.TextField, { variant: "inverse", invalid: true, disabled: true }),

@@ -8,8 +8,10 @@ defmodule Prism.Generator.DesignTools.Overview do
     fonts and text sizes, and each type style, in their own fonts; spacing and
     heights as bars; radii; shadows on cards; text shadows on text.
   - **Components**: a sheet per component, a row per variant (each variant of
-    the `:variant` axis, and each variant of another axis combined with the
-    first), a column per state. A cell is drawn from the same data as the web
+    the `:variant` axis, each variant of another axis combined with the
+    first, each look with a variant of another axis with that variant, and
+    each flag that is off by default turned on, or each flag that is on by
+    default turned off), a column per state. A cell is drawn from the same data as the web
     target's `components.css`: the design's shared look with its `web:`
     binding, the markup of `Prism.Generator.Web.Elements` (which parts there
     are and what each holds), a part's look inside its component's.
@@ -664,15 +666,53 @@ defmodule Prism.Generator.DesignTools.Overview do
         true -> []
       end
 
-    own_rows = Enum.map(own, &{key(&1.name), defaults.(:variant) ++ [&1]})
+    # The flags that are on by default are on in every row.
+    on = for f <- c.flags, f.default, do: f
+    own_rows = Enum.map(own, &{key(&1.name), defaults.(:variant) ++ [&1] ++ on})
 
     other_rows =
       for v <- others do
         rest = for d <- defaults.(v.axis), d.axis != :variant, do: d
-        {Enum.map_join(base ++ [v], " + ", &key(&1.name)), base ++ rest ++ [v]}
+        {Enum.map_join(base ++ [v], " + ", &key(&1.name)), base ++ rest ++ [v] ++ on}
       end
 
-    Enum.uniq_by(none ++ own_rows ++ other_rows, fn {_, sel} -> Enum.map(sel, & &1.name) end)
+    # Each look with a variant of another axis: the two variants, the :variant
+    # axis's first.
+    with_rows =
+      for v <- c.variants, w <- v.with_variants do
+        other = Enum.find(c.variants, &(&1.name == w.name))
+        pair = Enum.sort_by([other, v], &(&1.axis != :variant))
+        axes = Enum.map(pair, & &1.axis)
+        rest = for d <- defaults.(nil), d.axis not in axes, do: d
+        {Enum.map_join(pair, " + ", &key(&1.name)), rest ++ pair ++ on}
+      end
+
+    # Each flag the other way round from its default: on its own look's base, or
+    # with each variant it has a look with.
+    flag_rows =
+      for f <- c.flags,
+          sel <- flag_selections(c, f, base, defaults) do
+        others = Enum.reject(on, &(&1.name == f.name))
+        flag = if f.default, do: "not #{key(f.name)}", else: key(f.name)
+        variants = Enum.filter(sel, &Map.has_key?(&1, :axis))
+        flags = if f.default, do: others, else: others ++ [f]
+        {Enum.map_join(variants, " + ", &key(&1.name)) <> " + " <> flag, sel ++ flags}
+      end
+
+    Enum.uniq_by(none ++ own_rows ++ other_rows ++ with_rows ++ flag_rows, fn {_, sel} ->
+      Enum.map(sel, & &1.name)
+    end)
+  end
+
+  defp flag_selections(c, f, base, defaults) do
+    if f.style != [] or f.with_variants == [] do
+      [defaults.(:variant) ++ base]
+    else
+      for w <- f.with_variants do
+        v = Enum.find(c.variants, &(&1.name == w.name))
+        for(d <- defaults.(v.axis), do: d) ++ [v]
+      end
+    end
   end
 
   # The variants the other axes' defaults pick, for a row of `axis`.
@@ -688,7 +728,11 @@ defmodule Prism.Generator.DesignTools.Overview do
   # Every state the component, a variant or a part declares, in the format's order.
   defp states(c) do
     declared =
-      for node <- [c | c.variants] ++ c.parts ++ Enum.flat_map(c.variants, & &1.parts),
+      for node <-
+            [c | c.variants] ++
+              c.parts ++
+              Enum.flat_map(c.variants, &(&1.parts ++ &1.with_variants)) ++
+              c.flags ++ Enum.flat_map(c.flags, & &1.with_variants),
           s <- node.states,
           into: MapSet.new(),
           do: s.name
@@ -697,7 +741,9 @@ defmodule Prism.Generator.DesignTools.Overview do
   end
 
   defp applies?(c, sel, state) do
-    nodes = [c | sel] ++ c.parts ++ Enum.flat_map(sel, & &1.parts)
+    nodes =
+      [c | sel] ++ c.parts ++ Enum.flat_map(sel, &Map.get(&1, :parts, [])) ++ with_variants(sel)
+
     Enum.any?(nodes, fn node -> Enum.any?(node.states, &(&1.name == state)) end)
   end
 
@@ -725,14 +771,25 @@ defmodule Prism.Generator.DesignTools.Overview do
     0.2126 * r + 0.7152 * g + 0.0722 * b > 0.85 * 255
   end
 
+  # The look of a selection: the component's, each variant's and flag's, their
+  # looks with each other, and the same in the state.
   defp root_look(c, sel, state) do
+    looks = sel ++ with_variants(sel)
+
     chain =
       [style(c)] ++
-        Enum.map(sel, &style/1) ++
+        Enum.map(looks, &style/1) ++
         Enum.map(state_nodes(c, state), &style/1) ++
-        Enum.flat_map(sel, &Enum.map(state_nodes(&1, state), fn s -> style(s) end))
+        Enum.flat_map(looks, &Enum.map(state_nodes(&1, state), fn s -> style(s) end))
 
     Enum.reduce(chain, [], &merge(&2, &1))
+  end
+
+  # The looks with a variant that a selection of variants and flags has (a flag
+  # has no axis).
+  defp with_variants(sel) do
+    names = for n <- sel, Map.has_key?(n, :axis), do: n.name
+    for n <- sel, w <- Map.get(n, :with_variants, []), w.name in names, do: w
   end
 
   defp state_nodes(_node, nil), do: []
@@ -743,7 +800,7 @@ defmodule Prism.Generator.DesignTools.Overview do
   defp part_look(c, sel, state, name, part_state \\ :same) do
     part_state = if part_state == :same, do: state, else: part_state
     own = Enum.filter(c.parts, &(&1.name == name))
-    changes = for v <- sel, p <- v.parts, p.name == name, do: p
+    changes = for v <- sel, p <- Map.get(v, :parts, []), p.name == name, do: p
 
     states =
       for s <- c.states ++ Enum.flat_map(sel, & &1.states),
@@ -840,7 +897,15 @@ defmodule Prism.Generator.DesignTools.Overview do
   end
 
   defp child(ctx, c, specs, sel, state, child, look, inherited) do
+    # A component of a fixed size with a part the app fills (an icon button) holds that
+    # part, not text: drawn as a placeholder of its size.
+    icon_only? =
+      look[:size] != nil and Enum.any?(specs[c.name].children, &(&1.as == :slot))
+
     case child do
+      %{as: :content} when icon_only? ->
+        [icon_box(px(look[:size]))]
+
       %{as: :content, name: name} ->
         part = part_look(c, sel, state, name)
         # A part that is a form control holding text (a select's field) is as wide as a field.
@@ -853,6 +918,12 @@ defmodule Prism.Generator.DesignTools.Overview do
         ]
 
         [ctx |> shape(nil, part, [text], opts) |> margin(part)]
+
+      # A part whose side the app picks is drawn on its default side.
+      %{as: :slot, side: side, name: name} when side != nil ->
+        if side == Enum.find(c.parts, &(&1.name == name)).position,
+          do: child(ctx, c, specs, sel, state, Map.delete(child, :side), look, inherited),
+          else: []
 
       %{as: :slot, name: name} ->
         part = part_look(c, sel, state, name)
@@ -973,6 +1044,25 @@ defmodule Prism.Generator.DesignTools.Overview do
           opacity: opacity_of(ctx, fill),
           anchor: if(anchor == :middle, do: "middle"),
           decoration: if(inherited.decoration == :underline, do: "underline")
+        )
+      end
+    }
+  end
+
+  defp icon_box(size) do
+    %{
+      w: size,
+      h: size,
+      draw: fn x, y ->
+        el("rect",
+          x: num(x + 0.5),
+          y: num(y + 0.5),
+          width: num(size - 1),
+          height: num(size - 1),
+          rx: 2,
+          fill: "none",
+          stroke: @placeholder,
+          "stroke-dasharray": "2 2"
         )
       end
     }

@@ -30,6 +30,10 @@ if Code.ensure_loaded?(Phoenix.Component) do
       default is the axis's `default:` in the design; a default that is one of
       the variants adds that variant's class, one without a look adds none. An
       axis without a default adds no class until the app picks a variant.
+    - **Each flag** (`flag :padded, default: true`) is a boolean attribute
+      with the flag's default; while it is on, it adds its class
+      (`--padded`). A flag whose only looks are with some variants adds it
+      only with those (a padding only some variants have).
     - **Each state the app sets** is a boolean attribute: a state the CSS writes
       as a modifier class adds that class (`loading`, `invalid`, a radio's
       `disabled`); `disabled` and `checked` on a form control set the element's
@@ -44,7 +48,11 @@ if Code.ensure_loaded?(Phoenix.Component) do
       defaults that are variants. A part's state is an attribute of the
       component, like the component's own (a field label's `invalid`). A part's slot takes `class`
       and any other attributes for the part's element. While a part is there,
-      its look with a part (`with_part :icon`) adds `--with-icon`.
+      its look with a part (`with_part :icon`) adds `--with-icon`. A part
+      with `position:` in the design goes at the `:start` or the `:end` of
+      the content, as the attribute `<part>_position` says (`icon_position`,
+      with the design's side as its default); `start` and `end` follow the
+      text's direction.
     - `class` appends the app's classes to the component's own; `rest` takes
       global attributes (`id`, `phx-*`, `aria-*`, `data-*`) and the element's
       own (`type`, `name`, `value`, …).
@@ -153,12 +161,22 @@ if Code.ensure_loaded?(Phoenix.Component) do
       for spec <- specs do
         names =
           Enum.map(spec.axes, & &1.name) ++
+            Enum.map(spec.flags, & &1.name) ++
+            Enum.map(spec.positions, & &1.name) ++
             Enum.map(spec.states, & &1.name) ++
-            for(%{as: :slot, name: n} <- spec.children, do: n) ++
+            for(%{as: :slot, name: n} = child <- spec.children, child[:side] != :end, do: n) ++
             for(%{as: :list, item: item} <- spec.children, do: item)
 
         for name <- names, name in @reserved do
           fail(env, "#{inspect(spec.name)}: #{inspect(name)} is an attribute of every component")
+        end
+
+        case names -- Enum.uniq(names) do
+          [] ->
+            :ok
+
+          [name | _] ->
+            fail(env, "#{inspect(spec.name)}: two attributes are named #{inspect(name)}")
         end
 
         spec
@@ -199,6 +217,29 @@ if Code.ensure_loaded?(Phoenix.Component) do
 
           opts = if a.default, do: Keyword.put(opts, :default, a.default), else: opts
           quote do: Phoenix.Component.attr(unquote(a.name), :atom, unquote(opts))
+        end
+
+      flags =
+        for f <- spec.flags do
+          doc = "While true, adds `#{f.class}`#{only_doc(f)}."
+
+          quote do:
+                  Phoenix.Component.attr(unquote(f.name), :boolean,
+                    default: unquote(f.default),
+                    doc: unquote(doc)
+                  )
+        end
+
+      positions =
+        for p <- spec.positions do
+          doc = "The #{p.part} part's side of the content: `:start` or `:end`."
+
+          quote do:
+                  Phoenix.Component.attr(unquote(p.name), :atom,
+                    values: [:start, :end],
+                    default: unquote(p.default),
+                    doc: unquote(doc)
+                  )
         end
 
       states =
@@ -242,12 +283,23 @@ if Code.ensure_loaded?(Phoenix.Component) do
         quote(do: Phoenix.Component.attr(:rest, :global, include: unquote(own)))
       ]
 
+      # A part whose side the app picks is there twice; it is one slot.
       slots =
         for child <- spec.children,
+            child[:side] != :end,
             slot <- slots(child),
             do: slot
 
-      axes ++ states ++ as ++ value ++ common ++ slots
+      axes ++ flags ++ positions ++ states ++ as ++ value ++ common ++ slots
+    end
+
+    defp only_doc(%{only: nil}), do: ""
+
+    defp only_doc(%{only: only}) do
+      " with " <>
+        Enum.map_join(only, " or ", fn {axis, values} ->
+          "#{axis} #{Enum.map_join(values, " or ", &"`#{inspect(&1)}`")}"
+        end)
     end
 
     defp slots(%{as: as}) when as in [:content, :inner_block],

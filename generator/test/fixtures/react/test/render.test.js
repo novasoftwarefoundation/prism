@@ -102,8 +102,9 @@ describe("every component", () => {
 describe("axes", () => {
   test("every value adds its variant's class; a default without a look adds none", () => {
     for (const [element, expected] of [
-      [h(Kit.Button, { variant: "quiet" }, "x"), "kit-button kit-button--quiet"],
-      [h(Kit.Button, { variant: "subtle" }, "x"), "kit-button kit-button--subtle"],
+      [h(Kit.Button, { variant: "quiet", roomy: false }, "x"), "kit-button kit-button--quiet"],
+      [h(Kit.Button, { variant: "subtle", roomy: false }, "x"), "kit-button kit-button--subtle"],
+      [h(Kit.Button, { variant: "icon" }, "x"), "kit-button kit-button--icon"],
       [h(Kit.Button, { tone: "accent" }, "x"), "kit-button kit-button--primary"],
       [h(Kit.Button, { tone: "danger" }, "x"), "kit-button kit-button--primary kit-button--danger"],
       [h(Kit.TextField, { variant: "inverse" }), "kit-text-field kit-text-field--inverse"],
@@ -194,13 +195,53 @@ describe("states", () => {
   });
 });
 
+describe("flags", () => {
+  test("a flag is a boolean prop with the design's default, adding its class while true", () => {
+    assert.match(
+      html(h(Kit.Button, { strong: true }, "x")),
+      /class="kit-button kit-button--primary kit-button--strong"/,
+    );
+    assert.doesNotMatch(html(h(Kit.Button, null, "x")), /kit-button--strong/);
+  });
+
+  test("a flag with looks only with some variants adds its class only with those", () => {
+    assert.match(
+      html(h(Kit.Button, { variant: "quiet" }, "x")),
+      /class="kit-button kit-button--quiet kit-button--roomy"/,
+    );
+    assert.match(
+      html(h(Kit.Button, { variant: "subtle" }, "x")),
+      /class="kit-button kit-button--subtle kit-button--roomy"/,
+    );
+    assert.doesNotMatch(html(h(Kit.Button, null, "x")), /roomy/);
+    assert.doesNotMatch(html(h(Kit.Button, { variant: "quiet", roomy: false }, "x")), /roomy/);
+  });
+});
+
 describe("parts", () => {
   test("an icon is a prop whose presence adds the look with it", () => {
     assert.equal(
       html(h(Kit.Button, { icon: "*", iconProps: { className: "i" } }, "Save")),
       norm(
         '<button class="kit-button kit-button--primary kit-button--with-icon">' +
-          '<span class="kit-button__label">Save</span><span class="kit-button__icon i">*</span></button>',
+          '<span class="kit-button__icon i">*</span><span class="kit-button__label">Save</span></button>',
+      ),
+    );
+  });
+
+  test("a part with position: goes at the side of the content iconPosition picks", () => {
+    assert.equal(
+      html(h(Kit.Button, { icon: "*", iconPosition: "end" }, "Save")),
+      norm(
+        '<button class="kit-button kit-button--primary kit-button--with-icon">' +
+          '<span class="kit-button__label">Save</span><span class="kit-button__icon">*</span></button>',
+      ),
+    );
+    assert.equal(
+      html(h(Kit.Button, { variant: "icon", icon: "*", "aria-label": "Add" })),
+      norm(
+        '<button aria-label="Add" class="kit-button kit-button--icon kit-button--with-icon">' +
+          '<span class="kit-button__icon">*</span></button>',
       ),
     );
   });
@@ -213,10 +254,10 @@ describe("parts", () => {
     );
   });
 
-  test("parts come in the design's order: label, icon, spinner", () => {
+  test("parts come in the design's order, the icon at the start: icon, label, spinner", () => {
     assert.match(
       html(h(Kit.Button, { icon: "*", loading: true }, "Save")),
-      /kit-button__label.*kit-button__icon.*kit-spinner/,
+      /kit-button__icon.*kit-button__label.*kit-spinner/,
     );
   });
 
