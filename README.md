@@ -12,7 +12,7 @@ Prism's look is written once, as a design in Elixir, and generated into code for
 
 | Folder | What |
 |---|---|
-| `design/` | Prism's design, a Mix project (`:prism_design`): `lib/tokens.ex` (`Prism.Design.Tokens`), `config/config.exs` (the design module and the folder of each target), and its checks: the 0.1.7 golden test, the version check, the font roles. |
+| `design/` | Prism's design, a Mix project (`:prism_design`): `lib/tokens.ex` (`Prism.Design.Tokens`), `config/config.exs` (the design module and the folder of each target), and its checks: the 0.1.7 golden test, the version check, the font roles, the type styles. |
 | `generator/` | The generic part, a Mix project of its own (`:prism_generator`): the design format (`lib/schema.ex`), the header of generated files (`lib/header.ex`), the web target (`lib/web.ex` and its templates in `lib/web/`), and `mix prism.gen` (`lib/mix/tasks/prism.gen.ex`). It knows nothing about Prism's values. |
 | `targets/web/` | The npm package: `package.json`, the generated `tailwind.preset.js` and `css/base.css`, the hand-written `css/components.css`, and `fonts/`. Later `targets/swift/`. |
 

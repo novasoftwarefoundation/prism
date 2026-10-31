@@ -21,12 +21,12 @@ The format has these parts:
 | Layer | What | Where |
 |---|---|---|
 | Schema | The DSL and its rules: what a valid design is | the generator: `Prism.Generator.Schema` |
-| Tokens | Colors, shadows, text shadows, spacing, sizes, radii, font families and faces, font styles, text sizes, and type styles (`typography`, later) built from a font style and a text size | the design: a module that uses `Prism.Generator.Schema` (`__schema__/0` returns it as data) |
+| Tokens | Colors, shadows, text shadows, spacing, sizes, radii, font families and faces, font styles, text sizes, and type styles (`typography`) built from a font style and a text size | the design: a module that uses `Prism.Generator.Schema` (`__schema__/0` returns it as data) |
 | Components | Components with a base style, parts, variants and states, built from tokens | the design (later) |
 | Generators | Web (Tailwind preset and CSS), Swift, later Kotlin | the generator: `Prism.Generator.*` and `mix prism.gen.<target>` |
 | Targets | What the generators produce | `targets/<target>/`, where each one is published or imported from |
 
-Today the generator has the schema's token part and the web generator for `tailwind.preset.js` and `css/base.css`.
+Today the generator has the schema's token part (type styles included) and the web generator for `tailwind.preset.js` and `css/base.css`.
 
 1. **Tokens are declared, not computed.**
 
@@ -50,7 +50,7 @@ Today the generator has the schema's token part and the web generator for `tailw
    typography :title1, font: :title1, text: :title1
    ```
 
-   The schema checks that both references exist. Native generators read only the `typography` tokens for type, never the two lists, so no platform pairs a font with a size on its own. The DSL kind is added in its own change. The web files don't change.
+   Both references are required. The schema checks that each one names an entry of its own list (`font:` a font, `text:` a text size) declared before the type style. Native generators read only the `typography` tokens for type, never the two lists, so no platform pairs a font with a size on its own. The web target doesn't read them: its `font-…` and `text-…` classes stay as they are, so the web files don't change.
 
 2. **Fonts per platform.** A family is a role that each platform binds to a font. Fonts refer to the role, so `font :title1, :display, 800` stays platform-neutral:
 

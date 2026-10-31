@@ -167,4 +167,42 @@ defmodule Prism.Design.Tokens do
   text :tablerow, 14, 16
   text :mono, 20, 24
   text :quote, 24, 30
+
+  # Type styles: one font and one text size. Native targets read type only from
+  # these; the web keeps the two lists above. See ADR 0002 for the pairings.
+  # A role in both lists pairs with itself.
+  typography(:title0, font: :title0, text: :title0)
+  typography(:title1, font: :title1, text: :title1)
+  typography(:title2, font: :title2, text: :title2)
+  typography(:title3, font: :title3, text: :title3)
+  typography(:title4, font: :title4, text: :title4)
+  typography(:title5, font: :title5, text: :title5)
+  typography(:title6, font: :title6, text: :title6)
+  typography(:title7, font: :title7, text: :title7)
+  typography(:caption, font: :caption, text: :caption)
+  typography(:subhead, font: :subhead, text: :subhead)
+  typography(:label, font: :label, text: :label)
+  typography(:button, font: :button, text: :button)
+  typography(:footnote, font: :footnote, text: :footnote)
+  typography(:intro, font: :intro, text: :intro)
+  typography(:introdesktop, font: :introdesktop, text: :introdesktop)
+  typography(:bodylarge, font: :bodylarge, text: :bodylarge)
+  typography(:link, font: :link, text: :link)
+  typography(:hint, font: :hint, text: :hint)
+  typography(:tablehead, font: :tablehead, text: :tablehead)
+  typography(:tablerow, font: :tablerow, text: :tablerow)
+  typography(:mono, font: :mono, text: :mono)
+  typography(:quote, font: :quote, text: :quote)
+
+  # Roles in only one list, paired as the main consumer app combines them.
+  typography(:body, font: :body, text: :bodymedium)
+  typography(:bold, font: :bold, text: :bodymedium)
+  typography(:bodymedium, font: :body, text: :bodymedium)
+  typography(:bodysmall, font: :body, text: :bodysmall)
+  typography(:captionsmall, font: :caption, text: :captionsmall)
+  typography(:labelsmall, font: :label, text: :labelsmall)
+  typography(:buttonsmall, font: :button, text: :buttonsmall)
+  # No screen uses these two sizes: paired like their sibling, `link`.
+  typography(:bodylinklarge, font: :link, text: :bodylinklarge)
+  typography(:bodylinkmedium, font: :link, text: :bodylinkmedium)
 end

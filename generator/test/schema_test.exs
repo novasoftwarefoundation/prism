@@ -92,6 +92,55 @@ defmodule Prism.Generator.SchemaTest do
     end
   end
 
+  test "a typography is a font and a text size, by name" do
+    %{tokens: tokens} = Prism.Generator.ExampleDesign.__schema__()
+    assert %{kind: :typography, name: :note, font: :hint, text: :body, group: nil} in tokens
+  end
+
+  # A family :f, a font :b and a text size :t, so a typography on line 6 can name them.
+  defp typography(opts),
+    do: family() <> "\n  font :b, :f, 700\n  text :t, 16, 20\n  typography :x, #{opts}"
+
+  test "a typography names a font and a text size" do
+    compile(typography("font: :b, text: :t"))
+    assert_compile_error(typography("text: :t"), "typography :x: missing font:", 6)
+    assert_compile_error(typography("font: :b"), "typography :x: missing text:", 6)
+
+    assert_compile_error(
+      typography("font: :b, text: :t, weight: 300"),
+      "typography :x: unknown option :weight",
+      6
+    )
+  end
+
+  test "a typography's font and text size must exist, with that kind" do
+    assert_compile_error(typography("font: :nope, text: :t"), "unknown font :nope", 6)
+    assert_compile_error(typography("font: :b, text: :nope"), "unknown text :nope", 6)
+    # Each reference is looked up in its own list: :t is a text size, not a font.
+    assert_compile_error(typography("font: :t, text: :t"), "unknown font :t", 6)
+    assert_compile_error(typography("font: :b, text: :b"), "unknown text :b", 6)
+  end
+
+  test "a typography comes after the font and text size it names" do
+    assert_compile_error(
+      family() <> "\n  typography :x, font: :b, text: :t\n  font :b, :f, 700\n  text :t, 16, 20",
+      "typography :x: unknown font :b",
+      4
+    )
+  end
+
+  test "a typography is defined once, but may share its name with a font and a text size" do
+    compile(
+      family() <> "\n  font :x, :f, 700\n  text :x, 16, 20\n  typography :x, font: :x, text: :x"
+    )
+
+    assert_compile_error(
+      typography("font: :b, text: :t") <> "\n  typography :x, font: :b, text: :t",
+      "typography :x is defined twice",
+      7
+    )
+  end
+
   test "a family needs a doc and a web fallback" do
     assert_compile_error(family(doc: nil), "family :f: doc: must be a one-line string", 3)
 

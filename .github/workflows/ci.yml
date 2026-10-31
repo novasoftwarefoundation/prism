@@ -57,7 +57,7 @@ jobs:
       - run: mix format --check-formatted
       # Fails when a committed file in targets/ differs from what the design generates.
       - run: mix prism.gen --check
-      # The 0.1.7 golden test, the version check and the font roles.
+      # The 0.1.7 golden test, the version check, the font roles and the type styles.
       - run: mix test --warnings-as-errors
 
   npm-package:

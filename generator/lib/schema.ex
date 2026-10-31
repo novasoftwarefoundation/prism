@@ -17,7 +17,13 @@ defmodule Prism.Generator.Schema do
         android: :system
       font :button, :text, 700             # family and weight (`font-button`)
       text :button, 18, 18                 # size and line height (`text-button`)
+      typography :button, font: :button, text: :button
       radius :default, {0.25, :rem}
+
+  Fonts and text sizes are two low-level lists, named as the web names its
+  `font-…` and `text-…` classes. A `typography` token is a type style: one font
+  and one text size, so no target pairs them on its own. Native targets read
+  type only from the `typography` tokens.
 
   Values are platform-neutral: colors are `"#RRGGBB"` or the name of another
   color, shadow colors are `{color, alpha}`, lengths are numbers in px (points
@@ -46,7 +52,8 @@ defmodule Prism.Generator.Schema do
     - `:family`: `doc`, and `web`, `ios`, `android` (each `:system` or a
       keyword list with `name`, `faces` and, on the web, `fallback`);
     - `:font`: `family`, `weight`, and `italic` when given;
-    - `:text`: `size` and `line_height` (px).
+    - `:text`: `size` and `line_height` (px);
+    - `:typography`: `font` and `text` (the names of a font and a text size).
   - `file` is the design's source file relative to the project
     (`"lib/my_design.ex"`), which generated files name in their header.
   - `web` is the `web` declaration as a map with every key (`prefix`,
@@ -67,7 +74,8 @@ defmodule Prism.Generator.Schema do
     radius: [:value],
     family: [:doc | @platforms],
     font: [:family, :weight, :italic],
-    text: [:size, :line_height]
+    text: [:size, :line_height],
+    typography: [:font, :text]
   }
 
   @text_rule ~s(must be a one-line string without ", \\ or */)
@@ -175,6 +183,13 @@ defmodule Prism.Generator.Schema do
   @doc "A text size: size and line height in px."
   defmacro text(name, size, line_height),
     do: token(:text, name, [size: size, line_height: line_height], [], __CALLER__)
+
+  @doc """
+  A type style: one font and one text size, both required and declared before
+  it, e.g. `typography :body, font: :body, text: :body_medium`. Native targets
+  read type only from these, never from the two lists.
+  """
+  defmacro typography(name, opts), do: token(:typography, name, [], opts, __CALLER__)
 
   defmacro space(values) when is_list(values) do
     for px <- values,
@@ -380,6 +395,18 @@ defmodule Prism.Generator.Schema do
     if is_number(size) and size > 0 and is_number(line_height) and line_height > 0,
       do: :ok,
       else: {:error, "size and line height are numbers in px, greater than 0"}
+  end
+
+  defp check(%{kind: :typography} = typography, seen) do
+    Enum.find_value([:font, :text], :ok, fn kind ->
+      case Map.fetch(typography, kind) do
+        :error ->
+          {:error, "missing #{kind}: (a typography names a font and a text size)"}
+
+        {:ok, ref} ->
+          with :ok <- known(seen, kind, ref, "unknown #{kind} #{inspect(ref)}"), do: nil
+      end
+    end)
   end
 
   defp binding(:web, :system),

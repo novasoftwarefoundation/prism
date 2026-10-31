@@ -30,9 +30,30 @@ Prism is a look for scientific software: a Tailwind preset plus component CSS, p
 
 7. **One version for Prism.** `design/mix.exs` has the same version as `targets/web/package.json`, and a test checks it. The generator has its own version (0.1.0). A release tag `vX.Y.Z` will be the npm version and, later, the Swift package's version. 0.x rules apply: a removed token, class or variant is a minor bump.
 
+8. **Type styles.** Every role in either list (fonts and text sizes) has a `typography` token of the same name, and every font and text size is used by one; a test checks both. The format is in [ADR 0001](0001-design-format.md); this records Prism's pairings.
+
+   - **A role in both lists pairs with itself**, 22 in all: `typography :title1, font: :title1, text: :title1`.
+   - **The nine roles in only one list** are paired as the main consumer app combines Prism 0.1.7's classes today (2026-10-31): its typography reference page (an admin page that shows each style with its font and size class), its screens, and its rich-text styles. Where nothing uses a role, it pairs like its closest sibling.
+
+   | Type style | Font | Text size | Evidence |
+   |---|---|---|---|
+   | `body` | `body` (text, 300) | `bodymedium` (20/30) | The most common pair on screens: `font-body text-bodymedium` about 50 times, against about 25 for `bodysmall`. It is also the base of rich text, and what 0.1.7's input, textarea and dropdown use (300 at 20/30 in `css/components.css`). |
+   | `bold` | `bold` (text, 700) | `bodymedium` | Used for `strong` in rich text, on top of the rich text's base size, `text-bodymedium` (`text-bodylarge` from the small breakpoint). Its two other uses add it to a heading that already has a font class, with no size of its own. |
+   | `bodymedium` | `body` | `bodymedium` | The reference page; about 50 uses on screens. |
+   | `bodysmall` | `body` | `bodysmall` (16/24) | The reference page; about 25 uses on screens. |
+   | `captionsmall` | `caption` (text, 500) | `captionsmall` (12/14) | The reference page; `font-caption text-captionsmall` in two components (a small tag and a button face). |
+   | `labelsmall` | `label` (text, 700) | `labelsmall` (14/14) | The reference page only. |
+   | `buttonsmall` | `button` (text, 700) | `buttonsmall` (16/16) | The reference page only. |
+   | `bodylinklarge` | `link` (text, 500) | `bodylinklarge` (24/36) | Not used. Paired like its sibling `link`. |
+   | `bodylinkmedium` | `link` | `bodylinkmedium` (30/30) | One use, by mistake: a link writes `font-bodylinkmedium` (no such font class) with `text-body` (no such size), so neither class has an effect; it means a link in body text. Paired like its sibling `link`. |
+
+   - `body` and `bodymedium` are the same style under two names. Both stay, so no role in either list is missing a type style.
+   - `bodylinklarge` is 24px in the `:text` family, above decision 4's 20px line. Both families are `:system` on iOS and Android, so nothing differs natively today; moving it to `:display` would be a later clean-up.
+   - **Screens that differ from the name pairing.** Screens write `bodylarge` as `font-body text-bodylarge` (about 14 times; `font-bodylarge` is never used) and `introdesktop` as `font-intro text-introdesktop`, and the reference page writes `mono` with `font-body` (the same values as `font-mono`). These still pair by name. This decision covers only the roles in one list, and the name pairing keeps 0.1.7's own fonts: Nunito for `bodylarge` and `introdesktop`, as the reference page's own labels say ("Nunito Light", "Nunito Medium"). Following the screens instead would be a design change with its own pull request.
+
 ## Consequences
 
 - Prism's look is edited in `design/lib/tokens.ex` and regenerated with `cd design && mix prism.gen`; CI fails (`mix prism.gen --check`) when the committed files differ.
 - The generator can move to its own repository by moving `generator/` out and changing one dependency line in `design/mix.exs`; nothing in Prism's design changes.
-- Swift comes later in `targets/swift/`, with its own `Package.swift`.
+- Swift comes later in `targets/swift/`, with its own `Package.swift`. It and Kotlin get type from the 31 type styles; a new font or text size needs a type style too, or the design's test fails.
 - 0.1.7's inconsistencies stay until someone changes them on purpose.
