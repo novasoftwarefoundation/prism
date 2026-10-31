@@ -38,9 +38,10 @@ defmodule Prism.Generator.Schema.ComponentsTest do
     assert %{
              name: :tag,
              style: [radius: :default, background: :paper],
-             parts: [%{name: :inner, component: nil, states: [], web: [], ios: []}],
+             parts: [%{name: :label, component: nil, states: [], web: [], ios: []}],
              axes: [%{name: :size, web: [doc: "Sizes"], ios: [], android: []}],
-             states: [%{name: :disabled, style: [opacity: 0.4], parts: [%{name: :inner}]}],
+             with_parts: [],
+             states: [%{name: :disabled, style: [opacity: 0.4], parts: [%{name: :label}]}],
              web: [section: "Tags", radius: 2],
              ios: [radius: 6],
              android: []
@@ -58,7 +59,7 @@ defmodule Prism.Generator.Schema.ComponentsTest do
              %{name: :large, axis: :size, style: [padding: [x: 4]]}
            ] = tag.variants
 
-    assert [%{name: :inner, style: [background: {:accent, 0.2}, foreground: :link]}] =
+    assert [%{name: :label, style: [background: {:accent, 0.2}, foreground: :link]}] =
              hd(tag.variants).parts
   end
 
@@ -233,7 +234,7 @@ defmodule Prism.Generator.Schema.ComponentsTest do
     )
 
     assert Keyword.keys(Prism.Generator.Schema.Components.states()) ==
-             [:pressed, :hovered, :focused, :disabled, :checked, :selected, :loading, :error]
+             [:pressed, :hovered, :focused, :disabled, :checked, :selected, :loading, :invalid]
   end
 
   test "variants, aliases, parts and states of a component share one set of names" do
@@ -262,6 +263,64 @@ defmodule Prism.Generator.Schema.ComponentsTest do
       "component :c, variant :v, part :p: component :c has no part :p",
       14
     )
+  end
+
+  describe "a look with a part" do
+    test "is the look while the component has the part, in the component or a variant" do
+      [c] =
+        compile("""
+          component :c do
+            part :icon
+            with_part :icon, padding: [x: 4], web: [doc: "With an icon"]
+
+            variant :v do
+              with_part :icon, gap: 12 do
+                state :pressed, padding: [top: 5]
+              end
+            end
+          end
+        """).components
+
+      assert [%{name: :with_icon, part: :icon, style: [padding: [x: 4]], states: []} = own] =
+               c.with_parts
+
+      assert own.web == [doc: "With an icon"]
+
+      assert [%{name: :with_icon, part: :icon, style: [gap: 12], states: [pressed]}] =
+               hd(c.variants).with_parts
+
+      assert %{name: :pressed, style: [padding: [top: 5]], parts: []} = pressed
+    end
+
+    test "names a part the component declares, once" do
+      assert_compile_error(
+        "  component :c do\n    variant :v do\n      with_part :icon, gap: 4\n    end\n  end",
+        "component :c, variant :v, with_part :icon: component :c has no part :icon",
+        14
+      )
+
+      assert_compile_error(
+        "  component :c do\n    part :icon\n    with_part :icon\n    with_part :icon\n  end",
+        "component :c: :icon is both a look with a part and a look with a part",
+        12
+      )
+    end
+
+    test "its class name is taken: no variant may be called with_<part>" do
+      assert_compile_error(
+        "  component :c do\n    part :icon\n    variant :with_icon\n    with_part :icon\n  end",
+        "component :c: :with_icon is both a variant and a look with a part",
+        12
+      )
+    end
+
+    test "holds only states" do
+      assert_compile_error(
+        "  component :c do\n    part :icon\n    with_part :icon do\n      part :icon, gap: 2\n    end\n  end",
+        "part :icon can't be declared inside with_part :icon",
+        15
+      )
+    end
   end
 
   test "a part that is a component names another component, declared anywhere" do
@@ -357,12 +416,6 @@ defmodule Prism.Generator.Schema.ComponentsTest do
         "  component :c, web: [doc: \"a */ b\"]",
         "web: doc: must be one line of text without */",
         12
-      )
-
-      assert_compile_error(
-        "  component :c do\n    variant :v, web: [filter: [color: \"#fff\", value: \"x\"]]\n  end",
-        "web: filter: must be [color: \"#RRGGBB\", value: \"a CSS filter\"]",
-        13
       )
     end
 

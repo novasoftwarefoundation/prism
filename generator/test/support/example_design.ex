@@ -85,14 +85,14 @@ defmodule Prism.Generator.ExampleDesign do
   # iOS binding the web never reads.
   component :tag, web: [section: "Tags", radius: 2], ios: [radius: 6] do
     style radius: :default, background: :paper
-    part :inner, padding: [y: 2, x: 8], typography: :body
+    part :label, padding: [y: 2, x: 8], typography: :body
 
     variant :accent, web: [doc: "An accent tag"] do
-      part :inner, background: {:accent, 0.2}, foreground: :link
+      part :label, background: {:accent, 0.2}, foreground: :link
     end
 
     variant :muted, aliases: [:quiet] do
-      part :inner, foreground: {:ink, 0.6}
+      part :label, foreground: {:ink, 0.6}
     end
 
     variants :size, web: [doc: "Sizes"] do
@@ -100,7 +100,7 @@ defmodule Prism.Generator.ExampleDesign do
     end
 
     state :disabled, opacity: 0.4 do
-      part :inner, decoration: :none
+      part :label, decoration: :none
     end
   end
 end

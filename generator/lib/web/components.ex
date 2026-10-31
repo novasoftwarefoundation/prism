@@ -1,37 +1,52 @@
 defmodule Prism.Generator.Web.Components do
   @moduledoc """
-  Writes `css/components.css` from a design's components. The design holds the
-  look, which every target shares; this module holds the web's mechanics of
-  each component it knows: display and layout, cursors, focus outlines,
-  appearance resets, keyframes, the check mark image, and how a state becomes a
-  selector.
+  Writes `css/components.css` from a design's components, and the spinner's
+  image. The design holds the look, which every target shares; this module
+  holds the web's mechanics of each component it knows: display and layout,
+  cursors, focus outlines, appearance resets, keyframes, the check mark and
+  spinner images, and how a state becomes a selector.
 
   Its mechanics are keyed on component and part names. It knows these
-  components: `:btn`, `:input`, `:textarea`, `:label`, `:radio`, `:dropdown`,
-  `:spinner`, `:checkbox`, `:tag`, `:alert` and `:number_icon` (`kinds/0`), and
-  these parts of them: the button's `:content` and its parts that are other
-  components, the radio's `:group`, `:label` and `:text`, the dropdown's
-  `:input`, `:icon`, `:options` and `:option`, and the tag's `:inner`. A design
-  component it doesn't know fails generation, and so does a part it doesn't
-  write. Each component writes the variants and states the design gives it,
-  so a new variant needs no change here.
+  components (`kinds/0`): `:button`, `:text_field`, `:text_area`, `:field`,
+  `:radio_group`, `:radio`, `:select`, `:spinner`, `:checkbox`, `:tag`,
+  `:message_bar` and `:step_indicator`, and these parts of them (`parts/0`):
+  the button's `:label` and `:icon`, the field's `:label` and
+  `:error_message`, the radio's `:control` and `:label`, the select's
+  `:field`, `:icon`, `:listbox` and `:option`, the tag's `:label`, and on any
+  component a part that is another component. A design component it doesn't
+  know fails generation, and so does a part it doesn't write. Each component
+  writes the variants and states the design gives it, so a new variant needs
+  no change here.
 
   ## Classes
 
-  A class is made of the design's names: `.<prefix>-<component>`, then
-  `-<variant>`, `-<part>` or `-<state>` (`.acme-btn-primary`), with `-` for `_`.
-  A variant's aliases get a selector each. A part that is another component
-  has that component's class.
+  A class is made of the design's names, with `-` for `_`, and says what
+  kind of name it is, as in BEM:
+
+  - a component is `.<prefix>-<component>` (`.acme-button`);
+  - a part is `__<part>` after its component (`.acme-button__label`); a part
+    that is another component has that component's class;
+  - a variant, of any axis, is `--<variant>` (`.acme-button--primary`): the
+    schema keeps a component's variant names unique across its axes;
+  - a state that is no pseudo-class is `--<state>` after the component, or
+    after the part it belongs to (`.acme-button--loading`,
+    `.acme-select__option--selected`);
+  - a look while the component has a part is `--with-<part>`
+    (`.acme-button--with-icon`), combined with a variant's class when the
+    variant gives it (`.acme-button--primary.acme-button--with-icon`).
+
+  So a part never reads as a variant: `.acme-button__label` and
+  `.acme-button--text` can't be confused. A variant's aliases get a selector
+  each.
 
   ## States
 
-  On a form control (a button, an input, the radio and checkbox controls, a
-  dropdown's input) a state is the browser's: `:pressed` is `:active`,
-  `:hovered` `:hover`, `:focused` `:focus`, `:disabled` `:disabled`, `:checked`
-  `:checked`. On any other element `:hovered` is `:hover`, and `:disabled` and
-  `:selected` are classes the app sets (`.disabled`, `.selected`). Any other
-  state, such as `:loading` and `:error`, is a modifier class
-  (`.acme-btn-loading`).
+  On a form control (a button, a text field and a text area, the checkbox,
+  the radio's control and the select's field) a state is the browser's:
+  `:pressed` is `:active`, `:hovered` `:hover`, `:focused` `:focus`,
+  `:disabled` `:disabled`, `:checked` `:checked`. On any other element
+  `:hovered` is `:hover`. Any other state, such as `:loading`, `:invalid` or
+  an option's `:selected`, is a modifier class the app sets.
 
   ## The `web:` binding
 
@@ -40,53 +55,68 @@ defmodule Prism.Generator.Web.Components do
   web knows these keys (`bindings/0`):
 
   - `section:` (a component) the banner comment that starts its section;
-  - `doc:` (any node, and a `variants` axis) the comment above its first rule;
-  - `filter:` (a spinner variant) `[color: "#RRGGBB", value: "…"]`, the CSS
-    filter that tints the spinner image in that color. The web writes white
-    and black itself; any other color needs a filter made for the color the
-    design gives, or generation fails.
-
-  The filter is CSS filter functions with numeric arguments only
-  (`brightness(0) hue-rotate(209deg)`), so nothing else reaches the CSS.
+  - `doc:` (any node, and a `variants` axis) the comment above its first rule.
 
   Some values can't be written on the web, so the schema refuses them at
-  compile time, on their line: the checkbox's check mark and a tinted spinner can't
-  have a color with alpha or `:transparent`, because they are drawn into an
-  image or a filter, and a spinner's size is px or rem, because a loading button
-  centers it by half its size.
+  compile time, on their line: the checkbox's check mark can't have a color
+  with alpha or `:transparent`, because it is drawn into an image; a spinner
+  has no background, because it is drawn in its foreground color; and a
+  spinner's size is px or rem, because a loading button centers it by half
+  its size.
 
   Generation fails when a value or a `web:` key of the design is written
   nowhere, so nothing in the design is ignored.
+
+  ## The spinner
+
+  A spinner is the image `images/spinner.svg` (`spinner_image/0`), which the
+  web target writes next to `css/`, used as a mask over the spinner's text
+  color (`background-color: currentColor`). Its color is its `foreground`, an
+  ordinary color. A button hides a part that is another component unless it
+  is loading.
 
   ## Spelling
 
   The spelling is fixed, so regenerating gives the same bytes: lower-case hex,
   `rgba(r, g, b, alpha)` for colors with alpha, `0` for zero lengths and in box
-  shadows (`0px` in the dropdown's list), seconds for
-  durations, and a `filter:` wrapped at 80 columns.
+  shadows (`0px` in the select's list), and seconds for durations.
   """
 
   alias Prism.Generator.Web
 
   @kinds [
-    :btn,
-    :input,
-    :textarea,
-    :label,
+    :button,
+    :text_field,
+    :text_area,
+    :field,
+    :radio_group,
     :radio,
-    :dropdown,
+    :select,
     :spinner,
     :checkbox,
     :tag,
-    :alert,
-    :number_icon
+    :message_bar,
+    :step_indicator
   ]
+
+  # The parts each component writes, besides parts that are other components.
+  @parts %{
+    button: [:label, :icon],
+    field: [:label, :error_message],
+    radio: [:control, :label],
+    select: [:field, :icon, :listbox, :option],
+    tag: [:label]
+  }
+
+  # Parts that are form controls, whose states are the browser's.
+  @control_parts [radio: :control, select: :field]
 
   @bindings %{
     component: [:section, :doc],
     variants: [:doc],
-    variant: [:doc, :filter],
+    variant: [:doc],
     part: [:doc],
+    with_part: [:doc],
     state: [:doc]
   }
 
@@ -104,18 +134,22 @@ defmodule Prism.Generator.Web.Components do
     checked: ":checked"
   }
 
-  @element %{hovered: ":hover", disabled: ".disabled", selected: ".selected"}
+  @element %{hovered: ":hover"}
 
   @check_mark "url(\"data:image/svg+xml,%3csvg viewBox='0 0 16 16' fill='FILL' xmlns='http://www.w3.org/2000/svg'%3e%3cpath d='M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2-2a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z'/%3e%3c/svg%3e\")"
 
-  # A spinner's filter: CSS filter functions with numeric arguments only, so nothing
-  # else can reach the CSS.
-  @filter_functions ~w(brightness contrast grayscale hue-rotate invert opacity saturate sepia)
-  @filter_argument ~S"-?\d+(\.\d+)?(%|deg)?"
-  @filter Regex.compile!(
-            "\\A(#{Enum.join(@filter_functions, "|")})\\(#{@filter_argument}\\)" <>
-              "( (#{Enum.join(@filter_functions, "|")})\\(#{@filter_argument}\\))*\\z"
-          )
+  # A ring at a quarter of its opacity, and a quarter of it opaque: as a mask, only
+  # its alpha counts, so the spinner takes its color from the CSS.
+  @spinner_svg """
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+    <circle cx="12" cy="12" r="10" stroke="#000000" stroke-opacity="0.25" stroke-width="4"/>
+    <path d="M22 12a10 10 0 0 0-10-10" stroke="#000000" stroke-width="4" stroke-linecap="round"/>
+  </svg>
+  """
+
+  # The image's path in the target, and its URL from css/components.css.
+  @spinner_path "images/spinner.svg"
+  @spinner_mask ~s[url("../#{@spinner_path}") center / contain no-repeat]
 
   @design {__MODULE__, :design}
   @read {__MODULE__, :read}
@@ -123,8 +157,14 @@ defmodule Prism.Generator.Web.Components do
   @doc "The components the web target knows."
   def kinds, do: @kinds
 
+  @doc "The parts each component writes, besides parts that are other components."
+  def parts, do: @parts
+
   @doc "The keys a `web:` binding may have besides the properties, per kind of node."
   def bindings, do: @bindings
+
+  @doc "The spinner's image, `{path, body}`: the mask a spinner is drawn with."
+  def spinner_image, do: {@spinner_path, @spinner_svg}
 
   @doc false
   # Checks the value of a web binding key, for the schema.
@@ -135,29 +175,19 @@ defmodule Prism.Generator.Web.Components do
        else: {:error, "must be one line of text without */"}
   end
 
-  def check_binding(:filter, value) do
-    if Keyword.keyword?(value) and Enum.sort(Keyword.keys(value)) == [:color, :value] and
-         is_binary(value[:color]) and Regex.match?(~r/\A#[0-9A-F]{6}\z/, value[:color]) and
-         is_binary(value[:value]) and Regex.match?(@filter, value[:value]),
-       do: :ok,
-       else:
-         {:error,
-          ~s(must be [color: "#RRGGBB", value: "a CSS filter"], the filter one or more of ) <>
-            Enum.join(@filter_functions, ", ") <>
-            " with a number, a percentage or (for hue-rotate) degrees, separated by spaces"}
-  end
-
   @doc false
   # Checks, for the schema, a value the web writes in its own way at `place` (the
-  # node's path as `[{kind, name}]`): a color drawn into an image or tinted by a
-  # filter can't have alpha, and a spinner's size is halved to center it.
+  # node's path as `[{kind, name}]`): the check mark is drawn into an image, a
+  # spinner is drawn in its foreground color, and a spinner's size is halved to
+  # center it.
   def check_value(place, key, value) do
     case {hd(place), List.last(place), key, value} do
       {{:component, :checkbox}, {:state, :checked}, :foreground, color} ->
         solid(color, "the check mark is an image in this color")
 
-      {{:component, :spinner}, {:variant, _}, :foreground, color} ->
-        solid(color, "the spinner is tinted to this color with a CSS filter")
+      {{:component, :spinner}, _, :background, _} ->
+        {:error,
+         "a spinner is drawn in its foreground color over no background; give it a foreground"}
 
       {{:component, :spinner}, _, :size, {_, :percent}} ->
         {:error,
@@ -182,6 +212,23 @@ defmodule Prism.Generator.Web.Components do
             "the web target has no component #{inspect(c.name)}; it knows #{Enum.map_join(@kinds, ", ", &inspect/1)}"
     end
 
+    # A part the web doesn't write fails, also one without a look of its own that
+    # only a variant or a state changes.
+    for c <- components, %{component: nil} = p <- c.parts do
+      known = Map.get(@parts, c.name, [])
+
+      unless p.name in known,
+        do:
+          raise(
+            ArgumentError,
+            "the web target has no part #{inspect(p.name)} of #{inspect(c.name)}; " <>
+              if(known == [],
+                do: "it writes only parts that are other components there",
+                else: "it knows #{Enum.map_join(known, ", ", &inspect/1)}"
+              )
+          )
+    end
+
     Process.put(@design, design)
     Process.put(@read, MapSet.new())
 
@@ -201,7 +248,7 @@ defmodule Prism.Generator.Web.Components do
 
   # ------------------------------------------------------------ components
 
-  defp blocks(%{name: :btn} = c) do
+  defp blocks(%{name: :button} = c) do
     n = [c.name]
 
     [
@@ -215,102 +262,102 @@ defmodule Prism.Generator.Web.Components do
         placed(n, :transition, &"transition: all #{&1}")
       ]),
       rule(".#{class(n)}:focus", ["outline: none"]),
-      states(n, c, @control),
+      part(c, :label, &declarations/1),
+      part(c, :icon, &declarations/1),
+      own(n, c, @control),
       variants(c, &(&1 == :variant), @control),
       loading(c),
       variants(c, &(&1 != :variant), @control)
     ]
   end
 
-  defp blocks(%{name: :input} = c) do
+  defp blocks(%{name: kind} = c) when kind in [:text_field, :text_area] do
     n = [c.name]
+    resize = if kind == :text_area, do: ["resize: vertical"], else: []
 
     [
-      rule(n, ".#{class(n)}", [
-        "display: block",
-        "width: 100%",
-        declarations(n),
-        "outline: none",
-        placed(n, :transition, &"transition: border-color #{&1}")
-      ]),
+      rule(
+        n,
+        ".#{class(n)}",
+        ["display: block", "width: 100%", declarations(n), "outline: none"] ++
+          resize ++ [placed(n, :transition, &"transition: border-color #{&1}")]
+      ),
       placeholder(n),
-      states(n, c, @control),
+      own(n, c, @control),
       variants(c, fn _ -> true end, @control)
     ]
   end
 
-  defp blocks(%{name: :textarea} = c) do
+  # A label and an error message around a control.
+  defp blocks(%{name: :field} = c) do
     n = [c.name]
 
     [
-      rule(n, ".#{class(n)}", [
-        "display: block",
-        "width: 100%",
-        declarations(n),
-        "outline: none",
-        "resize: vertical",
-        placed(n, :transition, &"transition: border-color #{&1}")
-      ]),
-      placeholder(n),
-      states(n, c, @control),
-      variants(c, fn _ -> true end, @control)
-    ]
-  end
-
-  defp blocks(%{name: :label} = c) do
-    n = [c.name]
-
-    [
-      rule(n, ".#{class(n)}", ["display: block", declarations(n)]),
-      states(n, c, @element),
+      rule(n, ".#{class(n)}", [declarations(n)]),
+      part(c, :label, &["display: block", declarations(&1)]),
+      part(c, :error_message, &declarations/1),
+      own(n, c, @element),
       variants(c, fn _ -> true end, @element)
     ]
   end
 
-  # The component is the radio control; the group holds the options, and an option
-  # is a label around the control and its text.
+  defp blocks(%{name: :radio_group} = c) do
+    n = [c.name]
+
+    [
+      rule(n, ".#{class(n)}", ["display: flex", "flex-direction: row", declarations(n)]),
+      own(n, c, @element),
+      variants(c, fn _ -> true end, @element)
+    ]
+  end
+
+  # One option of a radio group: a label element around the control and its label.
   defp blocks(%{name: :radio} = c) do
     n = [c.name]
 
     [
-      part(c, :group, &["display: flex", "flex-direction: row", declarations(&1)]),
-      part(c, :label, fn path ->
+      rule(n, ".#{class(n)}", [
+        "display: flex",
+        "flex-direction: row",
+        "align-items: center",
+        declarations(n),
+        "cursor: pointer"
+      ]),
+      own(n, c, @element),
+      part(c, :control, fn path ->
         [
-          "display: flex",
-          "flex-direction: row",
-          "align-items: center",
+          "appearance: none",
           declarations(path),
-          "cursor: pointer"
+          "cursor: pointer",
+          placed(path, :transition, &"transition: all #{&1}")
         ]
       end),
-      rule(n, ".#{class(n)}", [
-        "appearance: none",
-        declarations(n),
-        "cursor: pointer",
-        placed(n, :transition, &"transition: all #{&1}")
-      ]),
-      states(n, c, @control),
-      if(state(c, :disabled),
-        do: [],
-        else: rule(".#{class(n)}:disabled", ["cursor: not-allowed"])
-      ),
-      part(c, :text, fn path ->
+      case Enum.find(c.parts, &(&1.name == :control)) do
+        %{states: states} ->
+          if Enum.any?(states, &(&1.name == :disabled)),
+            do: [],
+            else: rule(".#{class([c.name, :control])}:disabled", ["cursor: not-allowed"])
+
+        nil ->
+          []
+      end,
+      part(c, :label, fn path ->
         [
           declarations(path, except: [:margin]),
           "user-select: none",
           declarations(path, only: [:margin])
         ]
       end),
-      variants(c, fn _ -> true end, @control)
+      variants(c, fn _ -> true end, @element)
     ]
   end
 
-  defp blocks(%{name: :dropdown} = c) do
+  defp blocks(%{name: :select} = c) do
     n = [c.name]
 
     [
       rule(n, ".#{class(n)}", ["position: relative", "width: 100%", declarations(n)]),
-      part(c, :input, fn path ->
+      part(c, :field, fn path ->
         [
           "display: block",
           "width: 100%",
@@ -329,7 +376,7 @@ defmodule Prism.Generator.Web.Components do
           "pointer-events: none"
         ]
       end),
-      part(c, :options, fn path ->
+      part(c, :listbox, fn path ->
         [
           "position: absolute",
           "z-index: 20",
@@ -357,23 +404,26 @@ defmodule Prism.Generator.Web.Components do
           placed(path, :transition, &"transition: background-color #{&1}")
         ]
       end),
-      variants(c, fn _ -> true end, @control)
+      own(n, c, @element),
+      variants(c, fn _ -> true end, @element)
     ]
   end
 
-  # The spinner is an image that turns; a variant with a color tints it with a CSS
-  # filter, after the keyframes.
+  # The spinner image, as a mask over the spinner's color, turning.
   defp blocks(%{name: :spinner} = c) do
     n = [c.name]
-    {tinted, other} = Enum.split_with(c.variants, &Keyword.has_key?(web_style(&1), :foreground))
 
     [
       rule(n, ".#{class(n)}", [
+        "display: inline-block",
         declarations(n),
+        "background-color: currentColor",
+        "-webkit-mask: #{@spinner_mask}",
+        "mask: #{@spinner_mask}",
         placed(n, :rotation, &"animation: #{prefix()}-spin #{&1} infinite")
       ]),
-      states(n, c, @element),
-      Enum.map(other, &prepend(axis_doc(c, &1), variant(c, &1, @element))),
+      own(n, c, @element),
+      variants(c, fn _ -> true end, @element),
       """
       @keyframes #{prefix()}-spin {
         from {
@@ -383,15 +433,7 @@ defmodule Prism.Generator.Web.Components do
           transform: rotate(360deg);
         }
       }
-      """,
-      Enum.map(tinted, fn v ->
-        path = [c.name, v.name]
-
-        prepend(
-          axis_doc(c, v),
-          rule(path, selector(path), [declarations(path, except: [:foreground]), filter(path)])
-        )
-      end)
+      """
     ]
   end
 
@@ -416,6 +458,7 @@ defmodule Prism.Generator.Web.Components do
         placed(n, :transition, &"transition: all #{&1}")
       ]),
       states(n, c, @control, %{checked: checked}),
+      with_parts(n, c, @control),
       variants(c, fn _ -> true end, @control)
     ]
   end
@@ -430,7 +473,7 @@ defmodule Prism.Generator.Web.Components do
         "justify-content: center",
         declarations(n)
       ]),
-      part(c, :inner, fn path ->
+      part(c, :label, fn path ->
         [
           "display: flex",
           "flex-direction: column",
@@ -439,12 +482,12 @@ defmodule Prism.Generator.Web.Components do
           declarations(path)
         ]
       end),
-      states(n, c, @element),
+      own(n, c, @element),
       variants(c, fn _ -> true end, @element)
     ]
   end
 
-  defp blocks(%{name: :alert} = c) do
+  defp blocks(%{name: :message_bar} = c) do
     n = [c.name]
 
     [
@@ -454,12 +497,12 @@ defmodule Prism.Generator.Web.Components do
         "align-items: center",
         declarations(n)
       ]),
-      states(n, c, @element),
+      own(n, c, @element),
       variants(c, fn _ -> true end, @element)
     ]
   end
 
-  defp blocks(%{name: :number_icon} = c) do
+  defp blocks(%{name: :step_indicator} = c) do
     n = [c.name]
 
     [
@@ -471,15 +514,19 @@ defmodule Prism.Generator.Web.Components do
         declarations(n),
         "font-variant-numeric: tabular-nums"
       ]),
-      states(n, c, @element),
+      own(n, c, @element),
       variants(c, fn _ -> true end, @element)
     ]
   end
 
   # ------------------------------------------------------------ shared rules
 
+  # A component's own states and its looks with a part.
+  defp own(path, c, selectors), do: [states(path, c, selectors), with_parts(path, c, selectors)]
+
   # The variants of the axes `axis?` picks, in the design's order: each variant's
-  # rule, its parts and its states. An axis's doc goes above its first variant.
+  # rule, its parts, its states and its looks with a part. An axis's doc goes above
+  # its first variant.
   defp variants(c, axis?, selectors) do
     for v <- c.variants, axis?.(v.axis), do: prepend(axis_doc(c, v), variant(c, v, selectors))
   end
@@ -493,15 +540,29 @@ defmodule Prism.Generator.Web.Components do
 
     with_doc(
       path,
-      [rule(selector(path), declarations(path)) | parts] ++ states(path, v, selectors)
+      [rule(selector(path), declarations(path)) | parts] ++
+        states(path, v, selectors) ++ with_parts(path, v, selectors)
     )
+  end
+
+  # A component's or a variant's looks while the component has a part: the rule,
+  # then its states.
+  defp with_parts(path, node, selectors) do
+    for w <- node.with_parts do
+      with_path = path ++ [w.name]
+
+      with_doc(with_path, [
+        rule(selector(with_path), declarations(with_path)) | states(with_path, w, selectors)
+      ])
+    end
   end
 
   # A node's states, the loading state apart (`loading/1`): each state's rule, then
   # the parts it changes. `custom` writes a state's declarations itself. A state
-  # without a pseudo-class is a modifier class: on its own for a component's state
-  # (`.acme-input-error`), on the variant or part it belongs to otherwise
-  # (`.acme-tag-primary.acme-tag-error`).
+  # without a pseudo-class is a modifier class: on its own for a state of a
+  # component or one of its parts (`.acme-text-field--invalid`,
+  # `.acme-select__option--selected`), on the variant or look it belongs to
+  # otherwise (`.acme-tag--accent.acme-tag--invalid`).
   defp states(path, node, selectors, custom \\ %{}) do
     for s <- node.states, s.name != :loading do
       state = path ++ [s.name]
@@ -509,8 +570,9 @@ defmodule Prism.Generator.Web.Components do
       cursor = if s.name == :disabled, do: ["cursor: not-allowed"], else: []
 
       sel =
-        case {selectors[s.name], path} do
-          {nil, [_component]} -> "." <> class(state)
+        case {selectors_for(path, selectors)[s.name], nodes!(path)} do
+          {nil, [{:component, _}]} -> "." <> class(state)
+          {nil, [{:component, _}, {:part, _}]} -> "." <> class(state)
           {nil, _} -> selector(path, "." <> class(state))
           {suffix, _} -> selector(path, suffix)
         end
@@ -521,8 +583,17 @@ defmodule Prism.Generator.Web.Components do
     end
   end
 
+  # The states of a part that is a form control are the browser's; any other part
+  # is an element.
+  defp selectors_for(path, selectors) do
+    case path |> nodes!() |> Enum.reverse() |> Enum.find(&match?({:part, _}, &1)) do
+      nil -> selectors
+      {:part, p} -> if {hd(path), p.name} in @control_parts, do: @control, else: @element
+    end
+  end
+
   # A part while its component is in a state: the part's class after each of the
-  # state's selectors (`.a:hover .acme-tag-inner, .b:hover .acme-tag-inner`).
+  # state's selectors (`.a:hover .acme-tag__label, .b:hover .acme-tag__label`).
   defp state_part(sel, state, part) do
     descendant = " ." <> class([hd(state), part.name])
 
@@ -533,7 +604,7 @@ defmodule Prism.Generator.Web.Components do
   end
 
   # While loading, the parts change, and a part that is another component (a
-  # spinner) sits in the middle.
+  # spinner) sits in the middle; while not loading, that part is hidden.
   defp loading(c) do
     case state(c, :loading) do
       nil ->
@@ -546,17 +617,22 @@ defmodule Prism.Generator.Web.Components do
           for %{component: ref} = p <- c.parts, ref != nil do
             margin = [ref] |> get(:size) |> half() |> css_length()
 
-            rule(".#{class(state)} .#{class([c.name, p.name])}", [
-              "position: absolute",
-              "top: 50%",
-              "left: 50%",
-              {:raw,
-               "  /* Use margins instead of transform for centering because\n" <>
-                 "     the spinner animation uses transform: rotate() which would\n" <>
-                 "     override translate(-50%, -50%) centering */"},
-              "margin-top: #{margin}",
-              "margin-left: #{margin}"
-            ])
+            [
+              rule(".#{class(state)} .#{class([c.name, p.name])}", [
+                "position: absolute",
+                "top: 50%",
+                "left: 50%",
+                {:raw,
+                 "  /* Use margins instead of transform for centering because\n" <>
+                   "     the spinner animation uses transform: rotate() which would\n" <>
+                   "     override translate(-50%, -50%) centering */"},
+                "margin-top: #{margin}",
+                "margin-left: #{margin}"
+              ]),
+              rule(".#{class([c.name])}:not(.#{class(state)}) .#{class([c.name, p.name])}", [
+                "display: none"
+              ])
+            ]
           end
 
         [
@@ -566,8 +642,7 @@ defmodule Prism.Generator.Web.Components do
     end
   end
 
-  # A part the component declares: its rule, from `lines`, then its states. A
-  # dropdown's input is a form control; any other part is an element.
+  # A part the component declares: its rule, from `lines`, then its states.
   defp part(c, name, lines) do
     case Enum.find(c.parts, &(&1.name == name)) do
       nil ->
@@ -575,8 +650,7 @@ defmodule Prism.Generator.Web.Components do
 
       p ->
         path = [c.name, name]
-        selectors = if name == :input, do: @control, else: @element
-        [rule(path, selector(path), lines.(path)), states(path, p, selectors)]
+        [rule(path, selector(path), lines.(path)), states(path, p, @element)]
     end
   end
 
@@ -584,49 +658,6 @@ defmodule Prism.Generator.Web.Components do
     if has?(path, :placeholder),
       do: rule(selector(path, "::placeholder"), ["color: #{value(path, :placeholder)}"]),
       else: []
-  end
-
-  defp filter(path) do
-    color = path |> get(:foreground) |> resolve_color()
-
-    value =
-      case web(path, :filter) do
-        nil when color == "#FFFFFF" ->
-          "brightness(0) invert(1)"
-
-        nil when color == "#000000" ->
-          "brightness(0)"
-
-        nil ->
-          raise ArgumentError,
-                "#{label(path)}: the web tints the spinner with a CSS filter; give it web: [filter: [color: #{inspect(color)}, value: ...]]"
-
-        filter ->
-          unless filter[:color] == color,
-            do:
-              raise(
-                ArgumentError,
-                "#{label(path)}: its web filter was made for #{filter[:color]}, but its color is #{color}; make one for #{color}"
-              )
-
-          filter[:value]
-      end
-
-    {:raw, wrap("  filter: #{value};")}
-  end
-
-  # Wrapped like prettier at 80 columns: words on a line while they fit.
-  defp wrap(line) do
-    [first | words] = String.split(line, " ")
-
-    words
-    |> Enum.reduce([first], fn word, [current | done] ->
-      if String.length(current) + 1 + String.length(word) > 80,
-        do: ["    " <> word, current | done],
-        else: [current <> " " <> word | done]
-    end)
-    |> Enum.reverse()
-    |> Enum.join("\n")
   end
 
   # The check mark's color in its SVG: white and black by name.
@@ -703,8 +734,9 @@ defmodule Prism.Generator.Web.Components do
 
   # ------------------------------------------------------------ the design's values
 
-  # A part's class comes from the part the component declares, so a variant's or a
-  # state's change to a part that is another component has that component's class.
+  # The class of the last node of `path` (see the moduledoc). A part's class comes
+  # from the part the component declares, so a variant's or a state's change to a
+  # part that is another component has that component's class.
   defp class(path) do
     [{:component, c} | _] = nodes = nodes!(path)
 
@@ -718,16 +750,25 @@ defmodule Prism.Generator.Web.Components do
 
         case Enum.find(c.parts, &(&1.name == part.name)) do
           %{component: ref} when ref != nil -> base(ref)
-          _ -> "#{base(c.name)}-#{key(part.name)}"
+          _ -> "#{base(c.name)}__#{key(part.name)}"
         end
 
+      # A part's state modifies the part's class, any other state the component's.
+      {:state, s} ->
+        case Enum.at(nodes, -2) do
+          {:part, _} -> "#{class(Enum.drop(path, -1))}--#{key(s.name)}"
+          _ -> "#{base(c.name)}--#{key(s.name)}"
+        end
+
+      # A variant, or a look with a part (`with_icon`).
       {_, node} ->
-        "#{base(c.name)}-#{key(node.name)}"
+        "#{base(c.name)}--#{key(node.name)}"
     end
   end
 
-  # The selector of a component, variant or part, with `suffix` after it: one per
-  # name of a variant with aliases, and a variant's part as a descendant.
+  # The selector of a component, variant, part or look with a part, with `suffix`
+  # after it: one per name of a variant with aliases, a variant's part as a
+  # descendant, and a variant's look with a part on the same element.
   defp selector(path, suffix \\ "") do
     nodes = nodes!(path)
 
@@ -736,14 +777,17 @@ defmodule Prism.Generator.Web.Components do
         [] ->
           [base(hd(path))]
 
-        [{:part, _}] ->
+        [{kind, _}] when kind in [:part, :with_part] ->
           [class(path)]
 
-        [{:variant, v} | part] ->
-          for name <- [v.name | v.aliases] do
-            "#{base(hd(path))}-#{key(name)}" <>
-              Enum.map_join(part, fn _ -> " .#{class(path)}" end)
-          end
+        [{:variant, v} | rest] ->
+          tail =
+            Enum.map_join(rest, fn
+              {:part, _} -> " .#{class(path)}"
+              {:with_part, _} -> ".#{class(path)}"
+            end)
+
+          for name <- [v.name | v.aliases], do: "#{base(hd(path))}--#{key(name)}" <> tail
       end
 
     Enum.map_join(alternatives, ",\n", &".#{&1}#{suffix}")
@@ -981,7 +1025,7 @@ defmodule Prism.Generator.Web.Components do
   end
 
   defp children(node) do
-    for kind <- [:part, :variant, :state],
+    for kind <- [:part, :variant, :with_part, :state],
         child <- Map.get(node, :"#{kind}s", []),
         do: {kind, child}
   end

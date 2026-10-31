@@ -15,7 +15,7 @@
   background-color: #fdfdfd;
 }
 
-.acme-tag-inner {
+.acme-tag__label {
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -27,28 +27,28 @@
   line-height: 24px;
 }
 
-.acme-tag.disabled {
+.acme-tag--disabled {
   opacity: 0.4;
   cursor: not-allowed;
 }
 
-.acme-tag.disabled .acme-tag-inner {
+.acme-tag--disabled .acme-tag__label {
   text-decoration: none;
 }
 
 /* An accent tag */
-.acme-tag-accent .acme-tag-inner {
+.acme-tag--accent .acme-tag__label {
   background-color: rgba(26, 115, 232, 0.2);
   color: #1a73e8;
 }
 
-.acme-tag-muted .acme-tag-inner,
-.acme-tag-quiet .acme-tag-inner {
+.acme-tag--muted .acme-tag__label,
+.acme-tag--quiet .acme-tag__label {
   color: rgba(16, 16, 16, 0.6);
 }
 
 /* Sizes */
-.acme-tag-large {
+.acme-tag--large {
   padding-left: 4px;
   padding-right: 4px;
 }

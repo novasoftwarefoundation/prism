@@ -68,20 +68,23 @@ defmodule Prism.Generator.Schema do
       where `x` is left and right and `y` top and bottom, …);
     - `parts`: `[%{name, component, style, states}]` in the design's order,
       `component` being the name of the component the part is, or `nil`;
-    - `variants`: `[%{name, axis, aliases, style, parts, states}]` in the
-      design's order; `axis` is `:variant`, or the name of the `variants`
-      block it is in; `parts` are the changes it makes to the component's
-      parts, `[%{name, style, states}]`;
+    - `variants`: `[%{name, axis, aliases, style, parts, with_parts, states}]`
+      in the design's order; `axis` is `:variant`, or the name of the
+      `variants` block it is in; `parts` are the changes it makes to the
+      component's parts, `[%{name, style, states}]`;
     - `axes`: `[%{name}]`, the `variants` blocks;
+    - `with_parts`: `[%{name, part, style, states}]`, the looks while the
+      component has one of its parts (`part`), named `with_<part>`; a
+      variant's `with_parts` have the same shape;
     - `states`: `[%{name, style, parts}]`, `name` one of
       `Prism.Generator.Schema.Components.states/0`; a part's states have the
       same shape. A state's `parts` are its changes to the component's parts,
       `[%{name, style, states}]`, with `states` always `[]`; a variant's part
       changes have the same shape, and their `states` are the part's states
       within that variant;
-    - and on every component, part, variant, axis and state, `web`, `ios` and
-      `android`: its binding for that target, a keyword list (`[]` without
-      one). A property in a binding replaces the shared one on that target;
+    - and on every component, part, variant, axis, look with a part and
+      state, `web`, `ios` and `android`: its binding for that target, a
+      keyword list (`[]` without one). A property in a binding replaces the shared one on that target;
       the other keys are the target's own (`Prism.Generator.Web.Components`).
       A target reads only its own binding.
   - `file` is the design's source file relative to the project

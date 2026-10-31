@@ -47,58 +47,82 @@ Import the base and component styles in your main CSS file:
 
 ### 3. Use Components
 
-```html
-<!-- Buttons -->
-<button class="prism-btn prism-btn-primary">Primary Button</button>
-<button class="prism-btn prism-btn-secondary">Secondary Button</button>
-<button class="prism-btn prism-btn-plain">Plain Button</button>
+Classes follow BEM: `prism-<component>`, `__<part>` for a part, `--<name>` for a variant or a state the app sets.
 
-<!-- Inputs -->
-<input type="text" class="prism-input" placeholder="Enter text" />
-<textarea class="prism-textarea" placeholder="Enter description"></textarea>
+```html
+<!-- Buttons: a variant, and optionally a tone -->
+<button class="prism-button prism-button--primary">
+  <span class="prism-button__label">Primary Button</span>
+</button>
+<button class="prism-button prism-button--secondary">
+  <span class="prism-button__label">Secondary Button</span>
+</button>
+<button class="prism-button prism-button--primary prism-button--danger">
+  <span class="prism-button__label">Delete</span>
+</button>
+
+<!-- A button with an icon: the icon part, and --with-icon for its spacing -->
+<button class="prism-button prism-button--primary prism-button--with-icon">
+  <img class="prism-button__icon" src="add.svg" alt="" />
+  <span class="prism-button__label">Add</span>
+</button>
+
+<!-- A loading button: the spinner shows only while --loading is set -->
+<button class="prism-button prism-button--primary prism-button--loading">
+  <span class="prism-button__label">Save</span>
+  <span class="prism-spinner prism-spinner--inverse"></span>
+</button>
+
+<!-- Fields -->
+<label class="prism-field__label" for="name">Name</label>
+<input id="name" type="text" class="prism-text-field" placeholder="Enter text" />
+<input type="text" class="prism-text-field prism-text-field--invalid" aria-invalid="true" />
+<span class="prism-field__error-message">Required</span>
+<textarea class="prism-text-area" placeholder="Enter description"></textarea>
 
 <!-- Radio buttons -->
 <div class="prism-radio-group">
-  <label class="prism-radio-label">
-    <input type="radio" name="option" class="prism-radio" />
-    <span class="prism-radio-text">Option 1</span>
+  <label class="prism-radio">
+    <input type="radio" name="option" class="prism-radio__control" />
+    <span class="prism-radio__label">Option 1</span>
   </label>
-  <label class="prism-radio-label">
-    <input type="radio" name="option" class="prism-radio" />
-    <span class="prism-radio-text">Option 2</span>
+  <label class="prism-radio prism-radio--disabled">
+    <input type="radio" name="option" class="prism-radio__control" disabled />
+    <span class="prism-radio__label">Option 2</span>
   </label>
 </div>
 
-<!-- Dropdown -->
-<div class="prism-dropdown">
-  <input type="text" class="prism-dropdown-input" value="Select option" />
-  <div class="prism-dropdown-options">
-    <div class="prism-dropdown-option">Option 1</div>
-    <div class="prism-dropdown-option">Option 2</div>
+<!-- Select -->
+<div class="prism-select">
+  <input type="text" class="prism-select__field" value="Select option" />
+  <div class="prism-select__listbox">
+    <div class="prism-select__option prism-select__option--selected">Option 1</div>
+    <div class="prism-select__option">Option 2</div>
   </div>
 </div>
 
-<!-- Spinner -->
-<div class="prism-spinner"></div>
+<!-- Spinner: an empty element, drawn in its text color -->
+<span class="prism-spinner" role="status" aria-label="Loading"></span>
+<span class="prism-spinner prism-spinner--small prism-spinner--accent"></span>
 
-<!-- Tags / Badges -->
-<span class="prism-tag prism-tag-primary">
-  <span class="prism-tag-inner">New</span>
+<!-- Tags -->
+<span class="prism-tag prism-tag--accent">
+  <span class="prism-tag__label">New</span>
 </span>
-<span class="prism-tag prism-tag-success">
-  <span class="prism-tag-inner">Complete</span>
+<span class="prism-tag prism-tag--success">
+  <span class="prism-tag__label">Complete</span>
 </span>
 
-<!-- Alert Banners -->
-<div class="prism-alert prism-alert-info">Information message</div>
-<div class="prism-alert prism-alert-success">Success message</div>
-<div class="prism-alert prism-alert-warning">Warning message</div>
-<div class="prism-alert prism-alert-error">Error message</div>
+<!-- Message bars -->
+<div class="prism-message-bar prism-message-bar--info">Information message</div>
+<div class="prism-message-bar prism-message-bar--success">Success message</div>
+<div class="prism-message-bar prism-message-bar--warning">Warning message</div>
+<div class="prism-message-bar prism-message-bar--danger">Error message</div>
 
-<!-- Number Icons (Step Indicators) -->
-<span class="prism-number-icon prism-number-icon-completed">1</span>
-<span class="prism-number-icon prism-number-icon-active">2</span>
-<span class="prism-number-icon prism-number-icon-inactive">3</span>
+<!-- Step indicators -->
+<span class="prism-step-indicator prism-step-indicator--complete">1</span>
+<span class="prism-step-indicator prism-step-indicator--current">2</span>
+<span class="prism-step-indicator prism-step-indicator--incomplete">3</span>
 ```
 
 ## Design Tokens
@@ -128,85 +152,161 @@ Font classes: `font-title0` through `font-title7`, `font-body`, `font-button`, `
 
 ### Buttons
 
-| Class                     | Description                        |
-| ------------------------- | ---------------------------------- |
-| `prism-btn`               | Base button (required)             |
-| `prism-btn-primary`       | Filled primary button              |
-| `prism-btn-secondary`     | Outlined button                    |
-| `prism-btn-plain`         | Text-only button                   |
-| `prism-btn-link`          | Link-style button                  |
-| `prism-btn-primary-icon`  | Primary button with icon           |
-| `prism-btn-secondary-icon`| Secondary button with icon         |
+| Class | Description |
+| --- | --- |
+| `prism-button` | Base button (required) |
+| `prism-button__label` | The button's label (hidden while loading) |
+| `prism-button__icon` | The button's icon |
+| `prism-button--primary` | Filled button |
+| `prism-button--secondary` | Outlined button |
+| `prism-button--plain` | Text only, no padding or background |
+| `prism-button--link` | Looks like a text link |
+| `prism-button--text` | Brand-colored text, minimal styling |
+| `prism-button--with-icon` | Spacing for a button with an icon (with `--primary`, `--secondary` or `--plain`) |
+| `prism-button--success`, `--warning`, `--danger` | Tones, with a variant |
+| `prism-button--loading` | Loading: hides the label, shows the spinner |
 
-### Inputs
+### Fields
 
-| Class                | Description             |
-| -------------------- | ----------------------- |
-| `prism-input`        | Standard text input     |
-| `prism-input-error`  | Input with error state  |
-| `prism-textarea`     | Multi-line text input   |
-| `prism-label`        | Form label              |
-| `prism-label-error`  | Error message text      |
+| Class | Description |
+| --- | --- |
+| `prism-text-field` | Single-line text field |
+| `prism-text-field--invalid` | A text field with an invalid value |
+| `prism-text-field--inverse` | A text field on a dark background |
+| `prism-text-area` | Multi-line text field |
+| `prism-field__label` | Form label |
+| `prism-field__error-message` | Error message |
 
 ### Radio Buttons
 
-| Class               | Description              |
-| ------------------- | ------------------------ |
-| `prism-radio-group` | Container for radios     |
-| `prism-radio-label` | Label wrapper            |
-| `prism-radio`       | Radio input              |
-| `prism-radio-text`  | Radio label text         |
+| Class | Description |
+| --- | --- |
+| `prism-radio-group` | Container for radios |
+| `prism-radio` | One option: the row with the control and its label |
+| `prism-radio--disabled` | A disabled option |
+| `prism-radio__control` | The radio input |
+| `prism-radio__label` | The option's label |
 
-### Dropdown
+### Select
 
-| Class                   | Description            |
-| ----------------------- | ---------------------- |
-| `prism-dropdown`        | Container              |
-| `prism-dropdown-input`  | Trigger input          |
-| `prism-dropdown-options`| Options container      |
-| `prism-dropdown-option` | Individual option      |
+| Class | Description |
+| --- | --- |
+| `prism-select` | Container |
+| `prism-select__field` | The field that opens the list |
+| `prism-select__icon` | The field's icon |
+| `prism-select__listbox` | The list of options |
+| `prism-select__option` | One option |
+| `prism-select__option--selected` | The selected option |
 
 ### Spinner
 
-| Class                 | Description           |
-| --------------------- | --------------------- |
-| `prism-spinner`       | Base spinner (24px)   |
-| `prism-spinner-sm`    | Small spinner (16px)  |
-| `prism-spinner-lg`    | Large spinner (32px)  |
-| `prism-spinner-white` | White colored         |
-| `prism-spinner-primary`| Primary colored      |
+| Class | Description |
+| --- | --- |
+| `prism-spinner` | Spinner (24px), in the text color around it |
+| `prism-spinner--small` | Small spinner (16px) |
+| `prism-spinner--large` | Large spinner (32px) |
+| `prism-spinner--accent` | Accent colored |
+| `prism-spinner--inverse` | White, for colored backgrounds |
 
-### Tags / Badges
+The spinner is an empty element drawn with `images/spinner.svg` (in this package) as a mask over its text color, so a text color utility colors it too.
 
-| Class                | Description                    |
-| -------------------- | ------------------------------ |
-| `prism-tag`          | Base tag container             |
-| `prism-tag-inner`    | Inner content with styling     |
-| `prism-tag-primary`  | Primary colored tag            |
-| `prism-tag-success`  | Success/green colored tag      |
-| `prism-tag-warning`  | Warning/orange colored tag     |
-| `prism-tag-error`    | Error/red colored tag          |
-| `prism-tag-danger`   | Alias for error                |
-| `prism-tag-secondary`| Grey/neutral colored tag       |
+### Checkbox
 
-### Alert Banners
+| Class | Description |
+| --- | --- |
+| `prism-checkbox` | Checkbox input |
 
-| Class                 | Description                   |
-| --------------------- | ----------------------------- |
-| `prism-alert`         | Base alert banner             |
-| `prism-alert-info`    | Info/primary colored alert    |
-| `prism-alert-success` | Success/green colored alert   |
-| `prism-alert-warning` | Warning/orange colored alert  |
-| `prism-alert-error`   | Error/red colored alert       |
+### Tags
 
-### Number Icons (Step Indicators)
+| Class | Description |
+| --- | --- |
+| `prism-tag` | Base tag container |
+| `prism-tag__label` | The tag's label |
+| `prism-tag--accent` | Accent tag |
+| `prism-tag--neutral` | Grey tag |
+| `prism-tag--success`, `--warning`, `--danger` | Green, orange and red tags |
 
-| Class                        | Description                    |
-| ---------------------------- | ------------------------------ |
-| `prism-number-icon`          | Base circular number badge     |
-| `prism-number-icon-inactive` | Grey/inactive state            |
-| `prism-number-icon-active`   | Primary/current step state     |
-| `prism-number-icon-completed`| Green/completed state          |
+### Message Bars
+
+| Class | Description |
+| --- | --- |
+| `prism-message-bar` | Base message bar |
+| `prism-message-bar--info`, `--success`, `--warning`, `--danger` | Tones |
+
+### Step Indicators
+
+| Class | Description |
+| --- | --- |
+| `prism-step-indicator` | The numbered circle of one step |
+| `prism-step-indicator--incomplete` | A step not reached yet |
+| `prism-step-indicator--current` | The current step |
+| `prism-step-indicator--complete` | A completed step |
+
+## Migrating from 0.1.7
+
+0.2.0 renames every component class to the names design systems share; no old class is kept. Replace each 0.1.7 class with its 0.2.0 class:
+
+| 0.1.7 class | 0.2.0 class |
+| --- | --- |
+| `prism-btn` | `prism-button` |
+| `prism-btn-content` | `prism-button__label` |
+| `prism-btn-primary` | `prism-button--primary` |
+| `prism-btn-secondary` | `prism-button--secondary` |
+| `prism-btn-plain` | `prism-button--plain` |
+| `prism-btn-link` | `prism-button--link` |
+| `prism-btn-label` | `prism-button--text` |
+| `prism-btn-primary-icon` | `prism-button--primary prism-button--with-icon` |
+| `prism-btn-secondary-icon` | `prism-button--secondary prism-button--with-icon` |
+| `prism-btn-plain-icon` | `prism-button--plain prism-button--with-icon` |
+| `prism-btn-success` | `prism-button--success` |
+| `prism-btn-warning` | `prism-button--warning` |
+| `prism-btn-danger`, `prism-btn-delete` | `prism-button--danger` |
+| `prism-btn-loading` | `prism-button--loading` |
+| `prism-input` | `prism-text-field` |
+| `prism-input-error` | `prism-text-field--invalid` |
+| `prism-input-dark` | `prism-text-field--inverse` |
+| `prism-textarea` | `prism-text-area` |
+| `prism-label` | `prism-field__label` |
+| `prism-label-error` | `prism-field__error-message` |
+| `prism-radio-group` | `prism-radio-group` |
+| `prism-radio-label` | `prism-radio` |
+| `prism-radio-label disabled` | `prism-radio prism-radio--disabled` |
+| `prism-radio` | `prism-radio__control` |
+| `prism-radio-text` | `prism-radio__label` |
+| `prism-dropdown` | `prism-select` |
+| `prism-dropdown-input` | `prism-select__field` |
+| `prism-dropdown-icon` | `prism-select__icon` |
+| `prism-dropdown-options` | `prism-select__listbox` |
+| `prism-dropdown-option` | `prism-select__option` |
+| `prism-dropdown-option selected` | `prism-select__option prism-select__option--selected` |
+| `prism-spinner` | `prism-spinner` |
+| `prism-spinner-sm` | `prism-spinner--small` |
+| `prism-spinner-lg` | `prism-spinner--large` |
+| `prism-spinner-primary` | `prism-spinner--accent` |
+| `prism-spinner-white` | `prism-spinner--inverse` |
+| `prism-checkbox` | `prism-checkbox` |
+| `prism-tag` | `prism-tag` |
+| `prism-tag-inner` | `prism-tag__label` |
+| `prism-tag-primary` | `prism-tag--accent` |
+| `prism-tag-secondary` | `prism-tag--neutral` |
+| `prism-tag-success` | `prism-tag--success` |
+| `prism-tag-warning` | `prism-tag--warning` |
+| `prism-tag-error`, `prism-tag-danger` | `prism-tag--danger` |
+| `prism-alert` | `prism-message-bar` |
+| `prism-alert-info` | `prism-message-bar--info` |
+| `prism-alert-success` | `prism-message-bar--success` |
+| `prism-alert-warning` | `prism-message-bar--warning` |
+| `prism-alert-error` | `prism-message-bar--danger` |
+| `prism-number-icon` | `prism-step-indicator` |
+| `prism-number-icon-inactive` | `prism-step-indicator--incomplete` |
+| `prism-number-icon-active` | `prism-step-indicator--current` |
+| `prism-number-icon-completed` | `prism-step-indicator--complete` |
+
+Also:
+
+- **Spinner.** It is no longer a tinted image: use an empty element (`<span class="prism-spinner"></span>`, not an `<img>`). It is drawn with this package's `images/spinner.svg` as a mask over its text color, so CSS that drew it as a mask in an app can go. In a button it shows only while the button has `prism-button--loading`.
+- **Buttons with an icon** also take their variant's disabled look now.
+- `prism-max-lines-*` and `prism-text-shadow*` (in `css/base.css`) keep their names.
 
 ## License
 

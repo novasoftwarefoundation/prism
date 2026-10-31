@@ -9,3 +9,301 @@
        },
        spacing: {
          "1px": "1px",
+--- 0.1.7-renamed/css/components.css
++++ generated/css/components.css
+@@ -48,8 +48,6 @@
+ 
+ /* Primary button with icon */
+ .prism-button--primary.prism-button--with-icon {
+-  background-color: #4272ef;
+-  color: #ffffff;
+   padding: 4px 16px;
+   gap: 12px;
+ }
+@@ -57,7 +55,6 @@
+ .prism-button--primary.prism-button--with-icon:active {
+   padding-top: 5px;
+   padding-bottom: 3px;
+-  box-shadow: inset 0 4px 0 0 rgba(0, 0, 0, 0.15);
+ }
+ 
+ /* Secondary button - outlined */
+@@ -81,19 +78,9 @@
+ 
+ /* Secondary button with icon */
+ .prism-button--secondary.prism-button--with-icon {
+-  background-color: transparent;
+-  color: #4272ef;
+-  border: 2px solid #4272ef;
+-  padding: 13px 16px;
+   gap: 12px;
+ }
+ 
+-.prism-button--secondary.prism-button--with-icon:active {
+-  padding-top: 14px;
+-  padding-bottom: 12px;
+-  box-shadow: inset 0 2px 0 0 rgba(0, 0, 0, 0.15);
+-}
+-
+ /* Plain button - text only, no background */
+ .prism-button--plain {
+   background-color: transparent;
+@@ -108,17 +95,9 @@
+ 
+ /* Plain button with icon */
+ .prism-button--plain.prism-button--with-icon {
+-  background-color: transparent;
+-  color: #222222;
+-  padding: 4px 0;
+   gap: 8px;
+ }
+ 
+-.prism-button--plain.prism-button--with-icon:active {
+-  padding-top: 5px;
+-  padding-bottom: 3px;
+-}
+-
+ /* Link button - looks like a text link */
+ .prism-button--link {
+   background-color: transparent;
+@@ -132,7 +111,7 @@
+   text-decoration: none;
+ }
+ 
+-/* Label button - for wrapping labels, minimal styling */
++/* Text button - brand-colored text, minimal styling */
+ .prism-button--text {
+   color: #4272ef;
+   padding: 1px 16px;
+@@ -163,7 +142,11 @@
+   margin-left: -12px;
+ }
+ 
+-/* Color variants */
++.prism-button:not(.prism-button--loading) .prism-spinner {
++  display: none;
++}
++
++/* Tones */
+ .prism-button--success {
+   background-color: #52ba12;
+   color: #ffffff;
+@@ -174,17 +157,16 @@
+   color: #ffffff;
+ }
+ 
+-.prism-button--danger,
+ .prism-button--danger {
+   background-color: #db1e1e;
+   color: #ffffff;
+ }
+ 
+ /* ==========================================================================
+-   Inputs
++   Text fields
+    ========================================================================== */
+ 
+-/* Base input styles */
++/* Base text field styles */
+ .prism-text-field {
+   display: block;
+   width: 100%;
+@@ -217,17 +199,17 @@
+   cursor: not-allowed;
+ }
+ 
+-/* Input with error state */
++/* Text field with an invalid value */
+ .prism-text-field--invalid {
+   border-color: #f28d15;
+ }
+ 
+-/* Input with dark background */
++/* Text field on a dark background */
+ .prism-text-field--inverse:focus {
+   border-color: #ffcf60;
+ }
+ 
+-/* Textarea */
++/* Text area */
+ .prism-text-area {
+   display: block;
+   width: 100%;
+@@ -255,7 +237,7 @@
+ }
+ 
+ /* ==========================================================================
+-   Form Labels
++   Fields
+    ========================================================================== */
+ 
+ .prism-field__label {
+@@ -332,7 +314,7 @@
+ }
+ 
+ /* ==========================================================================
+-   Dropdown / Select
++   Select
+    ========================================================================== */
+ 
+ .prism-select {
+@@ -414,8 +396,12 @@
+    ========================================================================== */
+ 
+ .prism-spinner {
++  display: inline-block;
+   width: 24px;
+   height: 24px;
++  background-color: currentColor;
++  -webkit-mask: url("../images/spinner.svg") center / contain no-repeat;
++  mask: url("../images/spinner.svg") center / contain no-repeat;
+   animation: prism-spin 1s linear infinite;
+ }
+ 
+@@ -427,8 +413,17 @@
+ .prism-spinner--large {
+   width: 32px;
+   height: 32px;
++}
++
++/* Spinner colors */
++.prism-spinner--accent {
++  color: #4272ef;
+ }
+ 
++.prism-spinner--inverse {
++  color: #ffffff;
++}
++
+ @keyframes prism-spin {
+   from {
+     transform: rotate(0deg);
+@@ -438,16 +433,6 @@
+   }
+ }
+ 
+-/* Spinner colors - use with filter for different colors */
+-.prism-spinner--inverse {
+-  filter: brightness(0) invert(1);
+-}
+-
+-.prism-spinner--accent {
+-  filter: brightness(0) saturate(100%) invert(39%) sepia(70%) saturate(2238%)
+-    hue-rotate(209deg) brightness(97%) contrast(91%);
+-}
+-
+ /* ==========================================================================
+    Checkbox (bonus component)
+    ========================================================================== */
+@@ -477,7 +462,7 @@
+ }
+ 
+ /* ==========================================================================
+-   Tags / Badges
++   Tags
+    ========================================================================== */
+ 
+ /* Base tag styles - colored label with background opacity */
+@@ -502,7 +487,7 @@
+   line-height: 16px;
+ }
+ 
+-/* Primary tag (default) */
++/* Accent tag (default) */
+ .prism-tag--accent .prism-tag__label {
+   background-color: rgba(66, 114, 239, 0.2);
+   color: #4272ef;
+@@ -520,24 +505,23 @@
+   color: #f28d15;
+ }
+ 
+-/* Error/Danger tag */
+-.prism-tag--danger .prism-tag__label,
++/* Danger tag */
+ .prism-tag--danger .prism-tag__label {
+   background-color: rgba(219, 30, 30, 0.2);
+   color: #db1e1e;
+ }
+ 
+-/* Secondary tag */
++/* Neutral tag */
+ .prism-tag--neutral .prism-tag__label {
+   background-color: rgba(153, 153, 153, 0.2);
+   color: #666666;
+ }
+ 
+ /* ==========================================================================
+-   Alert Banners
++   Message bars
+    ========================================================================== */
+ 
+-/* Base alert styles */
++/* Base message bar styles */
+ .prism-message-bar {
+   display: flex;
+   justify-content: center;
+@@ -551,35 +535,35 @@
+   line-height: 16px;
+ }
+ 
+-/* Info alert (default) */
++/* Info message bar (default) */
+ .prism-message-bar--info {
+   background-color: rgba(66, 114, 239, 0.15);
+   color: #4272ef;
+ }
+ 
+-/* Success alert */
++/* Success message bar */
+ .prism-message-bar--success {
+   background-color: rgba(82, 186, 18, 0.15);
+   color: #52ba12;
+ }
+ 
+-/* Warning alert */
++/* Warning message bar */
+ .prism-message-bar--warning {
+   background-color: rgba(242, 141, 21, 0.15);
+   color: #f28d15;
+ }
+ 
+-/* Error alert */
++/* Danger message bar */
+ .prism-message-bar--danger {
+   background-color: rgba(219, 30, 30, 0.15);
+   color: #db1e1e;
+ }
+ 
+ /* ==========================================================================
+-   Number Icons (Step Indicators)
++   Step indicators
+    ========================================================================== */
+ 
+-/* Base number icon - circular badge with number */
++/* Base step indicator - circular badge with number */
+ .prism-step-indicator {
+   display: flex;
+   align-items: center;
+@@ -595,19 +579,19 @@
+   font-variant-numeric: tabular-nums;
+ }
+ 
+-/* Inactive state (default) */
++/* Incomplete step (default) */
+ .prism-step-indicator--incomplete {
+   background-color: #eeeeee;
+   color: #999999;
+ }
+ 
+-/* Active state */
++/* Current step */
+ .prism-step-indicator--current {
+   background-color: #4272ef;
+   color: #ffffff;
+ }
+ 
+-/* Completed state */
++/* Complete step */
+ .prism-step-indicator--complete {
+   background-color: #52ba12;
+   color: #ffffff;

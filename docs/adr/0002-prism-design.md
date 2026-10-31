@@ -10,7 +10,7 @@ Prism is a look for scientific software: a Tailwind preset plus component CSS, p
 
 ## Decision
 
-1. **The source of truth is prism 0.1.7's styling:** `tailwind.preset.js`, `css/base.css` and `css/components.css`. `Prism.Design.Tokens` (`design/lib/tokens.ex`) reproduces 0.1.7's tokens as they are, inconsistencies included, so nothing changes for existing consumers. Each later clean-up is its own pull request with a visible golden diff.
+1. **The source of truth is prism 0.1.7's styling:** `tailwind.preset.js`, `css/base.css` and `css/components.css`. `Prism.Design.Tokens` (`design/lib/tokens.ex`) reproduces 0.1.7's tokens as they are, inconsistencies included, and the components keep 0.1.7's look under the names of decision 10. Each later clean-up is its own pull request with a visible golden diff.
 
 2. **Three folders, two Mix projects.** `generator/` is the generic generator (`:prism_generator`), `design/` is Prism's design (`:prism_design`, depending on `{:prism_generator, path: "../generator"}`), and `targets/` holds what is generated. There is no Mix project at the root. `design/config/config.exs` names the design and the folder of each target (`design: Prism.Design.Components, targets: [web: "../targets/web"]`): `Prism.Design.Components` takes its tokens from `Prism.Design.Tokens`, so it is the whole design. The npm package is published from `targets/web/`, with the same name, version and files as before. All three web files are generated.
 
@@ -22,13 +22,16 @@ Prism is a look for scientific software: a Tailwind preset plus component CSS, p
 
    Both are `:system` on iOS and Android. While iOS uses `:system`, the Swift package bundles no fonts, so there is no font generator and no TTF files in it. `font :mono` stays as it is in 0.1.7 for now: the `:text` role at weight 300, not a monospaced font.
 
-5. **Byte-compatibility with 0.1.7.** The generator's web spelling matches 0.1.7 (upper-case hex and two-decimal alphas in the preset, `0px` in text shadows, `0` in box shadows, prettier's 80-column wrap). `design/test/golden/0.1.7/` holds 0.1.7's files, and a test requires the generated files to differ from them only by the header line and the reviewed diff in `design/test/golden/0.1.7.diff`.
+5. **Compatibility with 0.1.7, recorded.** The generator's web spelling matches 0.1.7 (upper-case hex and two-decimal alphas in the preset, `0px` in text shadows, `0` in box shadows, prettier's 80-column wrap). `design/test/golden/0.1.7/` holds 0.1.7's files, and `design/test/golden_test.exs` compares the generated files with them:
 
-   Today that diff is one line: the deprecated `floating` shadow is an alias of `prism-card`, so it is written `0 5px 20px 0` instead of `0px 5px 20px 0px`, the same computed value. `css/components.css` adds nothing to it: it is 0.1.7's file byte for byte. Any other change to the generated files fails the test until the diff file is updated, so it shows in review.
+   - The preset and `css/base.css` are 0.1.7's files but for one line: the deprecated `floating` shadow is an alias of `prism-card`, so it is written `0 5px 20px 0` instead of `0px 5px 20px 0px`, the same computed value.
+   - `css/components.css` is 0.1.7's file with every class renamed by the table of decision 10, which the test holds too. The test fails when a 0.1.7 class is missing from the table, or its new class from the generated CSS, so nothing is lost silently. What differs beyond the rename (the button with an icon, the spinner, the comments) is in the same reviewed diff.
+
+   Both are in `design/test/golden/0.1.7.diff`, and the generated files must differ from 0.1.7 (renamed) only by the header line and that diff. Any other change fails the test until the diff file is updated, so it shows in review.
 
 6. **Brand-neutrality and theming:** the design holds Prism's defaults. It keeps 0.1.7's behaviour: the preset is overridable, the component CSS is not. Emitting CSS custom properties for theming is a possible later change, not part of this decision.
 
-7. **One version for Prism.** `design/mix.exs` has the same version as `targets/web/package.json`, and a test checks it. The generator has its own version (0.1.0). A release tag `vX.Y.Z` will be the npm version and, later, the Swift package's version. 0.x rules apply: a removed token, class or variant is a minor bump.
+7. **One version for Prism.** `design/mix.exs` has the same version as `targets/web/package.json`, and a test checks it. The generator has its own version (0.2.0). A release tag `vX.Y.Z` will be the npm version and, later, the Swift package's version. 0.x rules apply: a removed token, class or variant is a minor bump, so decision 10's new class names are 0.2.0 (a consumer on `^0.1.7` doesn't take it by accident).
 
 8. **Type styles.** Every role in either list (fonts and text sizes) has a `typography` token of the same name, and every font and text size is used by one; a test checks both. The format is in [ADR 0001](0001-design-format.md); this records Prism's pairings.
 
@@ -51,39 +54,97 @@ Prism is a look for scientific software: a Tailwind preset plus component CSS, p
    - `bodylinklarge` is 24px in the `:text` family, above decision 4's 20px line. Both families are `:system` on iOS and Android, so nothing differs natively today; moving it to `:display` would be a later clean-up.
    - **Screens that differ from the name pairing.** Screens write `bodylarge` as `font-body text-bodylarge` (about 14 times; `font-bodylarge` is never used) and `introdesktop` as `font-intro text-introdesktop`, and the reference page writes `mono` with `font-body` (the same values as `font-mono`). These still pair by name. This decision covers only the roles in one list, and the name pairing keeps 0.1.7's own fonts: Nunito for `bodylarge` and `introdesktop`, as the reference page's own labels say ("Nunito Light", "Nunito Medium"). Following the screens instead would be a design change with its own pull request.
 
-9. **Prism's components.** `Prism.Design.Components` (`design/lib/components.ex`) holds 0.1.7's eleven components: `btn`, `input`, `textarea`, `label`, `radio`, `dropdown`, `spinner`, `checkbox`, `tag`, `alert` and `number_icon`. The format is in [ADR 0001](0001-design-format.md).
+9. **Prism's components.** `Prism.Design.Components` (`design/lib/components.ex`) holds 0.1.7's eleven components, under the names of decision 10: `button`, `text_field`, `text_area`, `field`, `radio_group` and `radio` (0.1.7's radio, split in two), `select`, `spinner`, `checkbox`, `tag`, `message_bar` and `step_indicator`. The format is in [ADR 0001](0001-design-format.md).
 
-   - **Names.** Every component, variant, part and state is named as its 0.1.7 class (`btn`, `primary_icon`, `number_icon`, the radio's `group`, `label` and `text`), because a class is made of the design's names. The web target's mechanics are keyed on the component and part names as well (ADR 0001, decision 3), so a name lives in the design and, for components and parts, in the generator. Renaming to other names is its own pull request, which changes both, and the CSS changes with it on purpose.
-   - **Structure.** The button's `success`, `warning` and `danger` (alias `delete`) are a second axis, `:color`, which combines with a variant of the first; the spinner's sizes and colors are the axes `:size` and `:color`. The button's loading state hides its `content` part and centers its `spinner` part, which is the spinner component. The input's `error` is a state (the app sets `.prism-input-error`); the label's `error` is a variant, because `.prism-label-error` is a label of its own. The radio component is the control itself; `group`, `label` and `text` are its parts.
+   - **Structure.** The button's variants are emphasis (`primary`, `secondary`, `plain`, `link`, `text`), and `success`, `warning` and `danger` are a second axis, `tone`, which combines with one; without a tone a button is accent. With an icon (its `icon` part), the primary, secondary and plain buttons are spaced as 0.1.7's `-icon` buttons: a `with_part :icon`, not a variant (the web class `--with-icon`). The button's loading state hides its `label` part and centers its `spinner` part, which is the spinner component; while not loading, the spinner is hidden. The text field's `invalid` is a state (the app sets `prism-text-field--invalid`). The field is a label and an error message (`label`, `error_message`) around a control. The radio group holds the radios; a radio is the row with its `control` and its `label`, and its `disabled` state is a class the app sets on the row. The spinner's sizes are the axis `size`, its colors the variants `accent` and `inverse`; the tag's and message bar's colors are the axis `tone`, the step indicator's the axis `status`.
    - **Hex values.** Every color in 0.1.7's `css/components.css` is a token but one:
 
      | 0.1.7 | Token | Used by |
      |---|---|---|
-     | `#4272ef` | `primary` | button variants, focus borders, checked controls, the selected option, tags, alerts, the active number icon |
-     | `#ffffff` | `white` | button text, field and list backgrounds, the base tag, number icons |
+     | `#4272ef` | `primary` | button variants, focus borders, checked controls, the selected option, tags, message bars, the current step, the accent spinner |
+     | `#ffffff` | `white` | button text, field and list backgrounds, the base tag, step indicators, the inverse spinner |
      | `#222222` | `grey1` | plain button, field and label text |
-     | `#cccccc` | `grey3` | field and control borders, disabled input text |
-     | `#999999` | `grey2` | placeholders, the inactive number icon, the secondary tag (at 20%) |
-     | `#f6f6f6` | `grey5` | disabled input, hovered option |
-     | `#eeeeee` | `grey4` | the inactive number icon |
-     | `#ffcf60` | `tertiary` | focus border of the dark input |
-     | `#52ba12`, `#f28d15`, `#db1e1e` | `success`, `warning`, `error` | color variants, tags, alerts (at 20% and 15%); `warning` is also the input's and the label's error color |
-     | `#666666` | none | the secondary tag's text: a literal `"#666666"` |
+     | `#cccccc` | `grey3` | field and control borders, disabled text field text |
+     | `#999999` | `grey2` | placeholders, the incomplete step, the neutral tag (at 20%) |
+     | `#f6f6f6` | `grey5` | disabled text field, hovered option |
+     | `#eeeeee` | `grey4` | the incomplete step |
+     | `#ffcf60` | `tertiary` | focus border of the inverse text field |
+     | `#52ba12`, `#f28d15`, `#db1e1e` | `success`, `warning`, `error` | tones of buttons, tags and message bars (at 20% and 15%); `warning` is also the invalid text field's border and the error message's color |
+     | `#666666` | none | the neutral tag's text: a literal `"#666666"` |
 
    - **Other values that aren't tokens** are literals of their type, not new tokens:
      - lengths (padding, gaps, sizes, heights, margins, offsets) are px: the spacing tokens are the preset's Tailwind steps and don't cover them (16px, 12px, 32px);
      - the checkbox's `4px` radius is a literal; `radius :default` is `0.25rem`, the same size at the default root font size but another CSS value;
      - opacities (0.5, 0) and durations (150ms, 100ms, 1s) have no tokens in the format;
      - the link button's weight 500 is a weight on top of the button's type style;
-     - tags and alerts write 600 at 14/16 (the `subhead` font with the `tablehead` text size) and the number icon 700 at 12/12 (the `label` font, and 12/12, which is no text size). No type style has these, so each is a literal pair. New type styles would break decision 8's rule that type styles are the roles of the two lists, and a new 12/12 text size would add a `text-…` class to the preset.
-     - The other components use type styles: `button` for the button and the dropdown's options, `body` for the fields, `title6` for the label (700 at 20/22), `caption` for the label's error, `label` for the radio's text.
+     - tags and message bars write 600 at 14/16 (the `subhead` font with the `tablehead` text size) and the step indicator 700 at 12/12 (the `label` font, and 12/12, which is no text size). No type style has these, so each is a literal pair. New type styles would break decision 8's rule that type styles are the roles of the two lists, and a new 12/12 text size would add a `text-…` class to the preset.
+     - The other components use type styles: `button` for the button and the select's options, `body` for the text field, text area and select field, `title6` for the field's label (700 at 20/22), `caption` for its error message, `label` for the radio's label.
    - **The deprecated `top2px`** is the secondary buttons' pressed shadow, as in 0.1.7; it has no replacement yet.
-   - **Web bindings** hold only what is the web's own: the comments of `css/components.css` (`section:`, `doc:`), and the filter that tints the spinner image `primary`. That filter is tuned to `#4272EF`, so it is a value of Prism's, not a mechanic: generic mechanics can't produce it. Its binding names the color it was made for, and generation fails when `primary` changes. White is written by the generator itself.
-   - **Web mechanics** are the generator's (`Prism.Generator.Web.Components`), among them the dropdown list's `z-index: 20` and the number icon's tabular numbers.
+   - **Web bindings** hold only what is the web's own: the comments of `css/components.css` (`section:`, `doc:`).
+   - **The spinner** is drawn in its color: its `foreground`, a token like any other (`primary` for `accent`, `white` for `inverse`; without a variant, the text color around it). 0.1.7 tinted a black image with CSS filter chains, one tuned by hand per color; the web now draws the spinner image Prism ships (`images/spinner.svg`, generated with the CSS and published in the npm package) as a mask over `background-color: currentColor`, so any color works and a color change needs no new filter. The spinner is an empty element (`<span class="prism-spinner">`), no longer an image.
+   - **Web mechanics** are the generator's (`Prism.Generator.Web.Components`), among them the select list's `z-index: 20`, the step indicator's tabular numbers and the spinner's mask.
+
+10. **Names: the ones design systems share.** Components, parts, variants and states are named after what Material 3 and Compose, SwiftUI and Apple's HIG, Carbon, Fluent 2, Polaris, Atlassian and Spectrum call them, so a name means the same on every target Prism generates for. 0.1.7's names were its CSS classes; the web's classes follow the new names (ADR 0001, decision 3), so `css/components.css` changes on purpose.
+
+    - **Avoid a name that means something else on a platform.** Dropped for that reason: `alert` (a modal on iOS and Android, an assertive live region on the web; now `message-bar`, as Fluent), `dropdown` (an action menu in Compose and Carbon; now `select`), `label` as a button variant (SwiftUI's `Label` is an icon with a title; now `text`, as Material's text button), `active` for a step (CSS `:active` means pressed; now `current`), `number-icon` and `stepper` (iOS's stepper is a plus/minus control; now `step-indicator`). A same-named type with the same meaning (`Button`) is fine; native generators will namespace Prism's types.
+    - **Full words**, no `btn`, `sm` or `lg`.
+    - **Look only.** `delete` was a purpose; the red tone is `danger`.
+    - **Separate axes:** `variant` (emphasis), `tone` (color meaning), `size` (`small`, `large`; the default is medium and has no class), and `status` for a step.
+    - **One tone vocabulary:** `accent`, `neutral`, `info`, `success`, `warning`, `danger`. `danger` is the red tone and `invalid` the validation state, so "this is red" and "this value is wrong" stay apart. The aliases `delete` (button) and `error` (tag) are gone; `error` is also no longer a tag or message bar tone. A test checks the vocabulary.
+    - **States are participles:** `hovered`, `focused`, `pressed`, `disabled`, `checked`, `selected`, `invalid`, `loading`.
+    - `spinner` stays (not `progress-circle`): Prism targets Compose, not Android Views, where a spinner is a select. `text` replaces the `label` button for now; it is checked against the main consumer app's own button looks when those come into Prism. `icon-button` is not declared: 0.1.7 has no look for an icon-only button.
+    - **No compatibility layer.** No old class or alias is kept; consumers move to the new classes with the table below. It ships in 0.2.0.
+
+    | 0.1.7 class | 0.2.0 class |
+    |---|---|
+    | `prism-btn` | `prism-button` |
+    | `prism-btn-content` | `prism-button__label` |
+    | `prism-btn-primary`, `-secondary`, `-plain`, `-link` | `prism-button--primary`, `--secondary`, `--plain`, `--link` |
+    | `prism-btn-label` | `prism-button--text` |
+    | `prism-btn-primary-icon`, `-secondary-icon`, `-plain-icon` | `prism-button--primary`, `--secondary`, `--plain` with `prism-button--with-icon` (and the icon as `prism-button__icon`) |
+    | `prism-btn-success`, `-warning` | `prism-button--success`, `--warning` |
+    | `prism-btn-danger`, `prism-btn-delete` | `prism-button--danger` |
+    | `prism-btn-loading` | `prism-button--loading` |
+    | `prism-input` | `prism-text-field` |
+    | `prism-input-error` | `prism-text-field--invalid` |
+    | `prism-input-dark` | `prism-text-field--inverse` |
+    | `prism-textarea` | `prism-text-area` |
+    | `prism-label` | `prism-field__label` |
+    | `prism-label-error` | `prism-field__error-message` |
+    | `prism-radio-group` | `prism-radio-group` |
+    | `prism-radio-label` | `prism-radio` |
+    | `prism-radio-label` with `disabled` | `prism-radio` with `prism-radio--disabled` |
+    | `prism-radio` | `prism-radio__control` |
+    | `prism-radio-text` | `prism-radio__label` |
+    | `prism-dropdown` | `prism-select` |
+    | `prism-dropdown-input` | `prism-select__field` |
+    | `prism-dropdown-icon` | `prism-select__icon` |
+    | `prism-dropdown-options` | `prism-select__listbox` |
+    | `prism-dropdown-option` | `prism-select__option` |
+    | `prism-dropdown-option` with `selected` | `prism-select__option` with `prism-select__option--selected` |
+    | `prism-spinner` | `prism-spinner`, on an empty element |
+    | `prism-spinner-sm`, `-lg` | `prism-spinner--small`, `--large` |
+    | `prism-spinner-primary`, `-white` | `prism-spinner--accent`, `--inverse` |
+    | `prism-checkbox` | `prism-checkbox` |
+    | `prism-tag` | `prism-tag` |
+    | `prism-tag-inner` | `prism-tag__label` |
+    | `prism-tag-primary`, `-secondary` | `prism-tag--accent`, `--neutral` |
+    | `prism-tag-success`, `-warning` | `prism-tag--success`, `--warning` |
+    | `prism-tag-error`, `prism-tag-danger` | `prism-tag--danger` |
+    | `prism-alert` | `prism-message-bar` |
+    | `prism-alert-info`, `-success`, `-warning` | `prism-message-bar--info`, `--success`, `--warning` |
+    | `prism-alert-error` | `prism-message-bar--danger` |
+    | `prism-number-icon` | `prism-step-indicator` |
+    | `prism-number-icon-inactive`, `-active`, `-completed` | `prism-step-indicator--incomplete`, `--current`, `--complete` |
+
+    The utilities `prism-max-lines-*` and `prism-text-shadow*` (in `css/base.css`) are not components and keep their names.
+
+    **Looks that change with the names.** A button with an icon now combines its variant with `--with-icon`, so it also takes the variant's disabled look (opacity 0.5), which 0.1.7's `-icon` buttons lacked; otherwise it looks as before, pressed too. The spinner is a mask in its color (decision 9), and a button hides its spinner while not loading, which the main consumer app did in its own CSS.
 
 ## Consequences
 
 - Prism's look is edited in `design/lib/tokens.ex` and `design/lib/components.ex` and regenerated with `cd design && mix prism.gen`; CI fails (`mix prism.gen --check`) when the committed files differ.
+- 0.2.0 breaks every app that uses 0.1.7's classes: each moves to the classes of decision 10 when it takes 0.2.0.
 - The generator can move to its own repository by moving `generator/` out and changing one dependency line in `design/mix.exs`; nothing in Prism's design changes.
 - Swift comes later in `targets/swift/`, with its own `Package.swift`. It and Kotlin get type from the 31 type styles; a new font or text size needs a type style too, or the design's test fails.
 - 0.1.7's inconsistencies stay until someone changes them on purpose.

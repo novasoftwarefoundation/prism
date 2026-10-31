@@ -11,7 +11,7 @@
    ========================================================================== */
 
 /* Base button styles */
-.prism-btn {
+.prism-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -25,103 +25,82 @@
   transition: all 0.15s ease-in-out;
 }
 
-.prism-btn:focus {
+.prism-button:focus {
   outline: none;
 }
 
 /* Primary button - filled background */
-.prism-btn-primary {
+.prism-button--primary {
   background-color: #4272ef;
   color: #ffffff;
   padding: 15px 16px;
 }
 
-.prism-btn-primary:active {
+.prism-button--primary:active {
   padding-top: 16px;
   padding-bottom: 14px;
   box-shadow: inset 0 4px 0 0 rgba(0, 0, 0, 0.15);
 }
 
-.prism-btn-primary:disabled {
+.prism-button--primary:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
 /* Primary button with icon */
-.prism-btn-primary-icon {
-  background-color: #4272ef;
-  color: #ffffff;
+.prism-button--primary.prism-button--with-icon {
   padding: 4px 16px;
   gap: 12px;
 }
 
-.prism-btn-primary-icon:active {
+.prism-button--primary.prism-button--with-icon:active {
   padding-top: 5px;
   padding-bottom: 3px;
-  box-shadow: inset 0 4px 0 0 rgba(0, 0, 0, 0.15);
 }
 
 /* Secondary button - outlined */
-.prism-btn-secondary {
+.prism-button--secondary {
   background-color: transparent;
   color: #4272ef;
   border: 2px solid #4272ef;
   padding: 13px 16px;
 }
 
-.prism-btn-secondary:active {
+.prism-button--secondary:active {
   padding-top: 14px;
   padding-bottom: 12px;
   box-shadow: inset 0 2px 0 0 rgba(0, 0, 0, 0.15);
 }
 
-.prism-btn-secondary:disabled {
+.prism-button--secondary:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
 /* Secondary button with icon */
-.prism-btn-secondary-icon {
-  background-color: transparent;
-  color: #4272ef;
-  border: 2px solid #4272ef;
-  padding: 13px 16px;
+.prism-button--secondary.prism-button--with-icon {
   gap: 12px;
 }
 
-.prism-btn-secondary-icon:active {
-  padding-top: 14px;
-  padding-bottom: 12px;
-  box-shadow: inset 0 2px 0 0 rgba(0, 0, 0, 0.15);
-}
-
 /* Plain button - text only, no background */
-.prism-btn-plain {
+.prism-button--plain {
   background-color: transparent;
   color: #222222;
   padding: 4px 0;
 }
 
-.prism-btn-plain:active {
+.prism-button--plain:active {
   padding-top: 5px;
   padding-bottom: 3px;
 }
 
 /* Plain button with icon */
-.prism-btn-plain-icon {
-  background-color: transparent;
-  color: #222222;
-  padding: 4px 0;
+.prism-button--plain.prism-button--with-icon {
   gap: 8px;
 }
 
-.prism-btn-plain-icon:active {
-  padding-top: 5px;
-  padding-bottom: 3px;
-}
-
 /* Link button - looks like a text link */
-.prism-btn-link {
+.prism-button--link {
   background-color: transparent;
   color: #4272ef;
   text-decoration: underline;
@@ -129,31 +108,31 @@
   font-weight: 500;
 }
 
-.prism-btn-link:hover {
+.prism-button--link:hover {
   text-decoration: none;
 }
 
-/* Label button - for wrapping labels, minimal styling */
-.prism-btn-label {
+/* Text button - brand-colored text, minimal styling */
+.prism-button--text {
   color: #4272ef;
   padding: 1px 16px;
 }
 
-.prism-btn-label:active {
+.prism-button--text:active {
   padding-top: 2px;
   padding-bottom: 0;
 }
 
 /* Button with loading state */
-.prism-btn-loading {
+.prism-button--loading {
   position: relative;
 }
 
-.prism-btn-loading .prism-btn-content {
+.prism-button--loading .prism-button__label {
   opacity: 0;
 }
 
-.prism-btn-loading .prism-spinner {
+.prism-button--loading .prism-spinner {
   position: absolute;
   top: 50%;
   left: 50%;
@@ -164,29 +143,32 @@
   margin-left: -12px;
 }
 
-/* Color variants */
-.prism-btn-success {
+.prism-button:not(.prism-button--loading) .prism-spinner {
+  display: none;
+}
+
+/* Tones */
+.prism-button--success {
   background-color: #52ba12;
   color: #ffffff;
 }
 
-.prism-btn-warning {
+.prism-button--warning {
   background-color: #f28d15;
   color: #ffffff;
 }
 
-.prism-btn-danger,
-.prism-btn-delete {
+.prism-button--danger {
   background-color: #db1e1e;
   color: #ffffff;
 }
 
 /* ==========================================================================
-   Inputs
+   Text fields
    ========================================================================== */
 
-/* Base input styles */
-.prism-input {
+/* Base text field styles */
+.prism-text-field {
   display: block;
   width: 100%;
   height: 44px;
@@ -204,32 +186,32 @@
   transition: border-color 0.15s ease-in-out;
 }
 
-.prism-input::placeholder {
+.prism-text-field::placeholder {
   color: #999999;
 }
 
-.prism-input:focus {
+.prism-text-field:focus {
   border-color: #4272ef;
 }
 
-.prism-input:disabled {
+.prism-text-field:disabled {
   color: #cccccc;
   background-color: #f6f6f6;
   cursor: not-allowed;
 }
 
-/* Input with error state */
-.prism-input-error {
+/* Text field with an invalid value */
+.prism-text-field--invalid {
   border-color: #f28d15;
 }
 
-/* Input with dark background */
-.prism-input-dark:focus {
+/* Text field on a dark background */
+.prism-text-field--inverse:focus {
   border-color: #ffcf60;
 }
 
-/* Textarea */
-.prism-textarea {
+/* Text area */
+.prism-text-area {
   display: block;
   width: 100%;
   min-height: 256px;
@@ -247,19 +229,19 @@
   transition: border-color 0.15s ease-in-out;
 }
 
-.prism-textarea::placeholder {
+.prism-text-area::placeholder {
   color: #999999;
 }
 
-.prism-textarea:focus {
+.prism-text-area:focus {
   border-color: #4272ef;
 }
 
 /* ==========================================================================
-   Form Labels
+   Fields
    ========================================================================== */
 
-.prism-label {
+.prism-field__label {
   display: block;
   font-family: "Nunito Sans", sans-serif;
   font-weight: 700;
@@ -269,7 +251,7 @@
   margin-bottom: 8px;
 }
 
-.prism-label-error {
+.prism-field__error-message {
   font-family: "Nunito Sans", sans-serif;
   font-weight: 500;
   font-size: 14px;
@@ -289,7 +271,7 @@
   margin-left: 6px;
 }
 
-.prism-radio-label {
+.prism-radio {
   display: flex;
   flex-direction: row;
   align-items: center;
@@ -297,12 +279,12 @@
   cursor: pointer;
 }
 
-.prism-radio-label.disabled {
+.prism-radio--disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
-.prism-radio {
+.prism-radio__control {
   appearance: none;
   width: 12px;
   height: 12px;
@@ -313,16 +295,16 @@
   transition: all 0.15s ease-in-out;
 }
 
-.prism-radio:checked {
+.prism-radio__control:checked {
   background-color: #4272ef;
   outline-color: #4272ef;
 }
 
-.prism-radio:disabled {
+.prism-radio__control:disabled {
   cursor: not-allowed;
 }
 
-.prism-radio-text {
+.prism-radio__label {
   font-family: "Nunito Sans", sans-serif;
   font-weight: 700;
   font-size: 16px;
@@ -333,15 +315,15 @@
 }
 
 /* ==========================================================================
-   Dropdown / Select
+   Select
    ========================================================================== */
 
-.prism-dropdown {
+.prism-select {
   position: relative;
   width: 100%;
 }
 
-.prism-dropdown-input {
+.prism-select__field {
   display: block;
   width: 100%;
   height: 44px;
@@ -360,11 +342,11 @@
   white-space: pre-wrap;
 }
 
-.prism-dropdown-input:focus {
+.prism-select__field:focus {
   border-color: #4272ef;
 }
 
-.prism-dropdown-icon {
+.prism-select__icon {
   position: absolute;
   right: 12px;
   top: 50%;
@@ -372,7 +354,7 @@
   pointer-events: none;
 }
 
-.prism-dropdown-options {
+.prism-select__listbox {
   position: absolute;
   z-index: 20;
   left: 0;
@@ -386,7 +368,7 @@
   padding: 16px 0;
 }
 
-.prism-dropdown-option {
+.prism-select__option {
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -402,11 +384,11 @@
   transition: background-color 0.1s ease-in-out;
 }
 
-.prism-dropdown-option:hover {
+.prism-select__option:hover {
   background-color: #f6f6f6;
 }
 
-.prism-dropdown-option.selected {
+.prism-select__option--selected {
   color: #4272ef;
 }
 
@@ -415,19 +397,32 @@
    ========================================================================== */
 
 .prism-spinner {
+  display: inline-block;
   width: 24px;
   height: 24px;
+  background-color: currentColor;
+  -webkit-mask: url("../images/spinner.svg") center / contain no-repeat;
+  mask: url("../images/spinner.svg") center / contain no-repeat;
   animation: prism-spin 1s linear infinite;
 }
 
-.prism-spinner-sm {
+.prism-spinner--small {
   width: 16px;
   height: 16px;
 }
 
-.prism-spinner-lg {
+.prism-spinner--large {
   width: 32px;
   height: 32px;
+}
+
+/* Spinner colors */
+.prism-spinner--accent {
+  color: #4272ef;
+}
+
+.prism-spinner--inverse {
+  color: #ffffff;
 }
 
 @keyframes prism-spin {
@@ -437,16 +432,6 @@
   to {
     transform: rotate(360deg);
   }
-}
-
-/* Spinner colors - use with filter for different colors */
-.prism-spinner-white {
-  filter: brightness(0) invert(1);
-}
-
-.prism-spinner-primary {
-  filter: brightness(0) saturate(100%) invert(39%) sepia(70%) saturate(2238%)
-    hue-rotate(209deg) brightness(97%) contrast(91%);
 }
 
 /* ==========================================================================
@@ -478,7 +463,7 @@
 }
 
 /* ==========================================================================
-   Tags / Badges
+   Tags
    ========================================================================== */
 
 /* Base tag styles - colored label with background opacity */
@@ -490,7 +475,7 @@
   background-color: #ffffff;
 }
 
-.prism-tag-inner {
+.prism-tag__label {
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -503,43 +488,42 @@
   line-height: 16px;
 }
 
-/* Primary tag (default) */
-.prism-tag-primary .prism-tag-inner {
+/* Accent tag (default) */
+.prism-tag--accent .prism-tag__label {
   background-color: rgba(66, 114, 239, 0.2);
   color: #4272ef;
 }
 
 /* Success tag */
-.prism-tag-success .prism-tag-inner {
+.prism-tag--success .prism-tag__label {
   background-color: rgba(82, 186, 18, 0.2);
   color: #52ba12;
 }
 
 /* Warning tag */
-.prism-tag-warning .prism-tag-inner {
+.prism-tag--warning .prism-tag__label {
   background-color: rgba(242, 141, 21, 0.2);
   color: #f28d15;
 }
 
-/* Error/Danger tag */
-.prism-tag-error .prism-tag-inner,
-.prism-tag-danger .prism-tag-inner {
+/* Danger tag */
+.prism-tag--danger .prism-tag__label {
   background-color: rgba(219, 30, 30, 0.2);
   color: #db1e1e;
 }
 
-/* Secondary tag */
-.prism-tag-secondary .prism-tag-inner {
+/* Neutral tag */
+.prism-tag--neutral .prism-tag__label {
   background-color: rgba(153, 153, 153, 0.2);
   color: #666666;
 }
 
 /* ==========================================================================
-   Alert Banners
+   Message bars
    ========================================================================== */
 
-/* Base alert styles */
-.prism-alert {
+/* Base message bar styles */
+.prism-message-bar {
   display: flex;
   justify-content: center;
   align-items: center;
@@ -552,36 +536,36 @@
   line-height: 16px;
 }
 
-/* Info alert (default) */
-.prism-alert-info {
+/* Info message bar (default) */
+.prism-message-bar--info {
   background-color: rgba(66, 114, 239, 0.15);
   color: #4272ef;
 }
 
-/* Success alert */
-.prism-alert-success {
+/* Success message bar */
+.prism-message-bar--success {
   background-color: rgba(82, 186, 18, 0.15);
   color: #52ba12;
 }
 
-/* Warning alert */
-.prism-alert-warning {
+/* Warning message bar */
+.prism-message-bar--warning {
   background-color: rgba(242, 141, 21, 0.15);
   color: #f28d15;
 }
 
-/* Error alert */
-.prism-alert-error {
+/* Danger message bar */
+.prism-message-bar--danger {
   background-color: rgba(219, 30, 30, 0.15);
   color: #db1e1e;
 }
 
 /* ==========================================================================
-   Number Icons (Step Indicators)
+   Step indicators
    ========================================================================== */
 
-/* Base number icon - circular badge with number */
-.prism-number-icon {
+/* Base step indicator - circular badge with number */
+.prism-step-indicator {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -596,20 +580,20 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Inactive state (default) */
-.prism-number-icon-inactive {
+/* Incomplete step (default) */
+.prism-step-indicator--incomplete {
   background-color: #eeeeee;
   color: #999999;
 }
 
-/* Active state */
-.prism-number-icon-active {
+/* Current step */
+.prism-step-indicator--current {
   background-color: #4272ef;
   color: #ffffff;
 }
 
-/* Completed state */
-.prism-number-icon-completed {
+/* Complete step */
+.prism-step-indicator--complete {
   background-color: #52ba12;
   color: #ffffff;
 }

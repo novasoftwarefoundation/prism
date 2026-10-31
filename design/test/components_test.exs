@@ -3,19 +3,20 @@ defmodule Prism.Design.ComponentsTest do
 
   @design Prism.Design.Components.__schema__()
 
-  test "the design has 0.1.7's eleven components, in its order" do
+  test "the design has 0.1.7's eleven components, under their new names, in 0.1.7's order" do
     assert Enum.map(@design.components, & &1.name) == [
-             :btn,
-             :input,
-             :textarea,
-             :label,
+             :button,
+             :text_field,
+             :text_area,
+             :field,
+             :radio_group,
              :radio,
-             :dropdown,
+             :select,
              :spinner,
              :checkbox,
              :tag,
-             :alert,
-             :number_icon
+             :message_bar,
+             :step_indicator
            ]
   end
 
@@ -26,39 +27,56 @@ defmodule Prism.Design.ComponentsTest do
     assert @design.web.prefix == "prism"
   end
 
-  # The golden test compares the whole file; this names a class that went missing.
-  test "every class of 0.1.7's components.css is generated" do
-    classes = fn css ->
-      ~r/\.(prism-[a-z0-9-]+)/ |> Regex.scan(css) |> MapSet.new(fn [_, class] -> class end)
-    end
-
-    {_, generated, _} =
-      @design |> Prism.Generator.Web.files() |> List.keyfind("css/components.css", 0)
-
-    golden = classes.(File.read!("test/golden/0.1.7/css/components.css"))
-    assert MapSet.size(golden) > 50
-    assert MapSet.difference(golden, classes.(generated)) == MapSet.new()
-  end
-
-  test "the button's variants are two axes: a variant and a color" do
-    button = Enum.find(@design.components, &(&1.name == :btn))
-    axes = Enum.group_by(button.variants, & &1.axis, & &1.name)
+  test "variants are on separate axes: variant, tone, size and status" do
+    axes =
+      Map.new(@design.components, fn c ->
+        {c.name, c.variants |> Enum.group_by(& &1.axis, & &1.name) |> Enum.sort()}
+      end)
 
     assert axes == %{
-             variant: [
-               :primary,
-               :primary_icon,
-               :secondary,
-               :secondary_icon,
-               :plain,
-               :plain_icon,
-               :link,
-               :label
+             button: [
+               tone: [:success, :warning, :danger],
+               variant: [:primary, :secondary, :plain, :link, :text]
              ],
-             color: [:success, :warning, :danger]
+             text_field: [variant: [:inverse]],
+             text_area: [],
+             field: [],
+             radio_group: [],
+             radio: [],
+             select: [],
+             spinner: [size: [:small, :large], variant: [:accent, :inverse]],
+             checkbox: [],
+             tag: [tone: [:accent, :success, :warning, :danger, :neutral]],
+             message_bar: [tone: [:info, :success, :warning, :danger]],
+             step_indicator: [status: [:incomplete, :current, :complete]]
            }
+  end
 
-    assert Enum.find(button.variants, &(&1.name == :danger)).aliases == [:delete]
-    assert Enum.map(button.parts, &{&1.name, &1.component}) == [content: nil, spinner: :spinner]
+  test "one tone vocabulary, and no aliases" do
+    tones = [:accent, :neutral, :info, :success, :warning, :danger]
+
+    for c <- @design.components, v <- c.variants do
+      if v.axis == :tone, do: assert(v.name in tones, "#{c.name}: tone #{v.name}")
+      assert v.aliases == [], "#{c.name}.#{v.name} has aliases"
+    end
+  end
+
+  test "a button with an icon is the icon part being there, not a variant" do
+    button = Enum.find(@design.components, &(&1.name == :button))
+
+    assert Enum.map(button.parts, &{&1.name, &1.component}) ==
+             [label: nil, icon: nil, spinner: :spinner]
+
+    assert for(v <- button.variants, w <- v.with_parts, do: {v.name, w.part}) ==
+             [primary: :icon, secondary: :icon, plain: :icon]
+  end
+
+  test "the spinner's color is its foreground, a token" do
+    spinner = Enum.find(@design.components, &(&1.name == :spinner))
+
+    assert for(%{axis: :variant} = v <- spinner.variants, do: {v.name, {v.style, v.web}}) == [
+             accent: {[foreground: :primary], [doc: "Spinner colors"]},
+             inverse: {[foreground: :white], []}
+           ]
   end
 end

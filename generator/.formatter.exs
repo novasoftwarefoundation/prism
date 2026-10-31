@@ -26,6 +26,9 @@ design_dsl = [
   part: 1,
   part: 2,
   part: 3,
+  with_part: 1,
+  with_part: 2,
+  with_part: 3,
   state: 1,
   state: 2,
   state: 3

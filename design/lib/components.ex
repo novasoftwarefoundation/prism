@@ -8,12 +8,15 @@ defmodule Prism.Design.Components do
   shadows, opacity and motion, and how states change them. What a component
   does, and how a platform builds it, is not: each target adds its mechanics
   (`Prism.Generator.Web.Components` for the CSS). ADR 0002 records which values
-  are tokens.
+  are tokens, and the names.
 
-  The `web:` bindings hold only what is the web's own: the comments of
-  `css/components.css`, and the CSS filter that tints the spinner. The names are
-  0.1.7's class names for now. The web target's mechanics are keyed on the
+  The names are the ones design systems share (ADR 0002): a component, its
+  parts, and separate axes for `variant` (emphasis), `tone` (color meaning),
+  `size` and `status`. Tones are `accent`, `neutral`, `info`, `success`,
+  `warning` and `danger`. The web target's mechanics are keyed on the
   component and part names too, so a rename changes the generator as well.
+
+  The `web:` bindings hold only the comments of `css/components.css`.
   """
   use Prism.Generator.Schema, tokens: Prism.Design.Tokens
 
@@ -26,7 +29,7 @@ defmodule Prism.Design.Components do
 
   @motion {150, :ease_in_out}
 
-  # The look of a text field: the input, the textarea and the dropdown's input.
+  # The look of a text field: the text field, the text area and the select's field.
   @field [
     typography: :body,
     foreground: :grey1,
@@ -35,11 +38,13 @@ defmodule Prism.Design.Components do
     radius: :default
   ]
 
-  component :btn, web: [section: "Buttons", doc: "Base button styles"] do
+  component :button, web: [section: "Buttons", doc: "Base button styles"] do
     style typography: :button, radius: :default, transition: @motion
-    part :content
+    part :label
+    part :icon
     part :spinner, component: :spinner
 
+    # With an icon, a button spaces the icon from its label (`--with-icon`).
     variant :primary,
       background: :primary,
       foreground: :white,
@@ -47,15 +52,10 @@ defmodule Prism.Design.Components do
       web: [doc: "Primary button - filled background"] do
       state :pressed, padding: [top: 16, bottom: 14], shadow: :prism_btn_pressed
       state :disabled, opacity: 0.5
-    end
 
-    variant :primary_icon,
-      background: :primary,
-      foreground: :white,
-      padding: [y: 4, x: 16],
-      gap: 12,
-      web: [doc: "Primary button with icon"] do
-      state :pressed, padding: [top: 5, bottom: 3], shadow: :prism_btn_pressed
+      with_part :icon, padding: [y: 4, x: 16], gap: 12, web: [doc: "Primary button with icon"] do
+        state :pressed, padding: [top: 5, bottom: 3]
+      end
     end
 
     variant :secondary,
@@ -67,16 +67,7 @@ defmodule Prism.Design.Components do
       # The deprecated top2px: it has no replacement yet.
       state :pressed, padding: [top: 14, bottom: 12], shadow: :top2px
       state :disabled, opacity: 0.5
-    end
-
-    variant :secondary_icon,
-      background: :transparent,
-      foreground: :primary,
-      border: [width: 2, color: :primary],
-      padding: [y: 13, x: 16],
-      gap: 12,
-      web: [doc: "Secondary button with icon"] do
-      state :pressed, padding: [top: 14, bottom: 12], shadow: :top2px
+      with_part :icon, gap: 12, web: [doc: "Secondary button with icon"]
     end
 
     variant :plain,
@@ -85,15 +76,7 @@ defmodule Prism.Design.Components do
       padding: [y: 4, x: 0],
       web: [doc: "Plain button - text only, no background"] do
       state :pressed, padding: [top: 5, bottom: 3]
-    end
-
-    variant :plain_icon,
-      background: :transparent,
-      foreground: :grey1,
-      padding: [y: 4, x: 0],
-      gap: 8,
-      web: [doc: "Plain button with icon"] do
-      state :pressed, padding: [top: 5, bottom: 3]
+      with_part :icon, gap: 8, web: [doc: "Plain button with icon"]
     end
 
     variant :link,
@@ -106,77 +89,82 @@ defmodule Prism.Design.Components do
       state :hovered, decoration: :none
     end
 
-    variant :label,
+    # Was 0.1.7's label button.
+    variant :text,
       foreground: :primary,
       padding: [y: 1, x: 16],
-      web: [doc: "Label button - for wrapping labels, minimal styling"] do
+      web: [doc: "Text button - brand-colored text, minimal styling"] do
       state :pressed, padding: [top: 2, bottom: 0]
     end
 
-    # While loading, the content is hidden and the spinner shows in its place.
+    # While loading, the label is hidden and the spinner shows in its place.
     state :loading, web: [doc: "Button with loading state"] do
-      part :content, opacity: 0
+      part :label, opacity: 0
     end
 
-    # Combined with a variant above: `prism-btn-primary prism-btn-danger`.
-    variants :color, web: [doc: "Color variants"] do
+    # Combined with a variant above: `prism-button--primary prism-button--danger`.
+    # Without a tone, a button is accent.
+    variants :tone, web: [doc: "Tones"] do
       variant :success, background: :success, foreground: :white
       variant :warning, background: :warning, foreground: :white
-      variant :danger, background: :error, foreground: :white, aliases: [:delete]
+      variant :danger, background: :error, foreground: :white
     end
   end
 
-  component :input, web: [section: "Inputs", doc: "Base input styles"] do
+  component :text_field, web: [section: "Text fields", doc: "Base text field styles"] do
     style [height: 44, padding: [x: 12]] ++ @field ++ [transition: @motion, placeholder: :grey2]
     state :focused, border: [color: :primary]
     state :disabled, foreground: :grey3, background: :grey5
-    state :error, border: [color: :warning], web: [doc: "Input with error state"]
+    state :invalid, border: [color: :warning], web: [doc: "Text field with an invalid value"]
 
     # On a dark background.
-    variant :dark, web: [doc: "Input with dark background"] do
+    variant :inverse, web: [doc: "Text field on a dark background"] do
       state :focused, border: [color: :tertiary]
     end
   end
 
-  component :textarea, web: [doc: "Textarea"] do
+  component :text_area, web: [doc: "Text area"] do
     style [min_height: 256, padding: [y: 8, x: 12]] ++
             @field ++ [transition: @motion, placeholder: :grey2]
 
     state :focused, border: [color: :primary]
   end
 
-  component :label, web: [section: "Form Labels"] do
-    style typography: :title6, foreground: :grey1, margin: [bottom: 8]
-    variant :error, typography: :caption, foreground: :warning, margin: [top: 4]
+  # A label and an error message around a control.
+  component :field, web: [section: "Fields"] do
+    part :label, typography: :title6, foreground: :grey1, margin: [bottom: 8]
+    part :error_message, typography: :caption, foreground: :warning, margin: [top: 4]
   end
 
-  # The component is the radio control itself; the group holds the options, and
-  # each option is a label with the control and its text.
-  component :radio, web: [section: "Radio Buttons"] do
-    style size: 12,
-          radius: :full,
-          outline: [width: 2, color: :grey3, offset: 4],
-          transition: @motion
+  component :radio_group, web: [section: "Radio Buttons"] do
+    style gap: 32, margin: [left: 6]
+  end
 
-    state :checked, background: :primary, outline: [color: :primary]
-    part :group, gap: 32, margin: [left: 6]
+  # One option: the row with the control and its label.
+  component :radio do
+    style gap: 18
+    state :disabled, opacity: 0.5
 
-    part :label, gap: 18 do
-      state :disabled, opacity: 0.5
+    part :control,
+      size: 12,
+      radius: :full,
+      outline: [width: 2, color: :grey3, offset: 4],
+      transition: @motion do
+      state :checked, background: :primary, outline: [color: :primary]
     end
 
-    part :text, typography: :label, foreground: :grey1, margin: [top: 2]
+    part :label, typography: :label, foreground: :grey1, margin: [top: 2]
   end
 
-  component :dropdown, web: [section: "Dropdown / Select"] do
-    part :input, [height: 44, padding: [left: 12, right: 40]] ++ @field do
+  component :select, web: [section: "Select"] do
+    part :field, [height: 44, padding: [left: 12, right: 40]] ++ @field do
       state :focused, border: [color: :primary]
     end
 
     part :icon, inset: [right: 12]
 
-    # The list opens 4px below the 44px input.
-    part :options,
+    # The list opens 4px below the 44px field.
+    part :listbox,
       inset: [left: 0, top: 48],
       background: :white,
       radius: :default,
@@ -195,28 +183,18 @@ defmodule Prism.Design.Components do
     end
   end
 
+  # Drawn in its text color; without a variant, it takes the text color around it.
   component :spinner, web: [section: "Spinner"] do
     style size: 24, rotation: {1000, :linear}
 
     variants :size do
-      variant :sm, size: 16
-      variant :lg, size: 32
+      variant :small, size: 16
+      variant :large, size: 32
     end
 
-    variants :color, web: [doc: "Spinner colors - use with filter for different colors"] do
-      variant :white, foreground: :white
-
-      # The filter that tints the black spinner image #4272EF, approximately.
-      variant :primary,
-        foreground: :primary,
-        web: [
-          filter: [
-            color: "#4272EF",
-            value:
-              "brightness(0) saturate(100%) invert(39%) sepia(70%) saturate(2238%) hue-rotate(209deg) brightness(97%) contrast(91%)"
-          ]
-        ]
-    end
+    variant :accent, foreground: :primary, web: [doc: "Spinner colors"]
+    # On a colored background.
+    variant :inverse, foreground: :white
   end
 
   component :checkbox, web: [section: "Checkbox (bonus component)"] do
@@ -226,84 +204,93 @@ defmodule Prism.Design.Components do
     state :disabled, opacity: 0.5
   end
 
-  # Tags and alerts pair the subhead font (600) with the 14/16 text size, a pair
-  # no type style has; see ADR 0002.
+  # Tags and message bars pair the subhead font (600) with the 14/16 text size, a
+  # pair no type style has; see ADR 0002.
   component :tag,
     web: [
-      section: "Tags / Badges",
+      section: "Tags",
       doc: "Base tag styles - colored label with background opacity"
     ] do
     style radius: :default, background: :white
 
-    part :inner,
+    part :label,
       radius: :default,
       padding: [y: 6, x: 12],
       typography: [font: :subhead, text: :tablehead]
 
-    variant :primary, web: [doc: "Primary tag (default)"] do
-      part :inner, background: {:primary, 0.2}, foreground: :primary
-    end
+    variants :tone do
+      variant :accent, web: [doc: "Accent tag (default)"] do
+        part :label, background: {:primary, 0.2}, foreground: :primary
+      end
 
-    variant :success, web: [doc: "Success tag"] do
-      part :inner, background: {:success, 0.2}, foreground: :success
-    end
+      variant :success, web: [doc: "Success tag"] do
+        part :label, background: {:success, 0.2}, foreground: :success
+      end
 
-    variant :warning, web: [doc: "Warning tag"] do
-      part :inner, background: {:warning, 0.2}, foreground: :warning
-    end
+      variant :warning, web: [doc: "Warning tag"] do
+        part :label, background: {:warning, 0.2}, foreground: :warning
+      end
 
-    variant :error, aliases: [:danger], web: [doc: "Error/Danger tag"] do
-      part :inner, background: {:error, 0.2}, foreground: :error
-    end
+      variant :danger, web: [doc: "Danger tag"] do
+        part :label, background: {:error, 0.2}, foreground: :error
+      end
 
-    # #666666 is no token.
-    variant :secondary, web: [doc: "Secondary tag"] do
-      part :inner, background: {:grey2, 0.2}, foreground: "#666666"
+      # #666666 is no token.
+      variant :neutral, web: [doc: "Neutral tag"] do
+        part :label, background: {:grey2, 0.2}, foreground: "#666666"
+      end
     end
   end
 
-  component :alert, web: [section: "Alert Banners", doc: "Base alert styles"] do
+  component :message_bar, web: [section: "Message bars", doc: "Base message bar styles"] do
     style height: 40,
           padding: [y: 0, x: 16],
           radius: :default,
           typography: [font: :subhead, text: :tablehead]
 
-    variant :info,
-      background: {:primary, 0.15},
-      foreground: :primary,
-      web: [doc: "Info alert (default)"]
+    variants :tone do
+      variant :info,
+        background: {:primary, 0.15},
+        foreground: :primary,
+        web: [doc: "Info message bar (default)"]
 
-    variant :success,
-      background: {:success, 0.15},
-      foreground: :success,
-      web: [doc: "Success alert"]
+      variant :success,
+        background: {:success, 0.15},
+        foreground: :success,
+        web: [doc: "Success message bar"]
 
-    variant :warning,
-      background: {:warning, 0.15},
-      foreground: :warning,
-      web: [doc: "Warning alert"]
+      variant :warning,
+        background: {:warning, 0.15},
+        foreground: :warning,
+        web: [doc: "Warning message bar"]
 
-    variant :error, background: {:error, 0.15}, foreground: :error, web: [doc: "Error alert"]
+      variant :danger,
+        background: {:error, 0.15},
+        foreground: :error,
+        web: [doc: "Danger message bar"]
+    end
   end
 
-  # 12/12 is no text size.
-  component :number_icon,
+  # The numbered circle of one step. 12/12 is no text size.
+  component :step_indicator,
     web: [
-      section: "Number Icons (Step Indicators)",
-      doc: "Base number icon - circular badge with number"
+      section: "Step indicators",
+      doc: "Base step indicator - circular badge with number"
     ] do
     style size: 24, radius: :full, typography: [font: :label, text: {12, 12}]
 
-    variant :inactive,
-      background: :grey4,
-      foreground: :grey2,
-      web: [doc: "Inactive state (default)"]
+    variants :status do
+      variant :incomplete,
+        background: :grey4,
+        foreground: :grey2,
+        web: [doc: "Incomplete step (default)"]
 
-    variant :active, background: :primary, foreground: :white, web: [doc: "Active state"]
+      variant :current, background: :primary, foreground: :white, web: [doc: "Current step"]
 
-    variant :completed,
-      background: :success,
-      foreground: :white,
-      web: [doc: "Completed state"]
+      variant :complete,
+        background: :success,
+        foreground: :white,
+        web: [doc: "Complete step"]
+    end
   end
 end
