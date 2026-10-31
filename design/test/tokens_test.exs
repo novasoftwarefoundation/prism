@@ -45,7 +45,7 @@ defmodule Prism.Design.TokensTest do
     end
   end
 
-  test "mix.exs and both npm packages have the same version" do
+  test "mix.exs, both npm packages and the React package's lockfile have the same version" do
     version = Mix.Project.config()[:version]
     web = JSON.decode!(File.read!("../targets/web/package.json"))
     react = JSON.decode!(File.read!("../targets/react/package.json"))
@@ -54,5 +54,12 @@ defmodule Prism.Design.TokensTest do
     assert react["version"] == version
     # The React package's CSS is the web package's, at the same version.
     assert react["peerDependencies"][web["name"]] == version
+
+    # Its lockfile records the version, the peer and the linked web package too.
+    lock = JSON.decode!(File.read!("../targets/react/package-lock.json"))
+    assert lock["version"] == version
+    assert lock["packages"][""]["version"] == version
+    assert lock["packages"][""]["peerDependencies"][web["name"]] == version
+    assert lock["packages"]["../web"]["version"] == version
   end
 end

@@ -24,10 +24,11 @@
     "dist/"
   ],
   "scripts": {
-    "build": "tsc",
+    "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
+    "build": "npm run clean && tsc",
     "check": "tsc --noEmit -p test",
-    "test": "tsc && node --test",
-    "prepack": "tsc"
+    "test": "npm run build && node --test",
+    "prepack": "npm run build"
   },
   "peerDependencies": {
     "@novasoftwarefoundation/prism": "0.2.0",
