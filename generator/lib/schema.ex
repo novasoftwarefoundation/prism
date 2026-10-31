@@ -75,7 +75,10 @@ defmodule Prism.Generator.Schema do
     - `axes`: `[%{name}]`, the `variants` blocks;
     - `states`: `[%{name, style, parts}]`, `name` one of
       `Prism.Generator.Schema.Components.states/0`; a part's states have the
-      same shape;
+      same shape. A state's `parts` are its changes to the component's parts,
+      `[%{name, style, states}]`, with `states` always `[]`; a variant's part
+      changes have the same shape, and their `states` are the part's states
+      within that variant;
     - and on every component, part, variant, axis and state, `web`, `ios` and
       `android`: its binding for that target, a keyword list (`[]` without
       one). A property in a binding replaces the shared one on that target;

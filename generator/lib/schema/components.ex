@@ -4,9 +4,9 @@ defmodule Prism.Generator.Schema.Components do
   `variants`, `part` and `state`. A design that uses `Prism.Generator.Schema`
   imports these macros.
 
-      component :button, web: "btn" do
+      component :btn, web: [section: "Buttons"] do
         style typography: :button, radius: :default, transition: {150, :ease_in_out}
-        part :label
+        part :content
         part :spinner, component: :spinner
 
         variant :primary, background: :accent, foreground: :white, padding: [y: 15, x: 16] do
@@ -15,7 +15,7 @@ defmodule Prism.Generator.Schema.Components do
         end
 
         state :loading do
-          part :label, opacity: 0
+          part :content, opacity: 0
         end
 
         variants :color do
@@ -36,6 +36,11 @@ defmodule Prism.Generator.Schema.Components do
     A variant or a state may change a part's look by naming it again.
   - A `state` changes the look while it holds. States have a fixed meaning that
     every target knows; see `states/0`.
+
+  Every node takes `web:`, `ios:` and `android:`, its binding for that target:
+  properties whose values replace the shared ones there, and keys of the
+  target's own (for the web, `Prism.Generator.Web.Components`). The schema
+  refuses a key the target doesn't know, and a value the target can't write.
 
   A look is a keyword list of properties, in the design's order. Each property
   has a type, and its value is a token reference or a literal of that type;
@@ -112,8 +117,10 @@ defmodule Prism.Generator.Schema.Components do
   def properties, do: @properties
 
   @doc """
-  A component: `component :name, web: "class" do … end`. `web:` is its CSS
-  class name after the prefix (default: the name with `-` for `_`).
+  A component: `component :name, web: [section: "Buttons"] do … end`. Its
+  options are its bindings, `web:`, `ios:` and `android:`. Its CSS class is
+  made of its name (`.<prefix>-<name>`, with `-` for `_`); there is no option
+  for it.
   """
   defmacro component(name, opts \\ [], block \\ []),
     do: node(:component, name, opts, block, __CALLER__)
@@ -515,6 +522,9 @@ defmodule Prism.Generator.Schema.Components do
             with {:error, message} <- check(type, value, known),
                  do: fail.("#{key}: #{message}")
 
+            with {:error, message} <- target_value(target, node, key, value),
+                 do: fail.("#{key}: #{message}")
+
           true ->
             known_keys = Enum.map_join(own, ", ", &inspect/1)
 
@@ -536,16 +546,29 @@ defmodule Prism.Generator.Schema.Components do
   defp target_check(:web, key, value),
     do: Prism.Generator.Web.Components.check_binding(key, value)
 
+  # The shared look: checked against its type, and against what the web target
+  # can write for this node, since the web reads the shared value too.
   defp props!(node, props, known, file) do
     for {key, value} <- props do
       {type, _} = @properties[key]
 
-      case check(type, value, known) do
-        :ok -> {key, value}
+      with :ok <- check(type, value, known),
+           :ok <- target_value(:web, node, key, value) do
+        {key, value}
+      else
         {:error, message} -> fail(file, node.line, "#{path_label(node)}: #{key}: #{message}")
       end
     end
   end
+
+  # A value a target writes in its own way, such as a color the web draws into an
+  # image, may have limits there; the native targets have none yet.
+  defp target_value(:web, node, key, value) do
+    place = node.parent ++ [{node.kind, node.name}]
+    Prism.Generator.Web.Components.check_value(place, key, value)
+  end
+
+  defp target_value(_, _, _, _), do: :ok
 
   # ------------------------------------------------------------ values
 

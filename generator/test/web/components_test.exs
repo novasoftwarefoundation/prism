@@ -144,7 +144,7 @@ defmodule Prism.Generator.Web.ComponentsTest do
       design =
         compile("""
           component :spinner do
-            variant :ink, foreground: :ink, web: [filter: [color: "#202020", value: "x"]]
+            variant :ink, foreground: :ink, web: [filter: [color: "#202020", value: "sepia(10%)"]]
           end
         """)
 
@@ -154,6 +154,129 @@ defmodule Prism.Generator.Web.ComponentsTest do
                      css(design)
                    end
     end
+  end
+
+  # The component body below `compile/1`'s module and use lines starts on line 3.
+  defp assert_compile_error(body, message, line) do
+    error = assert_raise CompileError, fn -> compile(body) end
+    assert Exception.message(error) =~ message
+    assert error.line == line
+  end
+
+  test "a spinner's filter is CSS filter functions with numeric arguments only" do
+    for value <- [
+          "brightness(0);} body { color: red",
+          "url(x)",
+          "blur(2px)",
+          "sepia(10%)  invert(1)",
+          ""
+        ] do
+      assert_compile_error(
+        "  component :spinner do\n    variant :ink, foreground: :ink, web: [filter: [color: \"#101010\", value: #{inspect(value)}]]\n  end",
+        "web: filter: must be [color: \"#RRGGBB\", value: \"a CSS filter\"], the filter one or more of brightness",
+        4
+      )
+    end
+  end
+
+  test "a color the web draws into an image or a filter can't have alpha" do
+    assert_compile_error(
+      "  component :checkbox do\n    state :checked, foreground: {:ink, 0.5}\n  end",
+      "component :checkbox, state :checked: foreground: the check mark is an image in this color, so it has no alpha",
+      4
+    )
+
+    assert_compile_error(
+      "  component :spinner do\n    variant :ink, foreground: :transparent\n  end",
+      "variant :ink: foreground: the spinner is tinted to this color with a CSS filter, so it has no alpha",
+      4
+    )
+
+    # Also when the web binding gives the color.
+    assert_compile_error(
+      "  component :spinner do\n    variant :ink, foreground: :ink, web: [foreground: {:ink, 0.2}]\n  end",
+      "web: foreground: the spinner is tinted",
+      4
+    )
+  end
+
+  test "a spinner's size is px or rem, which a button can halve to center it" do
+    assert_compile_error(
+      "  component :spinner do\n    style size: {50, :percent}\n  end",
+      "component :spinner, style: size: a button centers its spinner by half the spinner's size",
+      4
+    )
+
+    design =
+      compile("""
+        component :btn do
+          part :spinner, component: :spinner
+          state :loading
+        end
+        component :spinner do
+          style size: {1.5, :rem}
+        end
+      """)
+
+    assert css(design) =~ "  margin-top: -0.75rem;\n  margin-left: -0.75rem;\n"
+  end
+
+  test "a state without a pseudo-class is scoped to its variant or part" do
+    design =
+      compile("""
+        component :tag do
+          part :inner do
+            state :error, background: :ink
+          end
+
+          variant :primary, radius: :default do
+            state :error, opacity: 0.5
+          end
+        end
+      """)
+
+    css = css(design)
+    assert css =~ "\n.only-tag-inner.only-tag-error {\n  background-color: #101010;\n}\n"
+    assert css =~ "\n.only-tag-primary.only-tag-error {\n  opacity: 0.5;\n}\n"
+    refute css =~ "\n.only-tag-error {"
+  end
+
+  test "a state's part change follows every name of a variant, without empty rules" do
+    design =
+      compile("""
+        component :tag do
+          part :inner
+          variant :error, aliases: [:danger], radius: :default do
+            state :hovered do
+              part :inner, background: :ink
+            end
+          end
+        end
+      """)
+
+    css = css(design)
+
+    assert css =~
+             "\n.only-tag-error:hover .only-tag-inner,\n.only-tag-danger:hover .only-tag-inner {\n  background-color: #101010;\n}\n"
+
+    refute css =~ ~r/\{\n\}/
+    refute css =~ ".only-tag-danger:hover {"
+  end
+
+  test "a variant's change to a part that is another component has that component's class" do
+    design =
+      compile("""
+        component :btn do
+          part :spinner, component: :spinner
+          variant :primary, radius: :default do
+            part :spinner, opacity: 0.5
+          end
+        end
+        component :spinner
+      """)
+
+    assert css(design) =~ "\n.only-btn-primary .only-spinner {\n  opacity: 0.5;\n}\n"
+    refute css(design) =~ "only-btn-spinner"
   end
 
   test "the check mark takes the checked state's foreground" do

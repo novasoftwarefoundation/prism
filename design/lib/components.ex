@@ -12,8 +12,8 @@ defmodule Prism.Design.Components do
 
   The `web:` bindings hold only what is the web's own: the comments of
   `css/components.css`, and the CSS filter that tints the spinner. The names are
-  0.1.7's class names for now, each written once here, so renaming them later
-  is a small change.
+  0.1.7's class names for now. The web target's mechanics are keyed on the
+  component and part names too, so a rename changes the generator as well.
   """
   use Prism.Generator.Schema, tokens: Prism.Design.Tokens
 

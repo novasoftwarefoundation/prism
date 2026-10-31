@@ -6,11 +6,15 @@ defmodule Prism.Generator.Web.Components do
   appearance resets, keyframes, the check mark image, and how a state becomes a
   selector.
 
-  It knows these components, by name: `:btn`, `:input`, `:textarea`, `:label`,
-  `:radio`, `:dropdown`, `:spinner`, `:checkbox`, `:tag`, `:alert` and
-  `:number_icon` (`kinds/0`). A design component it doesn't know fails
-  generation. Each one writes the variants, parts and states the design gives
-  it, so a new variant needs no change here.
+  Its mechanics are keyed on component and part names. It knows these
+  components: `:btn`, `:input`, `:textarea`, `:label`, `:radio`, `:dropdown`,
+  `:spinner`, `:checkbox`, `:tag`, `:alert` and `:number_icon` (`kinds/0`), and
+  these parts of them: the button's `:content` and its parts that are other
+  components, the radio's `:group`, `:label` and `:text`, the dropdown's
+  `:input`, `:icon`, `:options` and `:option`, and the tag's `:inner`. A design
+  component it doesn't know fails generation, and so does a part it doesn't
+  write. Each component writes the variants and states the design gives it,
+  so a new variant needs no change here.
 
   ## Classes
 
@@ -41,6 +45,15 @@ defmodule Prism.Generator.Web.Components do
     filter that tints the spinner image in that color. The web writes white
     and black itself; any other color needs a filter made for the color the
     design gives, or generation fails.
+
+  The filter is CSS filter functions with numeric arguments only
+  (`brightness(0) hue-rotate(209deg)`), so nothing else reaches the CSS.
+
+  Some values can't be written on the web, so the schema refuses them at
+  compile time, on their line: the checkbox's check mark and a tinted spinner can't
+  have a color with alpha or `:transparent`, because they are drawn into an
+  image or a filter, and a spinner's size is px or rem, because a loading button
+  centers it by half its size.
 
   Generation fails when a value or a `web:` key of the design is written
   nowhere, so nothing in the design is ignored.
@@ -95,6 +108,15 @@ defmodule Prism.Generator.Web.Components do
 
   @check_mark "url(\"data:image/svg+xml,%3csvg viewBox='0 0 16 16' fill='FILL' xmlns='http://www.w3.org/2000/svg'%3e%3cpath d='M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2-2a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z'/%3e%3c/svg%3e\")"
 
+  # A spinner's filter: CSS filter functions with numeric arguments only, so nothing
+  # else can reach the CSS.
+  @filter_functions ~w(brightness contrast grayscale hue-rotate invert opacity saturate sepia)
+  @filter_argument ~S"-?\d+(\.\d+)?(%|deg)?"
+  @filter Regex.compile!(
+            "\\A(#{Enum.join(@filter_functions, "|")})\\(#{@filter_argument}\\)" <>
+              "( (#{Enum.join(@filter_functions, "|")})\\(#{@filter_argument}\\))*\\z"
+          )
+
   @design {__MODULE__, :design}
   @read {__MODULE__, :read}
 
@@ -116,10 +138,41 @@ defmodule Prism.Generator.Web.Components do
   def check_binding(:filter, value) do
     if Keyword.keyword?(value) and Enum.sort(Keyword.keys(value)) == [:color, :value] and
          is_binary(value[:color]) and Regex.match?(~r/\A#[0-9A-F]{6}\z/, value[:color]) and
-         check_binding(:doc, value[:value]) == :ok,
+         is_binary(value[:value]) and Regex.match?(@filter, value[:value]),
        do: :ok,
-       else: {:error, ~s(must be [color: "#RRGGBB", value: "a CSS filter"])}
+       else:
+         {:error,
+          ~s(must be [color: "#RRGGBB", value: "a CSS filter"], the filter one or more of ) <>
+            Enum.join(@filter_functions, ", ") <>
+            " with a number, a percentage or (for hue-rotate) degrees, separated by spaces"}
   end
+
+  @doc false
+  # Checks, for the schema, a value the web writes in its own way at `place` (the
+  # node's path as `[{kind, name}]`): a color drawn into an image or tinted by a
+  # filter can't have alpha, and a spinner's size is halved to center it.
+  def check_value(place, key, value) do
+    case {hd(place), List.last(place), key, value} do
+      {{:component, :checkbox}, {:state, :checked}, :foreground, color} ->
+        solid(color, "the check mark is an image in this color")
+
+      {{:component, :spinner}, {:variant, _}, :foreground, color} ->
+        solid(color, "the spinner is tinted to this color with a CSS filter")
+
+      {{:component, :spinner}, _, :size, {_, :percent}} ->
+        {:error,
+         "a button centers its spinner by half the spinner's size, which a percentage can't give; use px or rem"}
+
+      _ ->
+        :ok
+    end
+  end
+
+  defp solid(color, why) when is_tuple(color) or color == :transparent,
+    do:
+      {:error, "#{why}, so it has no alpha: give a color without {color, alpha} or :transparent"}
+
+  defp solid(_, _), do: :ok
 
   @doc false
   # The body of css/components.css for a design's `__schema__/0`.
@@ -433,17 +486,22 @@ defmodule Prism.Generator.Web.Components do
 
   defp variant(c, v, selectors) do
     path = [c.name, v.name]
-    own = if web_style(v) == [], do: [], else: [rule(selector(path), declarations(path))]
 
     parts =
       for p <- v.parts,
           do: rule(selector(path ++ [p.name]), declarations(path ++ [p.name]))
 
-    with_doc(path, own ++ parts ++ states(path, v, selectors))
+    with_doc(
+      path,
+      [rule(selector(path), declarations(path)) | parts] ++ states(path, v, selectors)
+    )
   end
 
   # A node's states, the loading state apart (`loading/1`): each state's rule, then
-  # the parts it changes. `custom` writes a state's declarations itself.
+  # the parts it changes. `custom` writes a state's declarations itself. A state
+  # without a pseudo-class is a modifier class: on its own for a component's state
+  # (`.acme-input-error`), on the variant or part it belongs to otherwise
+  # (`.acme-tag-primary.acme-tag-error`).
   defp states(path, node, selectors, custom \\ %{}) do
     for s <- node.states, s.name != :loading do
       state = path ++ [s.name]
@@ -451,18 +509,28 @@ defmodule Prism.Generator.Web.Components do
       cursor = if s.name == :disabled, do: ["cursor: not-allowed"], else: []
 
       sel =
-        case selectors[s.name] do
-          nil -> "." <> class(state)
-          suffix -> selector(path, suffix)
+        case {selectors[s.name], path} do
+          {nil, [_component]} -> "." <> class(state)
+          {nil, _} -> selector(path, "." <> class(state))
+          {suffix, _} -> selector(path, suffix)
         end
 
-      [rule(state, sel, lines ++ cursor) | Enum.map(s.parts, &state_part(sel, state, &1))]
+      with_doc(state, [
+        rule(sel, lines ++ cursor) | Enum.map(s.parts, &state_part(sel, state, &1))
+      ])
     end
   end
 
-  # A part while its component is in a state: `<state selector> .<part class>`.
-  defp state_part(sel, state, part),
-    do: rule("#{sel} .#{class([hd(state), part.name])}", declarations(state ++ [part.name]))
+  # A part while its component is in a state: the part's class after each of the
+  # state's selectors (`.a:hover .acme-tag-inner, .b:hover .acme-tag-inner`).
+  defp state_part(sel, state, part) do
+    descendant = " ." <> class([hd(state), part.name])
+
+    sel
+    |> String.split(",\n")
+    |> Enum.map_join(",\n", &(&1 <> descendant))
+    |> rule(declarations(state ++ [part.name]))
+  end
 
   # While loading, the parts change, and a part that is another component (a
   # spinner) sits in the middle.
@@ -476,7 +544,7 @@ defmodule Prism.Generator.Web.Components do
 
         spinners =
           for %{component: ref} = p <- c.parts, ref != nil do
-            margin = css_length(-get([ref], :size) / 2)
+            margin = [ref] |> get(:size) |> half() |> css_length()
 
             rule(".#{class(state)} .#{class([c.name, p.name])}", [
               "position: absolute",
@@ -573,25 +641,29 @@ defmodule Prism.Generator.Web.Components do
   # ------------------------------------------------------------ rules and comments
 
   # A rule: `selector {`, its declarations one per line, and `}`; with the node's
-  # doc above it when the node's path is given.
+  # doc above it when the node's path is given. A rule without declarations is
+  # left out.
   defp rule(path \\ nil, selector, lines) do
-    body =
-      lines
-      |> List.flatten()
-      |> Enum.map_join("\n", fn
-        {:raw, text} -> text
-        line -> "  #{line};"
-      end)
+    case List.flatten(lines) do
+      [] ->
+        []
 
-    "#{if path, do: comment(web(path, :doc)), else: ""}#{selector} {\n#{body}\n}\n"
+      lines ->
+        body =
+          Enum.map_join(lines, "\n", fn
+            {:raw, text} -> text
+            line -> "  #{line};"
+          end)
+
+        "#{if path, do: comment(web(path, :doc)), else: ""}#{selector} {\n#{body}\n}\n"
+    end
   end
 
-  # A variant's doc goes above the first of its rules.
+  # A node's doc goes above the first of its rules; a node without rules has none.
   defp with_doc(path, rules) do
-    case {web(path, :doc), List.flatten(rules)} do
-      {nil, rules} -> rules
-      {doc, [first | rest]} -> [comment(doc) <> first | rest]
-      {_, []} -> []
+    case List.flatten(rules) do
+      [] -> []
+      [first | rest] -> [comment(web(path, :doc)) <> first | rest]
     end
   end
 
@@ -631,11 +703,26 @@ defmodule Prism.Generator.Web.Components do
 
   # ------------------------------------------------------------ the design's values
 
+  # A part's class comes from the part the component declares, so a variant's or a
+  # state's change to a part that is another component has that component's class.
   defp class(path) do
-    case path |> nodes!() |> List.last() do
-      {:component, c} -> base(c.name)
-      {:part, %{component: ref}} when ref != nil -> base(ref)
-      {_, node} -> "#{base(hd(path))}-#{key(node.name)}"
+    [{:component, c} | _] = nodes = nodes!(path)
+
+    case List.last(nodes) do
+      {:component, _} ->
+        base(c.name)
+
+      {:part, part} ->
+        # A rule for a variant's or a state's change to the part writes the part.
+        read({:node, [c.name, part.name]})
+
+        case Enum.find(c.parts, &(&1.name == part.name)) do
+          %{component: ref} when ref != nil -> base(ref)
+          _ -> "#{base(c.name)}-#{key(part.name)}"
+        end
+
+      {_, node} ->
+        "#{base(c.name)}-#{key(node.name)}"
     end
   end
 
@@ -797,6 +884,10 @@ defmodule Prism.Generator.Web.Components do
   defp expand(:x), do: [:left, :right]
   defp expand(:y), do: [:top, :bottom]
   defp expand(side), do: [side]
+
+  # Minus half a length, to center something of that size (a spinner) by its margins.
+  defp half(n) when is_number(n), do: -n / 2
+  defp half({n, :rem}), do: {-n / 2, :rem}
 
   defp css_length(n) when is_number(n) and n == 0, do: "0"
   defp css_length(n) when is_number(n), do: "#{Web.number(n)}px"
