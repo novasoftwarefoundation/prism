@@ -40,7 +40,9 @@ if Code.ensure_loaded?(Phoenix.Component) do
       inner block (a button's or a tag's `label`), a part such as an icon is a
       slot of its own name (`<:icon>`), and a part that is another component (a
       button's spinner) is rendered while the component is `loading`, when it
-      has a loading state, and always otherwise. A part's slot takes `class`
+      has a loading state, and always otherwise, with the classes of its own
+      defaults that are variants. A part's state is an attribute of the
+      component, like the component's own (a field label's `invalid`). A part's slot takes `class`
       and any other attributes for the part's element. While a part is there,
       its look with a part (`with_part :icon`) adds `--with-icon`.
     - `class` appends the app's classes to the component's own; `rest` takes
@@ -57,7 +59,7 @@ if Code.ensure_loaded?(Phoenix.Component) do
 
     | Component | Element | Content |
     |---|---|---|
-    | `button` | `as` (default `"button"`) | `label` holds the inner block; `<:icon>`; the spinner while loading |
+    | `button` | `as`: `"button"` (the default), `"a"`, `"span"` or `"div"` | `label` holds the inner block; `<:icon>`; the spinner while loading |
     | `text_field` | `<input>` | none |
     | `text_area` | `<textarea>` | the `value` attribute |
     | `field` | `<div>` | `<:label>` (a `<label>`), the inner block (the control), `<:error_message>` (a `<p>`) |
@@ -77,9 +79,13 @@ if Code.ensure_loaded?(Phoenix.Component) do
 
     ## Recompiling
 
+    This module is compiled only when Phoenix LiveView is there, so an app
+    that adds LiveView after its first compile rebuilds the generator once:
+    `mix deps.compile prism_generator --force`.
+
     The module requires the design, a compile-time dependency, so it recompiles
-    when the design changes: a new variant is there at once, and a removed one
-    fails where the app still uses it.
+    when the design changes: a new variant is there at once, and Phoenix warns
+    where the app still passes a removed one.
     """
 
     alias Prism.Generator.Web.Classes
@@ -124,6 +130,13 @@ if Code.ensure_loaded?(Phoenix.Component) do
     }
 
     @void ["input"]
+
+    # The elements a component whose element is the app's choice (`as`) may be: what
+    # holds a look inside the app's own action, or is that action.
+    @as ~w(button a span div)
+
+    @doc false
+    def as, do: @as
 
     # The element's own attributes `rest` takes, besides the globals.
     @own %{
@@ -172,7 +185,6 @@ if Code.ensure_loaded?(Phoenix.Component) do
       quote do
         unquote(setup)
         require Phoenix.Component
-        require Phoenix.Component.Declarative
         # A compile-time dependency: this module recompiles when the design changes.
         require unquote(design)
         unquote_splicing(Enum.map(components, &define/1))
@@ -193,11 +205,11 @@ if Code.ensure_loaded?(Phoenix.Component) do
               "the Phoenix target has no component #{inspect(c.name)}; it knows #{@kinds |> Map.keys() |> Enum.sort() |> Enum.map_join(", ", &inspect/1)}"
             )
 
-        component(c, kind, web.prefix, env)
+        component(c, kind, web.prefix, components, env)
       end
     end
 
-    defp component(c, kind, prefix, env) do
+    defp component(c, kind, prefix, components, env) do
       known = Keyword.keys(kind.parts)
 
       for %{component: nil, name: name} <- c.parts, name not in known do
@@ -211,7 +223,7 @@ if Code.ensure_loaded?(Phoenix.Component) do
         )
       end
 
-      parts = Enum.map(c.parts, &part(c, kind, &1, prefix, env))
+      parts = Enum.map(c.parts, &part(c, kind, &1, prefix, components, env))
       states = states(c, parts, prefix)
       items = for %{as: :list, item: item} <- parts, do: item
 
@@ -241,7 +253,9 @@ if Code.ensure_loaded?(Phoenix.Component) do
 
     # A design part as what this target renders: the part's class and element, and
     # what it is.
-    defp part(c, _kind, %{component: ref} = p, prefix, _env) when ref != nil do
+    # A part that is another component has that component's element and class, with
+    # the classes of its axes' defaults that are variants.
+    defp part(c, _kind, %{component: ref} = p, prefix, components, _env) when ref != nil do
       element =
         case @kinds[ref] do
           %{element: {:as, default}} -> default
@@ -249,10 +263,22 @@ if Code.ensure_loaded?(Phoenix.Component) do
           nil -> "span"
         end
 
-      %{name: p.name, as: :component, element: element, class: Classes.part(prefix, c, p.name)}
+      other = Enum.find(components, &(&1.name == ref))
+
+      defaults =
+        for %{default: default, classes: classes} <- axes(other, prefix),
+            class = classes[default],
+            do: class
+
+      %{
+        name: p.name,
+        as: :component,
+        element: element,
+        class: [Classes.part(prefix, c, p.name) | defaults]
+      }
     end
 
-    defp part(c, kind, p, prefix, env) do
+    defp part(c, kind, p, prefix, _components, env) do
       class = Classes.part(prefix, c, p.name)
 
       case kind.parts[p.name] do
@@ -357,8 +383,13 @@ if Code.ensure_loaded?(Phoenix.Component) do
             &(&1.states ++ Enum.flat_map(&1.with_parts, fn w -> w.states end))
           )
 
-      controls = for %{as: :control, name: name} <- parts, do: name
-      single = for p <- parts, p.as in [:content, :control], do: p.name
+      # The form controls among the parts: a radio's control, a select's field.
+      controls =
+        for p <- parts,
+            p.as == :control or (p.as == :content and Classes.control?(c.name, p.name)),
+            do: p.name
+
+      single = for p <- parts, p.as in [:content, :control, :slot], do: p.name
 
       places =
         Enum.map(own, &{nil, &1.name}) ++
@@ -420,15 +451,24 @@ if Code.ensure_loaded?(Phoenix.Component) do
     # ------------------------------------------------------------ the function
 
     defp define(spec) do
+      assigns = quote(do: assigns)
+
+      body =
+        quote do:
+                Prism.Generator.Phoenix.Markup.render(
+                  unquote(Macro.escape(spec)),
+                  unquote(assigns)
+                )
+
+      # A `def` without the quote's import metadata, so it is the caller's: the one
+      # `use Phoenix.Component` imports, which ties the attributes and slots above to
+      # the function. A quoted `def` would be `Kernel.def`.
+      function = {:def, [], [{spec.name, [], [assigns]}, [do: body]]}
+
       quote do
         @doc unquote(doc(spec))
         unquote_splicing(declarations(spec))
-
-        # Phoenix's `def`, which `use Phoenix.Component` imports, ties the attributes
-        # and slots above to the function.
-        Phoenix.Component.Declarative.def(unquote(spec.name)(assigns),
-          do: Prism.Generator.Phoenix.Markup.render(unquote(Macro.escape(spec)), assigns)
-        )
+        unquote(function)
       end
     end
 
@@ -456,6 +496,7 @@ if Code.ensure_loaded?(Phoenix.Component) do
                 do:
                   Phoenix.Component.attr(:as, :string,
                     default: unquote(default),
+                    values: unquote(@as),
                     doc: "The element."
                   )
               )

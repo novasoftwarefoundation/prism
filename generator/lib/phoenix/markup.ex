@@ -8,7 +8,7 @@ if Code.ensure_loaded?(Phoenix.Component) do
     def render(spec, assigns) do
       tag =
         case spec.element do
-          {:as, _} -> assigns.as
+          {:as, _} -> as!(assigns.as)
           element -> element
         end
 
@@ -27,6 +27,16 @@ if Code.ensure_loaded?(Phoenix.Component) do
           child={child}
         /></.dynamic_tag>
       """
+    end
+
+    defp as!(tag) do
+      if tag in Prism.Generator.Phoenix.as(),
+        do: tag,
+        else:
+          raise(
+            ArgumentError,
+            "as: #{inspect(tag)} is not one of #{Enum.map_join(Prism.Generator.Phoenix.as(), ", ", &inspect/1)}"
+          )
     end
 
     # One child: an element with its attributes and the slot entries it renders, an
@@ -68,6 +78,10 @@ if Code.ensure_loaded?(Phoenix.Component) do
     defp effects(spec, assigns),
       do: for(s <- spec.states, assigns[s.name], e <- s.effects, do: e)
 
+    # The element's own attributes the states set on a part (`disabled: true`).
+    defp natives(spec, part, assigns),
+      do: for({:native, ^part, name} <- effects(spec, assigns), do: {name, true})
+
     defp part_classes(spec, part, assigns),
       do: for({:class, ^part, class} <- effects(spec, assigns), do: class)
 
@@ -84,7 +98,9 @@ if Code.ensure_loaded?(Phoenix.Component) do
         entries ->
           [
             {:element, p.element,
-             p.attrs ++ [class: [p.class | part_classes(spec, p.name, assigns)]], entries}
+             p.attrs ++
+               natives(spec, p.name, assigns) ++
+               [class: [p.class | part_classes(spec, p.name, assigns)]], entries}
           ]
       end
     end
@@ -98,9 +114,7 @@ if Code.ensure_loaded?(Phoenix.Component) do
     end
 
     defp child(%{as: :control} = p, spec, assigns) do
-      native =
-        for {:native, part, name} <- effects(spec, assigns), part == p.name, do: {name, true}
-
+      native = natives(spec, p.name, assigns)
       rest = if spec.rest == :control, do: Map.to_list(assigns.rest), else: []
       class = [p.class | part_classes(spec, p.name, assigns)]
       [{:void, p.element, [type: p.type] ++ native ++ rest ++ [class: class]}]

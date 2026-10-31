@@ -386,6 +386,138 @@ defmodule Prism.Generator.PhoenixTest do
     end
   end
 
+  # A page of the app that renders `heex` with `kit`'s components, as markup.
+  defp page(kit, heex, assigns \\ %{}) do
+    [{mod, _}] =
+      Code.compile_string("""
+      defmodule PhoenixPage#{System.unique_integer([:positive])} do
+        use Phoenix.Component
+        alias #{inspect(kit)}, as: K
+        def page(assigns), do: ~H\"\"\"
+        #{heex}
+        \"\"\"
+      end
+      """)
+
+    html(mod.page(assigns))
+  end
+
+  # Every class in `html` that is not a class of the web target's CSS for `kit`'s design.
+  defp unstyled(kit, html) do
+    design = Module.concat([String.replace(inspect(kit), "PhoenixKit", "PhoenixDesign")])
+    {_, css, _} = design.__schema__() |> Web.files() |> List.keyfind("css/components.css", 0)
+
+    for [_, list] <- Regex.scan(~r/class="([^"]*)"/, html),
+        class <- String.split(list),
+        not (css =~ ~r/\.#{Regex.escape(class)}(?![\w-])/),
+        uniq: true,
+        do: class
+  end
+
+  describe "designs Prism's doesn't have" do
+    test "a state of a slot part is an attribute that adds the part's class" do
+      kit =
+        kit("""
+          component :field do
+            part :label, foreground: :ink do
+              state :invalid, foreground: "#C62828"
+            end
+            part :error_message, foreground: :ink
+          end
+        """)
+
+      assert :invalid in Enum.map(kit.__components__().field.attrs, & &1.name)
+
+      html = page(kit, "<K.field invalid><:label>Name</:label>CONTROL</K.field>")
+
+      assert html ==
+               norm(
+                 ~s(<div class="only-field"><label class="only-field__label only-field__label--invalid">Name</label>CONTROL</div>)
+               )
+
+      assert unstyled(kit, html) == ["only-field"]
+    end
+
+    test "a disabled select disables its field, the form control among its parts" do
+      kit =
+        kit("""
+          component :select do
+            state :disabled, opacity: 0.5
+            part :field, height: 40 do
+              state :disabled, opacity: 0.4
+            end
+            part :listbox
+            part :option
+          end
+        """)
+
+      html = page(kit, "<K.select disabled>Pick</K.select>")
+
+      assert html ==
+               norm(
+                 ~s(<div class="only-select only-select--disabled"><button type="button" disabled class="only-select__field">Pick</button></div>)
+               )
+
+      assert unstyled(kit, html) == []
+    end
+
+    test "a part that is another component has the classes of that component's defaults" do
+      kit =
+        kit("""
+          component :spinner do
+            style size: 24
+            variants :size, default: :small do
+              variant :small, size: 16
+            end
+            variant :accent, foreground: :ink
+          end
+
+          component :button do
+            part :label
+            part :spinner, component: :spinner
+            state :loading do
+              part :label, opacity: 0
+            end
+          end
+        """)
+
+      html = page(kit, "<K.button loading>Save</K.button>")
+      assert html =~ norm(~s(<span class="only-spinner only-spinner--small"></span>))
+      assert unstyled(kit, html) == []
+    end
+  end
+
+  describe "a button's element" do
+    test "is one of a few tags, checked at compile time" do
+      assert Enum.find(Kit.__components__().button.attrs, &(&1.name == :as)).opts[:values] ==
+               ~w(button a span div)
+
+      {_, diagnostics} =
+        compile(~S'''
+        defmodule PhoenixScriptPage do
+          use Phoenix.Component
+          alias Prism.Generator.PhoenixTest.Kit
+          def page(assigns), do: ~H"<Kit.button as='script'>x</Kit.button>"
+        end
+        ''')
+
+      assert Enum.any?(
+               diagnostics,
+               &(&1.message =~ ~s(attribute "as" in component) and &1.message =~ ~s(got: "script"))
+             )
+    end
+
+    test "is refused at render time when the value only comes then" do
+      assigns = %{as: "div onclick=alert(1)"}
+
+      assert_raise ArgumentError,
+                   ~r/as: "div onclick=alert\(1\)" is not one of "button", "a", "span", "div"/,
+                   fn ->
+                     rendered_to_string(~H"<Kit.button as={@as}>x</Kit.button>")
+                   end
+    end
+  end
+
   describe "a design the target can't render fails at the use line" do
     test "an unknown component or part" do
       assert_raise CompileError, ~r/nofile:\d+: the Phoenix target has no component :badge/, fn ->

@@ -33,7 +33,20 @@ mix test
 
 ## Use it in a Phoenix app
 
-An Elixir app reads the design itself, so it needs no generated files: a module of the app's own gets one function component per design component while the app compiles.
+An Elixir app reads the design itself, so it needs no generated files: a module of the app's own gets one function component per design component while the app compiles. The app depends on the design, from the `design/` folder of this repository, and on Phoenix LiveView:
+
+```elixir
+# mix.exs
+defp deps do
+  [
+    {:prism_design,
+     git: "https://github.com/novasoftwarefoundation/prism.git", tag: "v0.2.0", subdir: "design"},
+    {:phoenix_live_view, "~> 1.1"}
+  ]
+end
+```
+
+The design brings the generator with it. An app that adds LiveView after its first compile has a build of the generator without `Prism.Generator.Phoenix`; rebuild it once with `mix deps.compile prism_generator --force`.
 
 ```elixir
 defmodule MyAppWeb.Prism do
@@ -59,7 +72,7 @@ end
 - **Axes** (`variant`, `tone`, `size`, `status`) are atom attributes with the design's values, so Phoenix warns at compile time about `variant={:primray}`. Without one, an axis has the design's default: a button's tone is accent and a spinner's size medium (no class), a tag's tone is `:accent`, a message bar's `:info`, a step's `:incomplete`. A button's `variant` and a spinner's color have no default.
 - **States the app sets** are boolean attributes: `loading`, `invalid`, `disabled`, `checked`. On a form control, `disabled` and `checked` set the element's own attribute; elsewhere a state adds its class (`prism-radio--disabled`). The browser's states (pressed, hovered, focused) need nothing.
 - **Parts** follow the design's order: the label is the inner block, the icon a `<:icon>` slot (with it, the button gets `prism-button--with-icon`), and the spinner shows while `loading`.
-- **Adjusting**: `class` adds the app's classes after the component's own, and other attributes (`id`, `phx-*`, `type`, `name`, …) go on the element. A button's element is `as` (`"button"` by default, or `"a"`, `"div"` when the app wraps it in its own action). What a component does stays in the app.
+- **Adjusting**: `class` adds the app's classes after the component's own, and other attributes (`id`, `phx-*`, `type`, `name`, …) go on the element. A button's element is `as`: `"button"` by default, or `"a"`, `"span"` or `"div"` when the app wraps it in its own action; any other value warns at compile time and fails when it renders. What a component does stays in the app.
 
 `Prism.Generator.Phoenix` exists only when the app has Phoenix LiveView (`~> 1.1`); the design itself has no Phoenix. The class names come from the same functions as `components.css`, so the components and the CSS can't drift apart, and a design change reaches the app with the dependency bump: Mix recompiles the module. Its moduledoc lists each component's element and slots.
 
