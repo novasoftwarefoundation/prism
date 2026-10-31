@@ -23,10 +23,11 @@ defmodule Mix.Tasks.Prism.Gen do
   root's `$description`). A file without one is
   hand-written and never overwritten.
 
-  A file with a header in a folder a target writes into, which no target
-  generates now (a renamed or removed component's), is left over: the task
-  removes it. Hand-written files there, such as a `package.json`, have no
-  header and stay; so does what is in the folders below.
+  A file that starts with exactly the header, of a type the targets write, in
+  a folder a target writes into, which no target generates now (a renamed or
+  removed component's), is left over: the task removes it. Everything else
+  there stays: hand-written files without the header (a `package.json`, a
+  note that mentions it), links, and what is in the folders below.
 
   With `--check`, nothing is written: the task fails when any file would change
   or is left over, for CI.
@@ -81,18 +82,21 @@ defmodule Mix.Tasks.Prism.Gen do
 
   defp write!({path, source}), do: Mix.Generator.create_file(path, source, force: true)
 
-  # The generated files, by their header, in the folders the targets write into
-  # that no target writes now.
+  # The generated files no target writes now, in the folders the targets write into:
+  # files, not links, of a type the targets write, that start with exactly the
+  # header.
   defp leftovers(files) do
     written = MapSet.new(files, fn {path, _} -> Path.expand(path) end)
+    types = MapSet.new(files, fn {path, _} -> Path.extname(path) end)
 
     for dir <- files |> Enum.map(&Path.dirname(elem(&1, 0))) |> Enum.uniq(),
         {:ok, names} <- [File.ls(dir)],
         name <- Enum.sort(names),
         path = Path.join(dir, name),
-        File.regular?(path),
+        Path.extname(path) in types,
+        match?({:ok, %File.Stat{type: :regular}}, File.lstat(path)),
         Path.expand(path) not in written,
-        Header.generated?(path),
+        Header.exact?(path),
         do: path
   end
 
