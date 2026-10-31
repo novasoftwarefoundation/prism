@@ -27,7 +27,7 @@ defmodule Prism.Generator.React do
   - **A part with `position:`** in the design gets a `<part>Position` prop,
     `"start"` or `"end"` (`iconPosition`), with the design's side as its
     default: the part goes at that side of the content, which follows the
-    text's direction.
+    text's direction. Any other value throws when it renders.
   - **Each state the app sets** is a boolean prop: a state the CSS writes as a
     modifier class adds that class (`loading`, `invalid`, a radio's
     `disabled`); `disabled` and `checked` on a form control set the element's
@@ -422,6 +422,18 @@ defmodule Prism.Generator.React do
           ""
       end
 
+    # A part's side is "start" or "end"; any other value would drop the part.
+    positions =
+      for p <- spec.positions do
+        prop = camel(p.name)
+
+        """
+          if (#{prop} !== "start" && #{prop} !== "end") {
+            throw new Error(`#{prop}: ${JSON.stringify(#{prop})} is not one of "start", "end"`);
+          }
+        """
+      end
+
     root = root(spec)
 
     [
@@ -430,6 +442,7 @@ defmodule Prism.Generator.React do
       pattern,
       ",\n  ref,\n) {\n",
       guard,
+      positions,
       "  return (\n",
       render(root, 4),
       "\n  );\n});\n"

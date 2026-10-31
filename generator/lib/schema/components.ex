@@ -365,6 +365,21 @@ defmodule Prism.Generator.Schema.Components do
                Prism.Generator.Web.Components.check_part_state(c.name, p.name, ref, s.name),
              do: fail(file, s.line, "#{path_label(s)}: #{message}")
       end
+
+      # Outside a variant, the part's own look and states.
+      part = Enum.find(component.parts, &(&1.name == p.name))
+
+      case Prism.Generator.Web.Components.check_part_look(c.name, part, ref) do
+        :ok ->
+          :ok
+
+        {:error, message, :part} ->
+          fail(file, p.line, "#{path_label(p)}: #{message}")
+
+        {:error, message, {:state, name}} ->
+          s = Enum.find(children(nodes, p, :state), &(&1.name == name))
+          fail(file, s.line, "#{path_label(s)}: #{message}")
+      end
     end
 
     built

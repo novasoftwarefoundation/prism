@@ -95,6 +95,9 @@ export const Button = forwardRef<HTMLElement, ButtonProps>(function Button(
   }
   // Typed as a button: ButtonProps has checked the props for the element the app picked.
   const Element = element as "button";
+  if (iconPosition !== "start" && iconPosition !== "end") {
+    throw new Error(`iconPosition: ${JSON.stringify(iconPosition)} is not one of "start", "end"`);
+  }
   return (
     <Element
       ref={ref as Ref<HTMLButtonElement>}

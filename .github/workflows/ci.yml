@@ -83,6 +83,10 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .tool-versions
+      # sh is dash here, which runs no EXIT trap when a signal ends it.
+      - name: An interrupted React 18 update puts the package back
+        if: matrix.react == '18'
+        run: .github/react18-test.sh
       # The example design's components, as the generator's fixtures: a type check (an
       # unknown variant must fail to compile) and render tests against the example's CSS.
       - name: The example design's components

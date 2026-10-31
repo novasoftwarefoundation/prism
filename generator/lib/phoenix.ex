@@ -52,7 +52,7 @@ if Code.ensure_loaded?(Phoenix.Component) do
       with `position:` in the design goes at the `:start` or the `:end` of
       the content, as the attribute `<part>_position` says (`icon_position`,
       with the design's side as its default); `start` and `end` follow the
-      text's direction.
+      text's direction. Any other value fails when it renders.
     - `class` appends the app's classes to the component's own; `rest` takes
       global attributes (`id`, `phx-*`, `aria-*`, `data-*`) and the element's
       own (`type`, `name`, `value`, …).

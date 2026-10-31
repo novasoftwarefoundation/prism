@@ -960,14 +960,17 @@
 </g>
 <text x="48" y="5406" font-family="Nunito Sans" font-size="13" font-weight="700" fill="#222222">icon</text>
 <g id="button/icon/enabled">
+<rect x="238.34" y="5389" width="24" height="24" rx="4" fill="none"/>
 <rect x="238.84" y="5389.5" width="23" height="23" rx="2" fill="none" stroke="#B0B0B0" stroke-dasharray="2 2"/>
 </g>
 <g id="button/icon/pressed">
 <g opacity="0.8">
+<rect x="368.98" y="5389" width="24" height="24" rx="4" fill="none"/>
 <rect x="369.48" y="5389.5" width="23" height="23" rx="2" fill="none" stroke="#B0B0B0" stroke-dasharray="2 2"/>
 </g>
 </g>
 <g id="button/icon/loading">
+<rect x="719.5" y="5389" width="24" height="24" rx="4" fill="none"/>
 <rect x="720" y="5389.5" width="23" height="23" rx="2" fill="none" stroke="#B0B0B0" stroke-dasharray="2 2"/>
 <circle cx="731.5" cy="5401" r="10.5" fill="none" stroke="#000000" stroke-width="3" stroke-linecap="round" stroke-dasharray="49.48 65.97"/>
 </g>
