@@ -59,7 +59,8 @@ if Code.ensure_loaded?(Phoenix.Component) do
       element gets the value's class (`--progress`), `role="progressbar"`
       with `aria-valuenow`, `aria-valuemin` and `aria-valuemax`, and what the
       value draws (a spinner's ring); with `nil`, none of them. Any other value
-      fails when it renders.
+      fails when it renders. The app names a progress bar with `aria-label`
+      or `aria-labelledby` (through `rest`).
     - `class` appends the app's classes to the component's own; `rest` takes
       global attributes (`id`, `phx-*`, `aria-*`, `data-*`) and the element's
       own (`type`, `name`, `value`, …).

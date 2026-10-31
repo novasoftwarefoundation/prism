@@ -12,6 +12,7 @@ export const accepted = (
     </Button>
     <Spinner size={16} variant="accent" />
     <Spinner size={24} progress={40} />
+    <Spinner progress={null} />
     <TextField invalid name="email" />
     <Select options={[{ selected: true, children: "A" }]}>Pick</Select>
   </>

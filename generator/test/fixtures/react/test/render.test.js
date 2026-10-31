@@ -333,6 +333,17 @@ describe("values", () => {
     }
   });
 
+  // As Phoenix's nil: a JS app may pass null, or a NaN from its own arithmetic.
+  test("null, NaN or Infinity is no value: the plain spinner", () => {
+    for (const progress of [null, NaN, Infinity, undefined]) {
+      assert.equal(
+        html(h(Kit.Spinner, { size: 16, progress })),
+        norm('<span class="kit-spinner kit-spinner--16"></span>'),
+        String(progress),
+      );
+    }
+  });
+
   test("without a value, the spinner as it is, with no role", () => {
     assert.equal(
       html(h(Kit.Spinner, { size: 16 })),

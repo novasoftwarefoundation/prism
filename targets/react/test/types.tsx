@@ -15,6 +15,7 @@ export const accepted = (
     </Field>
     <Spinner size={32} variant="inverse" />
     <Spinner size={20} progress={40} />
+    <Spinner progress={null} />
     <Tag tone="neutral">Draft</Tag>
   </>
 );

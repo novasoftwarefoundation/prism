@@ -94,6 +94,14 @@ test("a spinner's progress: the class, the progressbar's attributes and the ring
   // At 0, the track without the arc, whose round ends would draw a dot.
   assert.doesNotMatch(renderToStaticMarkup(h(Prism.Spinner, { progress: 0 })), /__indicator/);
 
+  // null or NaN is no value, as Phoenix's nil.
+  for (const progress of [null, NaN]) {
+    assert.equal(
+      renderToStaticMarkup(h(Prism.Spinner, { progress })),
+      '<span class="prism-spinner"></span>',
+    );
+  }
+
   // Without one, the spinner as it was.
   assert.equal(
     renderToStaticMarkup(h(Prism.Spinner, { size: 16 })),

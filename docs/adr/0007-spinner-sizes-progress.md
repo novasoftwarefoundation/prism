@@ -23,7 +23,7 @@ A size name like `small` says nothing about the pixels, and a fourth size would 
    - the line is 16 of the spinner's box of 100 (16%), thicker than the spinner's own, so the arc reads at 16px. The ring's radius is 42, so the line stays inside the box;
    - it **keeps turning**, as the spinner does, so it still says "busy" while the number stands still;
    - a value below 0 or above 100 is **clamped**. At 0 there is the track and no arc: a dash of length 0 with round ends would still draw a dot;
-   - its semantics are a **progress bar**: `role="progressbar"` with `aria-valuenow` (the clamped value), `aria-valuemin="0"` and `aria-valuemax="100"`. Without a value, the spinner's semantics stay as they are: the app labels it (`role="status"`, `aria-label`) where it needs to.
+   - its semantics are a **progress bar**: `role="progressbar"` with `aria-valuenow` (the clamped value), `aria-valuemin="0"` and `aria-valuemax="100"`. A progress bar needs a name, which only the app knows (what is loading): it gives one with `aria-label` or `aria-labelledby`, which the components pass on to the element. Without a value, the spinner's semantics stay as they are: the app labels it (`role="status"`, `aria-label`) where it needs to.
 
    The design holds only this look: `value :progress, stroke: {16, :percent}, track: :grey4` on the spinner. The app gives only the number (`progress={40}`).
 

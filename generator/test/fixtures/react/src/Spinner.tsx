@@ -23,8 +23,8 @@ export interface SpinnerOwnProps {
   variant?: SpinnerVariant;
   /** Default 24, which has no class. */
   size?: SpinnerSize;
-  /** From 0 to 100, clamped; adds `kit-spinner--progress` and `role="progressbar"`. */
-  progress?: number;
+  /** 0 to 100 (clamped; null or NaN: none); adds `kit-spinner--progress`, a progressbar. */
+  progress?: number | null;
   /** Classes after the component's own. */
   className?: string;
 }
@@ -37,9 +37,12 @@ export const Spinner = forwardRef<HTMLSpanElement, SpinnerProps>(function Spinne
   { variant, size = 24, progress, className, ...rest },
   ref,
 ) {
-  // The progress, within 0 and 100, and its attributes while the app gives it.
+  // The progress, within 0 and 100, and its attributes while the app gives it:
+  // none without a finite number (undefined, null, NaN).
   const progressValue =
-    progress === undefined ? undefined : Math.min(100, Math.max(0, progress));
+    progress == null || !Number.isFinite(progress)
+      ? undefined
+      : Math.min(100, Math.max(0, progress));
   const progressAttributes =
     progressValue === undefined
       ? {}

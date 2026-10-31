@@ -30,10 +30,12 @@ defmodule Prism.Generator.React do
     default: the part goes at that side of the content, which follows the
     text's direction. Any other value throws when it renders.
   - **Each value** (a spinner's `progress`) is a number prop from 0 to 100,
-    clamped. While the app gives it, the element gets the value's class
+    clamped; `null` or `NaN` is no value, as `undefined` is (Phoenix's
+    `nil`). While the app gives it, the element gets the value's class
     (`--progress`), `role="progressbar"` with `aria-valuenow`,
     `aria-valuemin` and `aria-valuemax`, and what the value draws (a
-    spinner's ring); without it, none of them.
+    spinner's ring); without it, none of them. The app names a progress
+    bar with `aria-label` or `aria-labelledby`, which go on the element.
   - **Each state the app sets** is a boolean prop: a state the CSS writes as a
     modifier class adds that class (`loading`, `invalid`, a radio's
     `disabled`); `disabled` and `checked` on a form control set the element's
@@ -123,8 +125,9 @@ defmodule Prism.Generator.React do
 
     values =
       for v <- spec.values do
-        {camel(v.name), "number",
-         "From #{v.min} to #{v.max}, clamped; adds `#{v.class}` and `role=\"progressbar\"`.", nil}
+        {camel(v.name), "number | null",
+         "#{v.min} to #{v.max} (clamped; null or NaN: none); adds `#{v.class}`, a progressbar.",
+         nil}
       end
 
     # A part whose side the app picks is there twice; it is one prop.
@@ -474,8 +477,8 @@ defmodule Prism.Generator.React do
       else: "#{pad}{\n" <> Enum.map_join(bindings, ",\n", &"#{pad}  #{&1}") <> "\n#{pad}}"
   end
 
-  # A value's number, clamped to its range (`undefined` while the app gives none),
-  # and the attributes it adds.
+  # A value's number, clamped to its range, and the attributes it adds. Without a
+  # finite number (`undefined`, `null`, `NaN`) there is none, as with Phoenix's `nil`.
   defp value_consts(v) do
     prop = camel(v.name)
     clamp = "Math.min(#{v.max}, Math.max(#{v.min}, #{prop}))"
@@ -487,9 +490,12 @@ defmodule Prism.Generator.React do
       end)
 
     [
-      "  // The #{words(v.name)}, within #{v.min} and #{v.max}, and its attributes while the app gives it.\n",
+      "  // The #{words(v.name)}, within #{v.min} and #{v.max}, and its attributes while the app gives it:\n",
+      "  // none without a finite number (undefined, null, NaN).\n",
       "  const #{value_const(v)} =\n",
-      "    #{prop} === undefined ? undefined : #{clamp};\n",
+      "    #{prop} == null || !Number.isFinite(#{prop})\n",
+      "      ? undefined\n",
+      "      : #{clamp};\n",
       "  const #{attributes_const(v)} =\n",
       "    #{value_const(v)} === undefined\n",
       "      ? {}\n",
