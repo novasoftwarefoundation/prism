@@ -27,7 +27,7 @@ defmodule Mix.Tasks.Prism.GenTest do
     gen()
     gen()
 
-    for path <- ["tailwind.preset.js", "css/base.css"] do
+    for path <- ["tailwind.preset.js", "css/base.css", "css/components.css"] do
       assert Header.generated?(Path.join(dir, path))
       assert File.read!(Path.join(dir, path)) == File.read!("test/fixtures/web/#{path}")
     end
@@ -99,7 +99,8 @@ defmodule Mix.Tasks.Prism.GenTest do
   end
 
   test "the generators read only the design's data, not the schema's internals" do
-    for path <- Path.wildcard("lib/**/*.ex") -- ["lib/schema.ex"] do
+    for path <-
+          Path.wildcard("lib/**/*.ex") -- ["lib/schema.ex" | Path.wildcard("lib/schema/*.ex")] do
       code = path |> File.read!() |> String.replace(~r/@(module)?doc\s+"""(?s:.*?)"""/, "")
       refute code =~ "Prism.Generator.Schema.", "#{path} calls into Prism.Generator.Schema"
     end

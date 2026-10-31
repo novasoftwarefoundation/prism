@@ -1,0 +1,447 @@
+defmodule Prism.Generator.Schema.ComponentsTest do
+  use ExUnit.Case, async: true
+
+  # Tokens for the components below; the component body starts on line 12.
+  @tokens """
+    web prefix: "t", fonts_url: "f"
+    color :ink, "#101010"
+    shadow :card, y: 5, blur: 20, color: {:ink, 0.1}
+    radius :round, 4
+    max_height :menu, 100
+    family :f, doc: "F", web: [name: "F", fallback: "serif", faces: [[file: "F", weights: {200, 900}, style: :normal]]], ios: :system, android: :system
+    font :b, :f, 700
+    text :t, 16, 20
+    typography :body, font: :b, text: :t
+  """
+
+  defp compile(body, tokens \\ @tokens) do
+    module = "Design#{System.unique_integer([:positive])}"
+
+    [{mod, _}] =
+      Code.compile_string(
+        "defmodule #{module} do\n  use Prism.Generator.Schema\n#{tokens}#{body}\nend\n",
+        "design.ex"
+      )
+
+    mod.__schema__()
+  end
+
+  defp assert_compile_error(body, message, line) do
+    error = assert_raise CompileError, fn -> compile(body) end
+    assert Exception.message(error) =~ message
+    assert error.line == line
+  end
+
+  test "the example design's component compiles into plain data" do
+    [tag] = Prism.Generator.ExampleDesign.__schema__().components
+
+    assert %{
+             name: :tag,
+             style: [radius: :default, background: :paper],
+             parts: [%{name: :inner, component: nil, states: [], web: [], ios: []}],
+             axes: [%{name: :size, web: [doc: "Sizes"], ios: [], android: []}],
+             states: [%{name: :disabled, style: [opacity: 0.4], parts: [%{name: :inner}]}],
+             web: [section: "Tags", radius: 2],
+             ios: [radius: 6],
+             android: []
+           } = tag
+
+    assert [
+             %{
+               name: :accent,
+               axis: :variant,
+               aliases: [],
+               style: [],
+               web: [doc: "An accent tag"]
+             },
+             %{name: :muted, axis: :variant, aliases: [:quiet]},
+             %{name: :large, axis: :size, style: [padding: [x: 4]]}
+           ] = tag.variants
+
+    assert [%{name: :inner, style: [background: {:accent, 0.2}, foreground: :link]}] =
+             hd(tag.variants).parts
+  end
+
+  test "a component without a block, and a look from a module attribute" do
+    [c] =
+      compile("  @look [radius: :round]\n  component :c do\n    style @look\n  end").components
+
+    assert c.style == [radius: :round]
+    assert [%{name: :d}] = compile("  component :d").components
+  end
+
+  test "a name that isn't a snake_case atom fails" do
+    assert_compile_error("  component :Tag", "component :Tag: name must be a snake_case atom", 12)
+
+    assert_compile_error(
+      "  component :c do\n    variant \"v\"\n  end",
+      "variant \"v\": name must be a snake_case atom",
+      13
+    )
+  end
+
+  test "a component is defined once" do
+    assert_compile_error(
+      "  component :c\n  component :c",
+      "component :c is defined twice",
+      13
+    )
+  end
+
+  test "an unknown property fails on its line and names it" do
+    assert_compile_error(
+      "  component :c do\n    variant :v, colour: :ink\n  end",
+      "component :c, variant :v: unknown option :colour",
+      13
+    )
+
+    assert_compile_error(
+      "  component :c do\n    style padding: [y: 1], radus: :round\n  end",
+      "component :c, style: unknown option :radus",
+      13
+    )
+  end
+
+  # The node's own fields come from the macro, never from its options.
+  test "an option can't replace a node's name, kind, group or line" do
+    for key <- [:name, :kind, :group, :line, :style, :parts, :variants, :states, :axis] do
+      assert_compile_error(
+        "  component :c, #{key}: :x",
+        "component :c: unknown option #{inspect(key)}",
+        12
+      )
+
+      assert_compile_error(
+        "  component :c do\n    variant :v, #{key}: :x\n  end",
+        "component :c, variant :v: unknown option #{inspect(key)}",
+        13
+      )
+
+      assert_compile_error(
+        "  component :c do\n    part :p, #{key}: :x\n  end",
+        "component :c, part :p: unknown option #{inspect(key)}",
+        13
+      )
+
+      assert_compile_error(
+        "  component :c do\n    state :pressed, #{key}: :x\n  end",
+        "component :c, state :pressed: unknown option #{inspect(key)}",
+        13
+      )
+
+      assert_compile_error(
+        "  component :c do\n    variants :a, #{key}: :x do\n      variant :v\n    end\n  end",
+        "component :c, variants :a: unknown option #{inspect(key)}",
+        13
+      )
+    end
+  end
+
+  test "a property is given once" do
+    assert_compile_error(
+      "  component :c do\n    variant :v, opacity: 0.5, opacity: 0.4\n  end",
+      "option :opacity is given twice",
+      13
+    )
+  end
+
+  test "values are checked against their type and the tokens" do
+    cases = [
+      {"background: :nope", "background: unknown color :nope"},
+      {"background: \"#abcdef\"", "write colors as #RRGGBB"},
+      {"background: {:ink, 2}", "is not a number from 0 to 1"},
+      {"radius: :card", "radius: unknown radius :card"},
+      {"shadow: :round", "shadow: unknown shadow :round"},
+      {"max_height: :nope", "max_height: unknown max_height :nope"},
+      {"padding: [x: 1, left: 2]", "a side is given twice"},
+      {"padding: [middle: 1]", "unknown side :middle"},
+      {"padding: [x: -1]", "every side is a length"},
+      {"gap: \"4px\"", "is not a length"},
+      {"border: [width: 1, style: :dashed]", "is not a keyword list of width:, color:"},
+      {"border: [color: :nope]", "unknown color :nope"},
+      {"outline: [offset: :x]", "must be lengths"},
+      {"typography: :nope", "unknown typography :nope"},
+      {"typography: [font: :b]", "is not a typography token or [font: font, text: text]"},
+      {"typography: [font: :t, text: :t]", "unknown font :t"},
+      {"typography: [font: :b, text: {0, 1}]", "is not a text size or {size, line_height}"},
+      {"weight: 450", "450 is not one of 100, 200, …, 1000"},
+      {"decoration: :overline", "is not :underline or :none"},
+      {"opacity: 1.5", "1.5 is not a number from 0 to 1"},
+      {"transition: {150, :bounce}", "is not {milliseconds, easing}"}
+    ]
+
+    for {property, message} <- cases do
+      assert_compile_error("  component :c do\n    variant :v, #{property}\n  end", message, 13)
+    end
+  end
+
+  test "literals: :transparent, #RRGGBB, {color, alpha}, lengths and typography pairs" do
+    [c] =
+      compile("""
+        component :c do
+          style background: :transparent, foreground: "#666666", radius: {50, :percent}
+          variant :v, background: {:ink, 0.2}, typography: [font: :b, text: {12, 12}]
+        end
+      """).components
+
+    assert c.style == [background: :transparent, foreground: "#666666", radius: {50, :percent}]
+  end
+
+  test "a color token can't be named :transparent, which components use for no color" do
+    assert_compile_error(~s(  color :transparent, "#000000"), "the name is taken", 12)
+  end
+
+  test "each node goes in its place" do
+    cases = [
+      {"  variant :v", "variant :v can't be declared outside a component", 12},
+      {"  state :pressed", "state :pressed can't be declared outside a component", 12},
+      {"  component :c do\n    component :d\n  end",
+       "component :d can't be declared inside component :c", 13},
+      {"  component :c do\n    part :p do\n      part :q\n    end\n  end",
+       "part :q can't be declared inside part :p", 14},
+      {"  component :c do\n    state :pressed do\n      state :focused\n    end\n  end",
+       "state :focused can't be declared inside state :pressed", 14},
+      {"  component :c do\n    part :p\n    state :pressed do\n      part :p do\n        state :focused\n      end\n    end\n  end",
+       "state :focused can't be declared inside part :p", 16},
+      {"  component :c do\n    variant :v do\n      style opacity: 1\n    end\n  end",
+       "style can't be declared inside variant :v", 14},
+      {"  component :c do\n    variant :v do\n      variant :w\n    end\n  end",
+       "variant :w can't be declared inside variant :v", 14},
+      {"  component :c do\n    color :x, \"#000000\"\n  end",
+       "color :x inside component :c: it goes at the top of the design", 13},
+      {"  component :c do\n    web prefix: \"x\"\n  end", "web inside component :c", 13},
+      {"  group \"G\" do\n    component :c\n  end",
+       "component :c inside group \"G\": groups are for tokens", 13}
+    ]
+
+    for {body, message, line} <- cases, do: assert_compile_error(body, message, line)
+  end
+
+  test "style is given once" do
+    assert_compile_error(
+      "  component :c do\n    style opacity: 1\n    style opacity: 0\n  end",
+      "component :c: style is given twice",
+      14
+    )
+  end
+
+  test "states have a fixed meaning" do
+    assert_compile_error(
+      "  component :c do\n    state :presed\n  end",
+      "state :presed: unknown state; the states are :pressed, :hovered",
+      13
+    )
+
+    assert Keyword.keys(Prism.Generator.Schema.Components.states()) ==
+             [:pressed, :hovered, :focused, :disabled, :checked, :selected, :loading, :error]
+  end
+
+  test "variants, aliases, parts and states of a component share one set of names" do
+    assert_compile_error(
+      "  component :c do\n    part :x\n    variant :x\n  end",
+      "component :c: :x is both a variant and a part",
+      12
+    )
+
+    assert_compile_error(
+      "  component :c do\n    variant :x\n    variant :y, aliases: [:x]\n  end",
+      ":x is both a variant and a variant alias",
+      12
+    )
+
+    assert_compile_error(
+      "  component :c do\n    variant :x\n    variant :x\n  end",
+      ":x is both a variant and a variant",
+      12
+    )
+  end
+
+  test "a variant or state changes only a part the component declares" do
+    assert_compile_error(
+      "  component :c do\n    variant :v do\n      part :p, opacity: 0\n    end\n  end",
+      "component :c, variant :v, part :p: component :c has no part :p",
+      14
+    )
+  end
+
+  test "a part that is a component names another component, declared anywhere" do
+    [c, _] =
+      compile("  component :c do\n    part :s, component: :spinner\n  end\n  component :spinner").components
+
+    assert hd(c.parts).component == :spinner
+
+    assert_compile_error(
+      "  component :c do\n    part :s, component: :nope\n  end",
+      "component: :nope is not another component",
+      13
+    )
+
+    assert_compile_error(
+      "  component :c do\n    part :s, component: :c\n  end",
+      "component: :c is not another component",
+      13
+    )
+
+    # Only a part the component declares can be one.
+    assert_compile_error(
+      "  component :c do\n    part :s\n    variant :v do\n      part :s, component: :d\n    end\n  end\n  component :d",
+      "unknown option :component",
+      15
+    )
+  end
+
+  test "axes: variants outside a block are :variant, a block names another axis" do
+    assert_compile_error(
+      "  component :c do\n    variants :variant do\n      variant :v\n    end\n  end",
+      "variants outside a variants block are the :variant axis",
+      13
+    )
+
+    assert_compile_error(
+      "  component :c do\n    variants :size do\n    end\n  end",
+      "component :c, variants :size has no variants",
+      13
+    )
+  end
+
+  describe "bindings" do
+    test "a binding may replace a property for its target" do
+      [c] =
+        compile("""
+          component :c, web: [radius: 2], ios: [radius: :round], android: [opacity: 0.5] do
+            style radius: :round
+          end
+        """).components
+
+      assert {c.style, c.web, c.ios, c.android} ==
+               {[radius: :round], [radius: 2], [radius: :round], [opacity: 0.5]}
+    end
+
+    test "a binding's property is checked like the shared one" do
+      assert_compile_error(
+        "  component :c, ios: [radius: :nope]",
+        "component :c: ios: radius: unknown radius :nope",
+        12
+      )
+    end
+
+    test "a key the target doesn't know fails on its line" do
+      assert_compile_error(
+        "  component :c, web: [cursor: :pointer]",
+        "component :c: web: unknown key :cursor; the web target knows :section, :doc and the properties here",
+        12
+      )
+
+      assert_compile_error(
+        "  component :c do\n    part :p, web: [filter: [color: \"#FFFFFF\", value: \"x\"]]\n  end",
+        "web: unknown key :filter",
+        13
+      )
+
+      # The native targets don't exist yet: they know only the properties.
+      assert_compile_error(
+        "  component :c, ios: [haptics: :light]",
+        "ios: unknown key :haptics; the ios target knows only the properties here",
+        12
+      )
+
+      assert_compile_error(
+        "  component :c, web: [name: :x]",
+        "web: unknown key :name",
+        12
+      )
+    end
+
+    test "a known key's value is checked" do
+      assert_compile_error(
+        "  component :c, web: [doc: \"a */ b\"]",
+        "web: doc: must be one line of text without */",
+        12
+      )
+
+      assert_compile_error(
+        "  component :c do\n    variant :v, web: [filter: [color: \"#fff\", value: \"x\"]]\n  end",
+        "web: filter: must be [color: \"#RRGGBB\", value: \"a CSS filter\"]",
+        13
+      )
+    end
+
+    test "a binding is a keyword list, each key once" do
+      assert_compile_error("  component :c, web: :x", "web: must be a keyword list", 12)
+
+      assert_compile_error(
+        "  component :c, web: [doc: \"a\", doc: \"b\"]",
+        "web: :doc is given twice",
+        12
+      )
+    end
+
+    test "an axis binding has no properties" do
+      assert_compile_error(
+        "  component :c do\n    variants :a, web: [radius: 2] do\n      variant :v\n    end\n  end",
+        "web: unknown key :radius",
+        13
+      )
+    end
+  end
+
+  describe "tokens from another design" do
+    test "a design can take its tokens and web declaration from another" do
+      [{mod, _}] =
+        Code.compile_string("""
+        defmodule ComponentsOnly#{System.unique_integer([:positive])} do
+          use Prism.Generator.Schema, tokens: Prism.Generator.TokensOnly
+          web components_doc: "Components"
+          component :tag
+        end
+        """)
+
+      schema = mod.__schema__()
+      assert schema.tokens == Prism.Generator.TokensOnly.__schema__().tokens
+      assert schema.tokens_file == "test/support/tokens_only.ex"
+      assert schema.file == "nofile"
+      assert %{prefix: "only", components_doc: "Components"} = schema.web
+      assert [%{name: :tag}] = schema.components
+    end
+
+    defp compile_taking(body) do
+      Code.compile_string(
+        "defmodule Taking#{System.unique_integer([:positive])} do\n  use Prism.Generator.Schema, tokens: Prism.Generator.TokensOnly\n#{body}\nend\n",
+        "design.ex"
+      )
+    end
+
+    test "it declares no tokens of its own" do
+      error = assert_raise CompileError, fn -> compile_taking(~s(  color :x, "#000000")) end
+      assert Exception.message(error) =~ "takes its tokens from Prism.Generator.TokensOnly"
+      assert error.line == 3
+    end
+
+    test "its web declaration only adds the components doc" do
+      error = assert_raise CompileError, fn -> compile_taking(~s(  web prefix: "x")) end
+      assert Exception.message(error) =~ "prefix comes with the tokens"
+    end
+
+    test "it takes tokens only from a design without components" do
+      error =
+        assert_raise CompileError, fn ->
+          Code.compile_string(
+            "defmodule Taking2 do\n  use Prism.Generator.Schema, tokens: Prism.Generator.ExampleDesign\nend\n",
+            "design.ex"
+          )
+        end
+
+      assert Exception.message(error) =~ "has components"
+
+      error =
+        assert_raise CompileError, fn ->
+          Code.compile_string(
+            "defmodule Taking3 do\n  use Prism.Generator.Schema, tokens: Enum\nend\n",
+            "design.ex"
+          )
+        end
+
+      assert Exception.message(error) =~ "tokens: Enum is not a design"
+    end
+  end
+end

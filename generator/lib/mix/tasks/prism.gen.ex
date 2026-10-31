@@ -12,7 +12,8 @@ defmodule Mix.Tasks.Prism.Gen do
   `design` is a module that uses `Prism.Generator.Schema`; `targets` maps each
   target to its folder. The targets are:
 
-  - `web`: `Prism.Generator.Web` (a Tailwind preset and base CSS).
+  - `web`: `Prism.Generator.Web` (a Tailwind preset, base CSS and, for a design
+    with components, the component CSS).
 
   Each file starts with a `Prism.Generator.Header` line. A file without one is
   hand-written and never overwritten.
@@ -26,7 +27,8 @@ defmodule Mix.Tasks.Prism.Gen do
 
   @requirements ["compile"]
 
-  # Every target module has `files/1`: a design's `__schema__/0` to `[{path, body}]`.
+  # Every target module has `files/1`: a design's `__schema__/0` to
+  # `[{path, body, design_file}]`, the design file being the one the body is made from.
   @targets %{web: Prism.Generator.Web}
 
   @impl true
@@ -40,12 +42,11 @@ defmodule Mix.Tasks.Prism.Gen do
     if opts[:check], do: check!(files), else: Enum.each(files, &write!/1)
   end
 
-  # `[{path, source}]` of one target, each source with its header.
+  # `[{path, source}]` of one target, each source with a header naming the design
+  # file it is made from.
   defp files(target, dir, schema) do
-    named = design_file(schema.file, dir)
-
-    for {path, body} <- Map.fetch!(@targets, target).files(schema) do
-      {Path.join(dir, path), Header.line(path, named) <> "\n" <> body}
+    for {path, body, from} <- Map.fetch!(@targets, target).files(schema) do
+      {Path.join(dir, path), Header.line(path, design_file(from, dir)) <> "\n" <> body}
     end
   end
 
