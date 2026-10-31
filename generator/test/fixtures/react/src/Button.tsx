@@ -43,7 +43,8 @@ export interface ButtonOwnProps {
 }
 
 /** The attributes of one of the elements a button can be. */
-type ButtonAttributes<E extends ButtonElement> = Omit<ComponentPropsWithoutRef<E>, keyof ButtonOwnProps | "as">;
+type ButtonAttributes<E extends ButtonElement> =
+  Omit<ComponentPropsWithoutRef<E>, keyof ButtonOwnProps | "as">;
 
 /** The attributes only the other elements have, which a button without `as` refuses. */
 type ButtonOtherAttributes = Exclude<

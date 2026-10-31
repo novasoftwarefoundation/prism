@@ -61,6 +61,35 @@ defmodule Prism.Generator.Web.ComponentsTest do
     assert css =~ "/* A bold tag */\n.acme-tag--bold .acme-tag__label {\n  font-weight: 700;\n}\n"
   end
 
+  test "an axis's doc goes above the first of its variants that has a rule" do
+    design =
+      compile("""
+        component :tag do
+          style radius: :default
+          variants :size, web: [doc: "Sizes"] do
+            variant :medium
+            variant :large, radius: 8
+          end
+        end
+      """)
+
+    assert css(design) =~ "\n/* Sizes */\n.only-tag--large {\n  border-radius: 8px;\n}\n"
+
+    # An axis whose variants have no rule has nowhere to write its doc.
+    design =
+      compile("""
+        component :tag do
+          variants :size, web: [doc: "Sizes"] do
+            variant :medium
+          end
+        end
+      """)
+
+    assert_raise ArgumentError, ~r/writes nothing for tag variants :size web: doc/, fn ->
+      css(design)
+    end
+  end
+
   test "a value the web doesn't write fails, so nothing in the design is ignored" do
     design = with_tag(&%{&1 | style: &1.style ++ [transition: {200, :ease_out}]})
 
@@ -241,6 +270,39 @@ defmodule Prism.Generator.Web.ComponentsTest do
     assert css(design) =~ "  margin-top: -0.75rem;\n  margin-left: -0.75rem;\n"
   end
 
+  test "a loading button's part that is another component has a size in px or rem" do
+    loading =
+      "  component :button do\n    part :badge, component: :tag\n    state :loading\n  end\n"
+
+    assert_compile_error(
+      loading <> "  component :tag do\n    style size: {50, :percent}\n  end",
+      "component :button, part :badge: a loading button centers :tag by half its size, which a percentage can't give",
+      4
+    )
+
+    assert_compile_error(
+      loading <> "  component :tag, web: [size: {50, :percent}] do\n    style size: 8\n  end",
+      "a percentage can't give",
+      4
+    )
+
+    assert_compile_error(
+      loading <> "  component :tag",
+      "component :button, part :badge: a loading button centers :tag by half its size, and :tag has none",
+      4
+    )
+
+    # Without a loading state, nothing centers the part.
+    assert %{components: [_, _]} =
+             compile(
+               "  component :button do\n    part :badge, component: :tag\n  end\n  component :tag"
+             )
+
+    design = compile(loading <> "  component :tag do\n    style size: 12\n  end")
+    assert css(design) =~ ".only-button--loading .only-tag {\n"
+    assert css(design) =~ "  margin-top: -6px;\n  margin-left: -6px;\n"
+  end
+
   test "a state without a pseudo-class is scoped to its variant or part" do
     design =
       compile("""
@@ -259,6 +321,69 @@ defmodule Prism.Generator.Web.ComponentsTest do
     assert css =~ "\n.only-tag__label--invalid {\n  background-color: #101010;\n}\n"
     assert css =~ "\n.only-tag--primary.only-tag--invalid {\n  opacity: 0.5;\n}\n"
     refute css =~ "\n.only-tag--invalid {"
+  end
+
+  test "a variant's change to a part has the part's states, inside the variant" do
+    design =
+      compile("""
+        component :tag do
+          part :label
+          variant :accent, aliases: [:blue] do
+            part :label, foreground: :ink do
+              state :hovered, opacity: 0.5
+              state :selected, opacity: 0.8
+            end
+          end
+        end
+        component :select do
+          part :field
+          variant :dense do
+            part :field do
+              state :focused, border: [color: :ink]
+            end
+          end
+        end
+      """)
+
+    css = css(design)
+
+    assert css =~
+             "\n.only-tag--accent .only-tag__label:hover,\n.only-tag--blue .only-tag__label:hover {\n  opacity: 0.5;\n}\n"
+
+    assert css =~
+             "\n.only-tag--accent .only-tag__label--selected,\n.only-tag--blue .only-tag__label--selected {\n  opacity: 0.8;\n}\n"
+
+    # A form control's state is the browser's; the change without a look has no rule.
+    assert css =~
+             "\n.only-select--dense .only-select__field:focus {\n  border-color: #101010;\n}\n"
+
+    refute css =~ ~r/\{\n\}/
+
+    # A part that is another component gets no modifier class from its markup: a state
+    # the app sets is written nowhere and fails, as it does outside a variant. A
+    # pseudo-class state is written.
+    badge = fn state ->
+      compile("""
+        component :tag do
+          part :badge, component: :step_indicator
+          variant :accent do
+            part :badge do
+              state :#{state}, opacity: 0.3
+            end
+          end
+        end
+        component :step_indicator do
+          style size: 10
+        end
+      """)
+    end
+
+    assert_raise ArgumentError, ~r/writes nothing for tag.accent.badge.selected/, fn ->
+      css(badge.(:selected))
+    end
+
+    assert css(badge.(:hovered)) =~
+             "\n.only-tag--accent .only-step-indicator:hover {\n  opacity: 0.3;\n}\n"
   end
 
   test "a state's part change follows every name of a variant, without empty rules" do

@@ -154,7 +154,7 @@ Each step is checked against the tool's documentation (October 2026), not tried 
 
 - The schema turns a design into plain data, `__schema__/0`, whose shape is documented in `Prism.Generator.Schema`. The targets read only that data, never the schema's internals; a test checks that no other file calls into the schema.
 - A component's look is shared by every target. Each target's mechanics (for the web: display, cursors, focus outlines, keyframes, the check mark) are in the generator, and a value that really differs per platform is a `web:`, `ios:` or `android:` binding in the design; see ADR 0001, decision 3.
-- `mix prism.gen` generates every target named in the config (today `web`, `react` and `design_tools`), puts a `Prism.Generator.Header` line on each file, and never overwrites a file without one. A later target adds a module and its templates, not a task.
+- `mix prism.gen` generates every target named in the config (today `web`, `react` and `design_tools`), puts a `Prism.Generator.Header` line on each file, and never overwrites a file without one. It removes a file with that line that no target generates now, in a folder a target writes into, and `--check` fails on one. A later target adds a module and its templates, not a task.
 - `Prism.Generator.Phoenix` is no file target: an app's module `use`s it and gets its components at compile time (ADR 0003). Phoenix LiveView is an optional dependency of the generator; CI compiles the generator without it too (`mix compile --no-optional-deps`). The web target, the Phoenix components and the React target share `Prism.Generator.Web.Classes` for class names, and the two kinds of components share `Prism.Generator.Web.Elements` for their markup.
 - The generator gets the design only from the config, never by naming it. It compiles and tests on its own, without `design/`, so a reference to Prism's design fails its build. CI also checks that it mentions none of Prism's values.
 - Its tests use neutral example designs: `generator/test/support/example_design.ex`, whose files they compare with reviewed fixtures in `generator/test/fixtures/`, and `example_components.ex`, one component of every kind, which they render through `Prism.Generator.Phoenix` and check against its CSS. Its React components are a fixture package too, `generator/test/fixtures/react/`, whose `npm test` type-checks them and renders them against the example's CSS (`generator/test/fixtures/example_components/`).
@@ -166,11 +166,16 @@ Install Prism from npm. The repository root is no longer the package (it lives i
 
 Publishing is manual for now: the npm packages from `targets/web/` and `targets/react/`, with the same version for both, and the design-tool files as release assets:
 
-1. Bump the version in `design/mix.exs`, `targets/web/package.json`, and in `targets/react/package.json` both its version and its peer dependency on `@novasoftwarefoundation/prism`. Then update the React package's lockfile: `cd targets/react && npm install --package-lock-only`. A test checks that all of them are equal. Merge it.
+1. Bump the version in `design/mix.exs`, `targets/web/package.json`, and in `targets/react/package.json` both its version and its peer dependency on `@novasoftwarefoundation/prism`. Then update the React package's lockfiles: `cd targets/react && npm install --package-lock-only && ../../.github/react18.sh --update` (the second writes CI's React 18 lockfile from the bumped files, and leaves them as they are). A test checks that all of them are equal. Merge it.
 2. Check the packages: `cd targets/web && npm pack --dry-run` lists the files in `.github/npm-files.txt`, and `cd targets/react && npm ci && npm pack --dry-run` (which builds `dist/`) those in `.github/npm-files-react.txt`.
 3. Publish the CSS first, since the components depend on it: `cd targets/web && npm publish --access public`.
 4. Then the components: `cd targets/react && npm publish --access public`.
-5. Attach the design-tool files to the release: tag the merge `vX.Y.Z`, create a GitHub release for the tag, and upload `targets/design-tools/tokens.json`, `tokens.css` and `overview.svg` as its assets, for example `gh release create vX.Y.Z targets/design-tools/tokens.json targets/design-tools/tokens.css targets/design-tools/overview.svg`. There is no release automation yet.
+5. Attach the design-tool files to the release, from the tag:
+   1. Tag the merge `vX.Y.Z`, push the tag, and check it out: `git checkout vX.Y.Z`.
+   2. Check that the tree is the tag's, with no local changes or untracked files, and that the files are the design's: `test -z "$(git status --porcelain)" && (cd design && mix prism.gen --check)`. The commands here run from the repository root.
+   3. Create a GitHub release for the tag with `targets/design-tools/tokens.json`, `tokens.css` and `overview.svg` as its assets: `gh release create vX.Y.Z targets/design-tools/tokens.json targets/design-tools/tokens.css targets/design-tools/overview.svg`. If the release exists already (a rerun), upload them again instead: `gh release upload vX.Y.Z targets/design-tools/tokens.json targets/design-tools/tokens.css targets/design-tools/overview.svg --clobber`.
+
+   There is no release automation yet.
 
 ## License
 

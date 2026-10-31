@@ -23,7 +23,9 @@ defmodule Prism.Generator.DesignTools.Overview do
   the installed font; a browser without the font falls back to its default.
   A shadow is an SVG filter in the structure Figma writes for its own drop
   and inner shadows. Every group has an `id`, which design tools show as the
-  layer's name.
+  layer's name: a token's path (`color/accent`; a text size is its font size's,
+  `font-size/body`, with its line height's, `line-height/body`, inside), or a
+  component's cell (`button/primary/pressed`).
   """
 
   alias Prism.Generator.Web
@@ -256,12 +258,14 @@ defmodule Prism.Generator.DesignTools.Overview do
     flow(ctx, "fonts", "Fonts", items, 16)
   end
 
+  # A text size is two tokens: its layer is the font size's, with the line height's
+  # inside it.
   defp text_sizes(ctx) do
     items =
       for t <- ctx.by.(:text) do
         w = max(estimate("Aa", t.size, 400), estimate(key(t.name), 12, 700)) + 8
 
-        {"text-size/#{key(t.name)}", w, t.line_height + 40,
+        {"font-size/#{key(t.name)}", w, t.line_height + 40,
          fn x, y ->
            [
              text(x, y + baseline(0, t.line_height, t.size), "Aa",
@@ -271,9 +275,13 @@ defmodule Prism.Generator.DesignTools.Overview do
                fill: @ink
              ),
              label(ctx, x, y + t.line_height + 18, key(t.name), size: 12, weight: 700),
-             label(ctx, x, y + t.line_height + 34, "#{num(t.size)}/#{num(t.line_height)}",
-               size: 12,
-               fill: @muted
+             group(
+               "line-height/#{key(t.name)}",
+               [],
+               label(ctx, x, y + t.line_height + 34, "#{num(t.size)}/#{num(t.line_height)}",
+                 size: 12,
+                 fill: @muted
+               )
              )
            ]
          end}

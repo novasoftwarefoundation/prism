@@ -95,15 +95,19 @@
 </g>
 <g id="text-sizes">
 <text x="48" y="810" font-family="Acme Text" font-size="24" font-weight="700" fill="#222222">Text sizes</text>
-<g id="text-size/heading">
+<g id="font-size/heading">
 <text x="48" y="859.2" font-family="Acme Text" font-size="32" font-weight="400" fill="#222222">Aa</text>
 <text x="48" y="886" font-family="Acme Text" font-size="12" font-weight="700" fill="#222222">heading</text>
+<g id="line-height/heading">
 <text x="48" y="902" font-family="Acme Text" font-size="12" font-weight="400" fill="#6B6B6B">32/40</text>
 </g>
-<g id="text-size/body">
+</g>
+<g id="font-size/body">
 <text x="132.72" y="845.6" font-family="Acme Text" font-size="16" font-weight="400" fill="#222222">Aa</text>
 <text x="132.72" y="870" font-family="Acme Text" font-size="12" font-weight="700" fill="#222222">body</text>
+<g id="line-height/body">
 <text x="132.72" y="886" font-family="Acme Text" font-size="12" font-weight="400" fill="#6B6B6B">16/24</text>
+</g>
 </g>
 </g>
 <g id="typography">

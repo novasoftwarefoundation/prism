@@ -35,7 +35,7 @@ Later, a website built in a visual site builder will use the same components as 
 6. **Tests.**
    - In `generator/`, on the neutral example design with one component of every kind: the generated files are compared with reviewed fixtures (`generator/test/fixtures/react/src/`), and that fixture is a small package of its own whose `npm test` type-checks them (`tsc --noEmit`, with `// @ts-expect-error` lines: an unknown variant, tone or element, and a link's attribute on a button without `as`, must fail to compile) and renders every component with `react-dom/server`, checking its markup, its classes for each axis value and state, its parts and their order, the spinner while loading, native `disabled` and `checked`, and that every class is in the example's generated `components.css`. Elixir tests cover designs Prism's doesn't have and the errors.
    - In `design/`: the committed files have their headers, and the button's classes are in `components.css`. `targets/react` has its own `npm test`: it builds the package, type-checks it and renders every component against the `components.css` that `@novasoftwarefoundation/prism` ships.
-   - CI runs both packages' tests on React 19 (the lockfiles') and 18 (exact versions over them), type-checks them with TypeScript 7 and 5.9, and checks the file list `npm pack` would publish against `.github/npm-files-react.txt`.
+   - CI runs both packages' tests on React 19 (the lockfiles') and 18 (a lockfile of its own per package, `test/react18/package-lock.json`, so React 18's dependencies are pinned too), type-checks them with TypeScript 7 and 5.9, and checks the file list `npm pack` would publish against `.github/npm-files-react.txt`.
 
 ## Alternatives
 
@@ -54,5 +54,5 @@ Later, a website built in a visual site builder will use the same components as 
 - A new kind of component needs its element and parts in `Prism.Generator.Web.Elements`, and they reach the Phoenix and the React components together, besides its mechanics in the web target's CSS. A new variant, part or state of a known component needs only the design.
 - A release publishes two npm packages at one version, the CSS first.
 - The generated code is typed with the button's types where its element is the app's choice: `ButtonProps` checks the app's props per element (a button without `as` refuses a link's `href`), and the component renders them on the element the app picked.
-- A release also updates the React package's lockfile (`npm install --package-lock-only`), which records the version and the peer; the version test checks it.
+- A release also updates the React package's lockfiles (`npm install --package-lock-only`, then `.github/react18.sh --update` for React 18's, made from the bumped files, which it leaves as they are), which record the version and the peer; the version test checks them.
 - No app switches to the package in this change; each one adopts it in its own change.

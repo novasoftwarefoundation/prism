@@ -65,7 +65,8 @@ defmodule Prism.Generator.Web.Components do
   with alpha or `:transparent`, because it is drawn into an image; a spinner
   has no background, because it is drawn in its foreground color; and a
   spinner's size is px or rem, because a loading button centers it by half
-  its size.
+  its size, as it does any part that is another component, whose size must be
+  px or rem too.
 
   Generation fails when a value or a `web:` key of the design is written
   nowhere, so nothing in the design is ignored.
@@ -180,6 +181,31 @@ defmodule Prism.Generator.Web.Components do
         :ok
     end
   end
+
+  @doc false
+  # Checks, for the schema, a part of `component` that is the component `other`: a
+  # loading button centers it by half its size, so its size is px or rem.
+  def check_part(%{name: :button} = component, other) do
+    loading? = Enum.any?(component.states, &(&1.name == :loading))
+
+    case web_style(other)[:size] do
+      _ when not loading? ->
+        :ok
+
+      nil ->
+        {:error,
+         "a loading button centers #{inspect(other.name)} by half its size, and #{inspect(other.name)} has none; give it a size in px or rem"}
+
+      {_, :percent} ->
+        {:error,
+         "a loading button centers #{inspect(other.name)} by half its size, which a percentage can't give; give it a size in px or rem"}
+
+      _ ->
+        :ok
+    end
+  end
+
+  def check_part(_component, _other), do: :ok
 
   defp solid(color, why) when is_tuple(color) or color == :transparent,
     do:
@@ -408,7 +434,7 @@ defmodule Prism.Generator.Web.Components do
         placed(n, :rotation, &"animation: #{prefix()}-spin #{&1} infinite")
       ]),
       own(n, c, pseudo(c)),
-      for(v <- c.variants, not colors.(v), do: prepend(axis_doc(c, v), variant(c, v, pseudo(c)))),
+      for(v <- c.variants, not colors.(v), do: axis_variant(c, v, pseudo(c))),
       """
       @keyframes #{prefix()}-spin {
         from {
@@ -419,7 +445,7 @@ defmodule Prism.Generator.Web.Components do
         }
       }
       """,
-      for(v <- c.variants, colors.(v), do: prepend(axis_doc(c, v), variant(c, v, pseudo(c))))
+      for(v <- c.variants, colors.(v), do: axis_variant(c, v, pseudo(c)))
     ]
   end
 
@@ -512,17 +538,28 @@ defmodule Prism.Generator.Web.Components do
 
   # The variants of the axes `axis?` picks, in the design's order: each variant's
   # rule, its parts, its states and its looks with a part. An axis's doc goes above
-  # its first variant.
+  # the first of its variants that has a rule.
   defp variants(c, axis?, selectors) do
-    for v <- c.variants, axis?.(v.axis), do: prepend(axis_doc(c, v), variant(c, v, selectors))
+    for v <- c.variants, axis?.(v.axis), do: axis_variant(c, v, selectors)
+  end
+
+  # A variant's rules, with its axis's doc above them when it is the axis's first
+  # variant that has a rule. An axis whose variants have none writes its doc nowhere.
+  defp axis_variant(c, v, selectors) do
+    case List.flatten([variant(c, v, selectors)]) do
+      [] -> []
+      [first | rest] -> [axis_doc(c, v, selectors) <> first | rest]
+    end
   end
 
   defp variant(c, v, selectors) do
     path = [c.name, v.name]
 
     parts =
-      for p <- v.parts,
-          do: rule(selector(path ++ [p.name]), declarations(path ++ [p.name]))
+      for p <- v.parts do
+        part = path ++ [p.name]
+        [rule(selector(part), declarations(part)) | states(part, p, selectors)]
+      end
 
     with_doc(
       path,
@@ -547,25 +584,43 @@ defmodule Prism.Generator.Web.Components do
   # the parts it changes. `custom` writes a state's declarations itself. A state
   # without a pseudo-class is a modifier class: on its own for a state of a
   # component or one of its parts (`.acme-text-field--invalid`,
-  # `.acme-select__option--selected`), on the variant or look it belongs to
-  # otherwise (`.acme-tag--accent.acme-tag--invalid`).
+  # `.acme-select__option--selected`), inside the variant for a state of a variant's
+  # part (`.acme-tag--accent .acme-tag__label--selected`), on the variant or look it
+  # belongs to otherwise (`.acme-tag--accent.acme-tag--invalid`).
   defp states(path, node, selectors, custom \\ %{}) do
-    for s <- node.states, s.name != :loading do
+    for s <- node.states, s.name != :loading, sel = state_selector(path, s, selectors) do
       state = path ++ [s.name]
       lines = Map.get(custom, s.name, &declarations/1).(state)
       cursor = if s.name == :disabled, do: ["cursor: not-allowed"], else: []
 
-      sel =
-        case {selectors_for(path, selectors)[s.name], nodes!(path)} do
-          {nil, [{:component, _}]} -> "." <> class(state)
-          {nil, [{:component, _}, {:part, _}]} -> "." <> class(state)
-          {nil, _} -> selector(path, "." <> class(state))
-          {suffix, _} -> selector(path, suffix)
-        end
-
       with_doc(state, [
         rule(sel, lines ++ cursor) | Enum.map(s.parts, &state_part(sel, state, &1))
       ])
+    end
+  end
+
+  # A state's selector, or `nil` for a state the markup can't show, which is then
+  # written nowhere, so generation fails.
+  defp state_selector(path, s, selectors) do
+    state = path ++ [s.name]
+
+    case {selectors_for(path, selectors)[s.name], nodes!(path)} do
+      {nil, [{:component, _}]} -> "." <> class(state)
+      {nil, [{:component, _}, {:part, _}]} -> "." <> class(state)
+      {nil, [{:component, c}, {:variant, _}, {:part, p}]} -> variant_part(c, p, path, state)
+      {nil, _} -> selector(path, "." <> class(state))
+      {suffix, _} -> selector(path, suffix)
+    end
+  end
+
+  # A variant's part in a state the app sets: the part's modifier class inside the
+  # variant, once per name of the variant. The markup gives a part that is another
+  # component no modifier class, so there the state has no selector, as outside a
+  # variant.
+  defp variant_part(c, p, path, state) do
+    case Enum.find(c.parts, &(&1.name == p.name)) do
+      %{component: nil} -> selector(Enum.take(path, 2), " ." <> class(state))
+      _ -> nil
     end
   end
 
@@ -688,17 +743,13 @@ defmodule Prism.Generator.Web.Components do
     end
   end
 
-  # Puts `comment` (an axis's doc) above the first of `rules`.
-  defp prepend("", rules), do: rules
-
-  defp prepend(comment, rules) do
-    [first | rest] = List.flatten([rules])
-    [comment <> first | rest]
-  end
-
-  defp axis_doc(c, v) do
+  defp axis_doc(c, v, selectors) do
     with %{} = axis <- Enum.find(c.axes, &(&1.name == v.axis)),
-         [^v | _] <- Enum.filter(c.variants, &(&1.axis == v.axis)),
+         [^v | _] <-
+           Enum.filter(
+             c.variants,
+             &(&1.axis == v.axis and List.flatten([variant(c, &1, selectors)]) != [])
+           ),
          doc when doc != nil <- axis.web[:doc] do
       read({:axis, c.name, v.axis, :doc})
       comment(doc)

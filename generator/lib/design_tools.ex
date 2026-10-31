@@ -230,7 +230,11 @@ defmodule Prism.Generator.DesignTools do
         {group, Enum.map(members, &{List.last(&1.path), json_token(&1)})}
       end
 
-    encode({:object, Enum.map(tree, fn {g, ms} -> {g, {:object, ms}} end)}, 0) <> "\n"
+    case tree do
+      # No tokens: an empty object, on two lines like any other, for the header.
+      [] -> "{\n}\n"
+      _ -> encode({:object, Enum.map(tree, fn {g, ms} -> {g, {:object, ms}} end)}, 0) <> "\n"
+    end
   end
 
   defp json_token(t) do

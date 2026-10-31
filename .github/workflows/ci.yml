@@ -70,15 +70,12 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        # The peer range of the React package. 19 is the lockfiles'; 18 is installed
-        # over them at exact versions.
-        include:
-          - react: "19"
-            install: ""
-          - react: "18"
-            install: react@18.3.1 react-dom@18.3.1 @types/react@18.3.31 @types/react-dom@18.3.7
+        # The peer range of the React package. 19 is the lockfiles'; 18 has a lockfile
+        # of its own in each package, test/react18/package-lock.json, which
+        # .github/react18.sh puts in place.
+        react: ["19", "18"]
     env:
-      INSTALL: ${{ matrix.install }}
+      REACT: ${{ matrix.react }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -91,8 +88,8 @@ jobs:
       - name: The example design's components
         working-directory: generator/test/fixtures/react
         run: |
+          if [ "$REACT" = 18 ]; then "$GITHUB_WORKSPACE/.github/react18.sh"; fi
           npm ci
-          if [ -n "$INSTALL" ]; then npm install --no-save $INSTALL; fi
           npm run check
           # The lockfile's TypeScript is 7; the types must hold on 5.9 too.
           npx --yes --package typescript@5.9.3 tsc --noEmit -p test
@@ -102,8 +99,8 @@ jobs:
       - name: Prism's React package
         working-directory: targets/react
         run: |
+          if [ "$REACT" = 18 ]; then "$GITHUB_WORKSPACE/.github/react18.sh"; fi
           npm ci
-          if [ -n "$INSTALL" ]; then npm install --no-save $INSTALL; fi
           npm run check
           # The lockfile's TypeScript is 7; the types must hold on 5.9 too.
           npx --yes --package typescript@5.9.3 tsc --noEmit -p test
