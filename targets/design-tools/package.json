@@ -14,5 +14,10 @@
     "fast-xml-parser": "5.11.2",
     "postcss": "8.5.32",
     "style-dictionary": "5.7.1"
+  },
+  "overrides": {
+    "@bundled-es-modules/glob": {
+      "glob": "14.0.3"
+    }
   }
 }
