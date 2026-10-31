@@ -34,7 +34,7 @@ defmodule Prism.Generator.SchemaTest do
 
   test "the tokens compile into plain data" do
     %{tokens: tokens, web: web, file: file} = Prism.Generator.ExampleDesign.__schema__()
-    assert file == "test/generator/support/example_design.ex"
+    assert file == "test/support/example_design.ex"
     assert %{kind: :color, name: :accent, value: "#1A73E8", group: "Brand"} in tokens
     assert %{kind: :color, name: :link, value: :accent, group: "Brand"} in tokens
     assert %{prefix: "acme", fonts_url: "../fonts", line_clamps: 2} = web

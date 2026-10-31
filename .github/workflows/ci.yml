@@ -9,9 +9,12 @@ permissions:
   contents: read
 
 jobs:
-  design:
-    name: Generator, design and generated files
+  generator:
+    name: Generator on its own
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: generator
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -20,28 +23,42 @@ jobs:
         with:
           version-file: .tool-versions
           version-type: strict
-      - run: mix compile --warnings-as-errors
+      - name: The generator mentions none of Prism's values
+        run: |
+          if grep -rniE 'nunito|novasoftwarefoundation|0\.1\.7|Prism\.Design|4272EF' .; then
+            echo "::error::generator/ mentions Prism's design or package. Keep Prism-specific values in design/."
+            exit 1
+          fi
       - run: mix format --check-formatted
-      - name: The generator doesn't depend on Prism's design
-        run: .github/scripts/generator-boundary.sh
-      # The generator's tests on the example design, and Prism's checks: the
-      # 0.1.7 golden test, the version check and the font roles.
-      # The test env also compiles test/generator/support/; mix test's flag covers
-      # the test files.
+      # Compiled without design/, so a reference to Prism's design fails here.
+      - run: mix compile --warnings-as-errors
+      # The test env also compiles test/support/; mix test's flag covers the test files.
       - run: mix compile --warnings-as-errors
         env:
           MIX_ENV: test
       - run: mix test --warnings-as-errors
-      # Writes into targets/web (config :prism, out: "targets/web").
-      - run: mix prism.gen.web
-      - name: Committed files match the design
-        run: |
-          if [ -n "$(git status --porcelain)" ]; then
-            git status --short
-            git diff
-            echo "::error::Generated files differ from the design. Run 'mix prism.gen.web' and commit the result."
-            exit 1
-          fi
+
+  design:
+    name: Prism's design and generated files
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: design
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
+        with:
+          version-file: .tool-versions
+          version-type: strict
+      - run: mix deps.get
+      - run: mix compile --warnings-as-errors
+      - run: mix format --check-formatted
+      # Fails when a committed file in targets/ differs from what the design generates.
+      - run: mix prism.gen --check
+      # The 0.1.7 golden test, the version check and the font roles.
+      - run: mix test --warnings-as-errors
 
   npm-package:
     name: npm file list

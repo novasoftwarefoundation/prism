@@ -8,33 +8,36 @@ To use Prism in an app, see the package's README: [targets/web/README.md](target
 
 ## Layout
 
-Prism's look is written once, as a design in Elixir, and generated into code for each target: an app platform, or later a design tool. The repository is one Mix project with three layers:
+Prism's look is written once, as a design in Elixir, and generated into code for each target: an app platform, or later a design tool. The top of the repository shows the split:
 
-| Layer | Where | What |
-|---|---|---|
-| Generator | `lib/generator/`, `test/generator/` | Generic: the schema a design is written in (`Prism.Generator.Schema`), the web generator and its templates, the writer that never overwrites a hand-written file (`Prism.Generator.Writer`), and the Mix tasks in `lib/generator/mix/tasks/` (one file per task: `prism.gen.web.ex`). It knows nothing about Prism's values. |
-| Design | `lib/design/`, `test/design/` | Prism's design: `Prism.Design.Tokens`, and its checks (the 0.1.7 golden test, the version check, the font roles). |
-| Targets | `targets/web/` | The npm package: `package.json`, the generated `tailwind.preset.js` and `css/base.css`, the hand-written `css/components.css`, and `fonts/`. Later `targets/swift/`. |
+| Folder | What |
+|---|---|
+| `design/` | Prism's design, a Mix project (`:prism_design`): `lib/tokens.ex` (`Prism.Design.Tokens`), `config/config.exs` (the design module and the folder of each target), and its checks: the 0.1.7 golden test, the version check, the font roles. |
+| `generator/` | The generic part, a Mix project of its own (`:prism_generator`): the design format (`lib/schema.ex`), the header of generated files (`lib/header.ex`), the web target (`lib/web.ex` and its templates in `lib/web/`), and `mix prism.gen` (`lib/mix/tasks/prism.gen.ex`). It knows nothing about Prism's values. |
+| `targets/web/` | The npm package: `package.json`, the generated `tailwind.preset.js` and `css/base.css`, the hand-written `css/components.css`, and `fonts/`. Later `targets/swift/`. |
 
-`config/config.exs` names the design and where its output goes. Decisions are in `docs/adr/`: [0001: design format](docs/adr/0001-design-format.md) and [0002: Prism's design](docs/adr/0002-prism-design.md).
+`design/` depends on `generator/` with `{:prism_generator, path: "../generator"}`; there is no Mix project at the root. Decisions are in `docs/adr/`: [0001: design format](docs/adr/0001-design-format.md) and [0002: Prism's design](docs/adr/0002-prism-design.md).
 
 ## Change the design
 
-`targets/web/tailwind.preset.js` and `targets/web/css/base.css` are generated: don't edit them by hand. Change `lib/design/tokens.ex`, then regenerate and commit the result:
+`targets/web/tailwind.preset.js` and `targets/web/css/base.css` are generated: don't edit them by hand. Change `design/lib/tokens.ex`, then regenerate and commit the result:
 
 ```sh
-mix prism.gen.web   # writes targets/web/tailwind.preset.js and targets/web/css/base.css
+cd design
+mix deps.get
+mix prism.gen   # writes every target: ../targets/web/tailwind.preset.js and ../targets/web/css/base.css
 mix test
 ```
 
-`mix test` includes a golden test: the output must equal prism 0.1.7 apart from each file's header line and the reviewed diff in `test/design/golden/0.1.7.diff`. CI fails when the committed files differ from what the design generates. `css/components.css` is still hand-written.
+`mix test` includes a golden test: the generated files must equal prism 0.1.7 apart from each file's header line and the reviewed diff in `design/test/golden/0.1.7.diff`. CI runs `mix prism.gen --check`, which fails when a committed file differs from what the design generates. `css/components.css` is still hand-written.
 
 ## The generator
 
-- The schema turns a design into plain data, `__schema__/0`, whose shape is documented in `Prism.Generator.Schema`. The generators read only that data, never the schema's internals; a test checks that no generator calls into the schema.
-- The generator gets the design only from `--design MODULE` or `config :prism, design: MODULE`, never by naming it. CI fails when any file in `lib/generator/`, subfolders included, depends on `lib/design/`, directly or through another file (`mix xref graph`, see `.github/scripts/generator-boundary.sh`), or when the generator's files mention Prism's values or the path `lib/design`.
-- Its tests use a neutral example design (`test/generator/support/example_design.ex`) and compare its output with reviewed fixtures in `test/generator/fixtures/`.
-- **Moving it to its own repository:** move `lib/generator/` and `test/generator/` into a new Mix project (where `lib/generator/mix/tasks/` becomes `lib/mix/tasks/`), and add one dependency line to this project's `mix.exs`, e.g. `{:prism_generator, git: "<url>", tag: "<version>"}`.
+- The schema turns a design into plain data, `__schema__/0`, whose shape is documented in `Prism.Generator.Schema`. The targets read only that data, never the schema's internals; a test checks that no other file calls into the schema.
+- `mix prism.gen` generates every target named in the config (today `web`), puts a `Prism.Generator.Header` line on each file, and never overwrites a file without one. A later target adds a module and its templates, not a task.
+- The generator gets the design only from the config, never by naming it. It compiles and tests on its own, without `design/`, so a reference to Prism's design fails its build. CI also checks that it mentions none of Prism's values.
+- Its tests use a neutral example design (`generator/test/support/example_design.ex`) and compare its files with reviewed fixtures in `generator/test/fixtures/`.
+- **Moving it to its own repository:** move `generator/` out as it is, and change one line in `design/mix.exs` from `path: "../generator"` to a git or Hex dependency.
 
 ## Publish
 
@@ -42,7 +45,7 @@ Install Prism from npm. The repository root is no longer the package (it lives i
 
 Publishing to npm is manual for now, from `targets/web/`:
 
-1. Bump the version in `mix.exs` and `targets/web/package.json` (a test checks they are equal) and merge it.
+1. Bump the version in `design/mix.exs` and `targets/web/package.json` (a test checks they are equal) and merge it.
 2. Check the package: `cd targets/web && npm pack --dry-run` lists the files in `.github/npm-files.txt`.
 3. Publish: `cd targets/web && npm publish --access public`.
 

@@ -1,9 +1,9 @@
 node_modules/
 .DS_Store
 *.log
-/_build/
-/deps/
-/cover/
-/tmp/
+_build/
+deps/
+cover/
+tmp/
 erl_crash.dump
 *.tgz

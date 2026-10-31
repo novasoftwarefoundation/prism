@@ -1,7 +1,7 @@
 defmodule Prism.Generator.Schema do
   @moduledoc """
   The schema of a design, written as a DSL. A module that `use`s it is a
-  design: it declares design tokens and how the web output is named.
+  design: it declares design tokens and how the web files are named.
 
       web prefix: "acme", fonts_url: "../fonts"
       group "Brand colors" do
@@ -95,7 +95,7 @@ defmodule Prism.Generator.Schema do
   end
 
   @doc """
-  How the web output is named and introduced. Once per design; the web generator
+  How the web files are named and introduced. Once per design; the web generator
   needs it.
 
   - `prefix:` (required) the prefix of the CSS classes the generator writes,

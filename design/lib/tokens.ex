@@ -82,7 +82,7 @@ defmodule Prism.Design.Tokens do
 
   # Radii are not in the preset: 0.1.7's components write 0.25rem (Tailwind's
   # `rounded`) and 50% as literals. They are tokens for the components and
-  # the native outputs; the web output doesn't read them yet.
+  # the native targets; the web target doesn't read them yet.
   radius :default, {0.25, :rem}
   radius :full, {50, :percent}
 

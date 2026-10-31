@@ -8,11 +8,11 @@ A design system that ships to the web and to native apps needs the same values o
 
 The fix is one design with a generator per target, and the generated code committed so every change is reviewable. There are three layers:
 
-- **The generator** (`lib/generator/`) is generic: the schema a design is written in, and the generators. It knows nothing about any particular design.
-- **The design** (`lib/design/`) is the input: a module written in the schema's DSL.
-- **Targets** (`targets/<target>/`) are the output, one folder per target, published or imported from there. A target is anything a generator generates for: an app platform (`targets/web/`, later `targets/swift/`), or a design tool (later, for example a DTCG tokens file, CSS variables or an SVG overview in `targets/design-tools/`).
+- **The generator** (`generator/`, a Mix project of its own) is generic: the schema a design is written in, and the generators. It knows nothing about any particular design.
+- **The design** (`design/`, a Mix project that depends on the generator) is the input: a module written in the schema's DSL.
+- **Targets** (`targets/<target>/`) are what the generators produce, one folder per target, published or imported from there. A target is anything a generator generates for: an app platform (`targets/web/`, later `targets/swift/`), or a design tool (later, for example a DTCG tokens file, CSS variables or an SVG overview in `targets/design-tools/`).
 
-The design and the generators meet only at the schema's public output, `__schema__/0`: a contract that either side can rely on.
+The design and the generators meet only at the schema's public data, `__schema__/0`: a contract that either side can rely on.
 
 ## Decision
 
@@ -24,7 +24,7 @@ The format has these parts:
 | Tokens | Colors, shadows, text shadows, spacing, sizes, radii, font families and faces, font styles, text sizes, and type styles (`typography`, later) built from a font style and a text size | the design: a module that uses `Prism.Generator.Schema` (`__schema__/0` returns it as data) |
 | Components | Components with a base style, parts, variants and states, built from tokens | the design (later) |
 | Generators | Web (Tailwind preset and CSS), Swift, later Kotlin | the generator: `Prism.Generator.*` and `mix prism.gen.<target>` |
-| Targets | The generators' output | `targets/<target>/`, where each one is published or imported from |
+| Targets | What the generators produce | `targets/<target>/`, where each one is published or imported from |
 
 Today the generator has the schema's token part and the web generator for `tailwind.preset.js` and `css/base.css`.
 
@@ -50,7 +50,7 @@ Today the generator has the schema's token part and the web generator for `tailw
    typography :title1, font: :title1, text: :title1
    ```
 
-   The schema checks that both references exist. Native generators read only the `typography` tokens for type, never the two lists, so no platform pairs a font with a size on its own. The DSL kind is added in its own change. The web output doesn't change.
+   The schema checks that both references exist. Native generators read only the `typography` tokens for type, never the two lists, so no platform pairs a font with a size on its own. The DSL kind is added in its own change. The web files don't change.
 
 2. **Fonts per platform.** A family is a role that each platform binds to a font. Fonts refer to the role, so `font :title1, :display, 800` stays platform-neutral:
 
@@ -65,7 +65,7 @@ Today the generator has the schema's token part and the web generator for `tailw
    - Every family must name `web`, `ios` and `android`, so adding a platform forces a choice. A binding is `:system` or a named font with its faces, for a brand font.
    - `:system` is SF Pro on iOS (`Font.system`, which picks the Display or Text optical size itself and supports Dynamic Type) and Roboto on Android (`FontFamily.Default`). The web has no `:system` binding yet.
    - Weights, italic, sizes and line heights are shared by all platforms. Sizes are px on the web, pt on iOS and sp on Android.
-   - Each generator reads only its own platform's binding. The web output reads `web:`; the family names don't appear in it.
+   - Each generator reads only its own platform's binding. The web target reads `web:`; the family names don't appear in it.
 
 3. **Components hold design values only** (later).
 
@@ -83,7 +83,7 @@ Today the generator has the schema's token part and the web generator for `tailw
    - A value is a token reference or a literal. Colors are `:token`, `{:token, alpha}` or `"#RRGGBB"`. Lengths are px (points on iOS, dp on Android), `{n, :rem}` or `{n, :percent}`.
    - CSS mechanics are not in the design: `display`, `cursor`, `appearance`, focus outlines, keyframes. They live in the web generator's templates, just as native views live in native code.
 
-4. **The design names its web output.** A `web` declaration gives the class prefix (`prefix: "acme"` gives `.acme-text-shadow`), where the CSS finds the font files, how many line-clamp classes to write, and the comments at the top of each file. The templates hold no names of their own, so the same generator serves any design.
+4. **The design names its web files.** A `web` declaration gives the class prefix (`prefix: "acme"` gives `.acme-text-shadow`), where the CSS finds the font files, how many line-clamp classes to write, and the comments at the top of each file. The templates hold no names of their own, so the same generator serves any design.
 
 5. **Mistakes fail at compile time and point at their line:**
    - an unknown option, property or token kind;
@@ -101,12 +101,12 @@ Today the generator has the schema's token part and the web generator for `tailw
    - Web keys replace `_` with `-` (`btn_pressed` → `btn-pressed`).
    - Swift uses camelCase (`Shadows.btnPressed`) and escapes keywords.
 
-7. **Generators read `__schema__/0`, never the source or the schema's internals.** The data it returns is documented in `Prism.Generator.Schema`. They are Mix tasks named `mix prism.gen.<target>`, one file each in `lib/generator/mix/tasks/` (`prism.gen.web.ex`), that take the design module as input (`--design MyApp.Design --out targets/web`, or `config :prism, design: MyApp.Design, out: "targets/web"`), never by naming it. Each generated file starts with a `Generated by prism (mix prism.gen.<target>)` line that names the design's file to change instead (`__schema__/0` includes it), and a generator never overwrites a file without that line (`Prism.Generator.Writer.write!`).
-   - Web (`mix prism.gen.web`): EEx templates (`lib/generator/templates/web/`) that splice in the design's values. Its spelling is fixed, so regenerating gives the same bytes: upper-case hex and two-decimal alphas in the preset, `0` in box shadows, `0px` in text shadows, `@font-face` sources wrapped at 80 columns.
+7. **Targets read `__schema__/0`, never the source or the schema's internals.** The data it returns is documented in `Prism.Generator.Schema`. Each target is a module with `files/1`, from that data to `[{path, body}]`, plus its templates. One task, `mix prism.gen [--check]`, generates every target named in the design project's config (`config :prism_generator, design: MyApp.Design, targets: [web: "../targets/web"]`); it never names a design itself. It writes each file with `Mix.Generator.create_file/3`, starting with a `Prism.Generator.Header` line: `Generated by prism (mix prism.gen). Do not edit: change <design file> and regenerate.`, where the design file is named from the folder that holds both it and the target (`__schema__/0` includes it). It never overwrites a file without that line, and `--check` writes nothing and fails when any file would change. A new target adds a module and templates, not a task.
+   - Web (`Prism.Generator.Web`): EEx templates named after the files they produce (`generator/lib/web/tailwind.preset.js.eex`, `base.css.eex`) that splice in the design's values. Its spelling is fixed, so regenerating gives the same bytes: upper-case hex and two-decimal alphas in the preset, `0` in box shadows, `0px` in text shadows, `@font-face` sources wrapped at 80 columns.
    - Swift (later): one file with value types, the tokens, and one resolved style per component, part, variant and state. Type comes from the `typography` tokens only. Values only; views stay hand-written.
    - Kotlin (later): the same values for Compose.
 
-8. **The generated files are committed** in `targets/<target>/`. CI regenerates them and fails when they differ from what is committed, so reviewers see every output change. CI also fails when a file in `lib/generator/` depends on `lib/design/` (`mix xref graph`), or mentions the design's values.
+8. **The generated files are committed** in `targets/<target>/`. CI regenerates them and fails when they differ from what is committed, so reviewers see every change to them. The generator compiles and tests on its own, without the design, so the compiler refuses any reference from the generator to a design; CI also checks that it mentions none of the design's values.
 
 ## Alternatives
 
@@ -116,11 +116,12 @@ Today the generator has the schema's token part and the web generator for `tailw
 | Keep the CSS as the source and parse it for native platforms | It makes the CSS mechanics the contract, and there is still no place for the values the CSS hard-codes. |
 | Tokens only, components hand-written per platform | That is the drift this format removes. Components are where platforms most need the same numbers. |
 | A data file (`.exs` maps) instead of macros | Simpler, but no compile-time errors with line numbers. |
-| Schema, generators and the design mixed in one folder | Simpler at first, but the generic part then grows assumptions about the design, and it can't be reused or moved to its own repository. The design and the generator stay in separate folders of one project, with the boundary checked in CI. |
+| Schema, generators and the design in one Mix project | Simpler at first, but the split is then only a convention plus a CI script, the generic part grows assumptions about the design, and it can't be built on its own. Two sibling Mix projects, with the design depending on the generator by path, let the compiler enforce the split. |
+| An umbrella project | More structure than two projects need, and not the usual way to keep a framework and one of its users in one repository; sibling projects with a path dependency are. |
 
 ## Consequences
 
 - One language and one review for every platform's styling. Native apps get the same numbers as the web by construction.
 - Editing the look means editing Elixir and running the generators. A docs generator can later turn a design into token tables.
 - The web templates still look like CSS and JavaScript. Reviewers see web mechanics there and design values in the design.
-- The generator can move to its own repository without changes to its code: it depends on no design.
+- The generator can move to its own repository without changes to its code: move `generator/` and change the design's one dependency line from `path:` to git or Hex.

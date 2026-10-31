@@ -1,5 +1,5 @@
-# Used by "mix format". The design DSL is written without parentheses; it is
-# also exported, for a design that lives in another project later.
+# Used by "mix format". The design DSL is written without parentheses, here and
+# in a design project (`import_deps: [:prism_generator]`).
 design_dsl = [
   web: 1,
   color: 2,
