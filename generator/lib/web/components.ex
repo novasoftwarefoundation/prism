@@ -21,7 +21,9 @@ defmodule Prism.Generator.Web.Components do
   ## Classes
 
   A class is made of the design's names, with `-` for `_`, and says what
-  kind of name it is, as in BEM:
+  kind of name it is, as in BEM. The names come from
+  `Prism.Generator.Web.Classes`, which the Phoenix components
+  (`Prism.Generator.Phoenix`) use too:
 
   - a component is `.<prefix>-<component>` (`.acme-button`);
   - a part is `__<part>` after its component (`.acme-button__label`); a part
@@ -42,7 +44,8 @@ defmodule Prism.Generator.Web.Components do
   ## States
 
   On a form control (a button, a text field and a text area, the checkbox,
-  the radio's control and the select's field) a state is the browser's:
+  the radio's control and the select's field; `Prism.Generator.Web.Classes`
+  knows which) a state is the browser's:
   `:pressed` is `:active`, `:hovered` `:hover`, `:focused` `:focus`,
   `:disabled` `:disabled`, `:checked` `:checked`. On any other element
   `:hovered` is `:hover`. Any other state, such as `:loading`, `:invalid` or
@@ -84,6 +87,7 @@ defmodule Prism.Generator.Web.Components do
   """
 
   alias Prism.Generator.Web
+  alias Prism.Generator.Web.Classes
 
   @kinds [
     :button,
@@ -109,9 +113,6 @@ defmodule Prism.Generator.Web.Components do
     tag: [:label]
   }
 
-  # Parts that are form controls, whose states are the browser's.
-  @control_parts [radio: :control, select: :field]
-
   @bindings %{
     component: [:section, :doc],
     variants: [:doc],
@@ -126,16 +127,6 @@ defmodule Prism.Generator.Web.Components do
   # Properties without a CSS declaration of their own: each component writes them
   # where they belong (`transition: all …`, `::placeholder`).
   @placed [:transition, :rotation, :placeholder]
-
-  @control %{
-    pressed: ":active",
-    hovered: ":hover",
-    focused: ":focus",
-    disabled: ":disabled",
-    checked: ":checked"
-  }
-
-  @element %{hovered: ":hover"}
 
   @check_mark "url(\"data:image/svg+xml,%3csvg viewBox='0 0 16 16' fill='FILL' xmlns='http://www.w3.org/2000/svg'%3e%3cpath d='M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2-2a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z'/%3e%3c/svg%3e\")"
 
@@ -256,10 +247,10 @@ defmodule Prism.Generator.Web.Components do
       rule(".#{class(n)}:focus", ["outline: none"]),
       part(c, :label, &declarations/1),
       part(c, :icon, &declarations/1),
-      own(n, c, @control),
-      variants(c, &(&1 == :variant), @control),
+      own(n, c, pseudo(c)),
+      variants(c, &(&1 == :variant), pseudo(c)),
       loading(c),
-      variants(c, &(&1 != :variant), @control)
+      variants(c, &(&1 != :variant), pseudo(c))
     ]
   end
 
@@ -275,8 +266,8 @@ defmodule Prism.Generator.Web.Components do
           resize ++ [placed(n, :transition, &"transition: border-color #{&1}")]
       ),
       placeholder(n),
-      own(n, c, @control),
-      variants(c, fn _ -> true end, @control)
+      own(n, c, pseudo(c)),
+      variants(c, fn _ -> true end, pseudo(c))
     ]
   end
 
@@ -288,8 +279,8 @@ defmodule Prism.Generator.Web.Components do
       rule(n, ".#{class(n)}", [declarations(n)]),
       part(c, :label, &["display: block", declarations(&1)]),
       part(c, :error_message, &declarations/1),
-      own(n, c, @element),
-      variants(c, fn _ -> true end, @element)
+      own(n, c, pseudo(c)),
+      variants(c, fn _ -> true end, pseudo(c))
     ]
   end
 
@@ -298,8 +289,8 @@ defmodule Prism.Generator.Web.Components do
 
     [
       rule(n, ".#{class(n)}", ["display: flex", "flex-direction: row", declarations(n)]),
-      own(n, c, @element),
-      variants(c, fn _ -> true end, @element)
+      own(n, c, pseudo(c)),
+      variants(c, fn _ -> true end, pseudo(c))
     ]
   end
 
@@ -315,7 +306,7 @@ defmodule Prism.Generator.Web.Components do
         declarations(n),
         "cursor: pointer"
       ]),
-      own(n, c, @element),
+      own(n, c, pseudo(c)),
       part(c, :control, fn path ->
         [
           "appearance: none",
@@ -340,7 +331,7 @@ defmodule Prism.Generator.Web.Components do
           declarations(path, only: [:margin])
         ]
       end),
-      variants(c, fn _ -> true end, @element)
+      variants(c, fn _ -> true end, pseudo(c))
     ]
   end
 
@@ -396,8 +387,8 @@ defmodule Prism.Generator.Web.Components do
           placed(path, :transition, &"transition: background-color #{&1}")
         ]
       end),
-      own(n, c, @element),
-      variants(c, fn _ -> true end, @element)
+      own(n, c, pseudo(c)),
+      variants(c, fn _ -> true end, pseudo(c))
     ]
   end
 
@@ -416,8 +407,8 @@ defmodule Prism.Generator.Web.Components do
         "mask: #{@spinner_mask}",
         placed(n, :rotation, &"animation: #{prefix()}-spin #{&1} infinite")
       ]),
-      own(n, c, @element),
-      for(v <- c.variants, not colors.(v), do: prepend(axis_doc(c, v), variant(c, v, @element))),
+      own(n, c, pseudo(c)),
+      for(v <- c.variants, not colors.(v), do: prepend(axis_doc(c, v), variant(c, v, pseudo(c)))),
       """
       @keyframes #{prefix()}-spin {
         from {
@@ -428,7 +419,7 @@ defmodule Prism.Generator.Web.Components do
         }
       }
       """,
-      for(v <- c.variants, colors.(v), do: prepend(axis_doc(c, v), variant(c, v, @element)))
+      for(v <- c.variants, colors.(v), do: prepend(axis_doc(c, v), variant(c, v, pseudo(c))))
     ]
   end
 
@@ -452,9 +443,9 @@ defmodule Prism.Generator.Web.Components do
         "cursor: pointer",
         placed(n, :transition, &"transition: all #{&1}")
       ]),
-      states(n, c, @control, %{checked: checked}),
-      with_parts(n, c, @control),
-      variants(c, fn _ -> true end, @control)
+      states(n, c, pseudo(c), %{checked: checked}),
+      with_parts(n, c, pseudo(c)),
+      variants(c, fn _ -> true end, pseudo(c))
     ]
   end
 
@@ -477,8 +468,8 @@ defmodule Prism.Generator.Web.Components do
           declarations(path)
         ]
       end),
-      own(n, c, @element),
-      variants(c, fn _ -> true end, @element)
+      own(n, c, pseudo(c)),
+      variants(c, fn _ -> true end, pseudo(c))
     ]
   end
 
@@ -492,8 +483,8 @@ defmodule Prism.Generator.Web.Components do
         "align-items: center",
         declarations(n)
       ]),
-      own(n, c, @element),
-      variants(c, fn _ -> true end, @element)
+      own(n, c, pseudo(c)),
+      variants(c, fn _ -> true end, pseudo(c))
     ]
   end
 
@@ -509,8 +500,8 @@ defmodule Prism.Generator.Web.Components do
         declarations(n),
         "font-variant-numeric: tabular-nums"
       ]),
-      own(n, c, @element),
-      variants(c, fn _ -> true end, @element)
+      own(n, c, pseudo(c)),
+      variants(c, fn _ -> true end, pseudo(c))
     ]
   end
 
@@ -583,7 +574,7 @@ defmodule Prism.Generator.Web.Components do
   defp selectors_for(path, selectors) do
     case path |> nodes!() |> Enum.reverse() |> Enum.find(&match?({:part, _}, &1)) do
       nil -> selectors
-      {:part, p} -> if {hd(path), p.name} in @control_parts, do: @control, else: @element
+      {:part, p} -> Classes.pseudo_classes(hd(path), p.name)
     end
   end
 
@@ -645,7 +636,11 @@ defmodule Prism.Generator.Web.Components do
 
       p ->
         path = [c.name, name]
-        [rule(path, selector(path), lines.(path)), states(path, p, @element)]
+
+        [
+          rule(path, selector(path), lines.(path)),
+          states(path, p, Classes.pseudo_classes(c.name, name))
+        ]
     end
   end
 
@@ -737,27 +732,23 @@ defmodule Prism.Generator.Web.Components do
 
     case List.last(nodes) do
       {:component, _} ->
-        base(c.name)
+        Classes.component(prefix(), c.name)
 
       {:part, part} ->
         # A rule for a variant's or a state's change to the part writes the part.
         read({:node, [c.name, part.name]})
-
-        case Enum.find(c.parts, &(&1.name == part.name)) do
-          %{component: ref} when ref != nil -> base(ref)
-          _ -> "#{base(c.name)}__#{key(part.name)}"
-        end
+        Classes.part(prefix(), c, part.name)
 
       # A part's state modifies the part's class, any other state the component's.
       {:state, s} ->
         case Enum.at(nodes, -2) do
-          {:part, _} -> "#{class(Enum.drop(path, -1))}--#{key(s.name)}"
-          _ -> "#{base(c.name)}--#{key(s.name)}"
+          {:part, part} -> Classes.part_modifier(prefix(), c, part.name, s.name)
+          _ -> Classes.modifier(prefix(), c.name, s.name)
         end
 
       # A variant, or a look with a part (`with_icon`).
       {_, node} ->
-        "#{base(c.name)}--#{key(node.name)}"
+        Classes.modifier(prefix(), c.name, node.name)
     end
   end
 
@@ -770,7 +761,7 @@ defmodule Prism.Generator.Web.Components do
     alternatives =
       case tl(nodes) do
         [] ->
-          [base(hd(path))]
+          [Classes.component(prefix(), hd(path))]
 
         [{kind, _}] when kind in [:part, :with_part] ->
           [class(path)]
@@ -782,7 +773,7 @@ defmodule Prism.Generator.Web.Components do
               {:with_part, _} -> ".#{class(path)}"
             end)
 
-          for name <- [v.name | v.aliases], do: "#{base(hd(path))}--#{key(name)}" <> tail
+          for name <- [v.name | v.aliases], do: Classes.modifier(prefix(), hd(path), name) <> tail
       end
 
     Enum.map_join(alternatives, ",\n", &".#{&1}#{suffix}")
@@ -996,8 +987,8 @@ defmodule Prism.Generator.Web.Components do
       Enum.find(tokens(), &(&1.kind == kind and &1.name == name)) ||
         raise(ArgumentError, "no #{kind} #{inspect(name)}")
 
-  defp base(component), do: "#{prefix()}-#{key(component)}"
-  defp key(name), do: name |> Atom.to_string() |> String.replace("_", "-")
+  # The states that are the browser's on a component's own element.
+  defp pseudo(c), do: Classes.pseudo_classes(c.name, nil)
 
   defp node!(path), do: path |> nodes!() |> List.last() |> elem(1)
 

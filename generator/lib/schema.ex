@@ -72,7 +72,10 @@ defmodule Prism.Generator.Schema do
       in the design's order; `axis` is `:variant`, or the name of the
       `variants` block it is in; `parts` are the changes it makes to the
       component's parts, `[%{name, style, states}]`;
-    - `axes`: `[%{name}]`, the `variants` blocks;
+    - `default`: the default of the `:variant` axis, and `axes`:
+      `[%{name, default}]`, the `variants` blocks. A default is the name of
+      one of the axis's variants, a name without a look of its own (no class),
+      or `nil` for none;
     - `with_parts`: `[%{name, part, style, states}]`, the looks while the
       component has one of its parts (`part`), named `with_<part>`; a
       variant's `with_parts` have the same shape;
