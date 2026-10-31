@@ -170,7 +170,12 @@ Publishing is manual for now: the npm packages from `targets/web/` and `targets/
 2. Check the packages: `cd targets/web && npm pack --dry-run` lists the files in `.github/npm-files.txt`, and `cd targets/react && npm ci && npm pack --dry-run` (which builds `dist/`) those in `.github/npm-files-react.txt`.
 3. Publish the CSS first, since the components depend on it: `cd targets/web && npm publish --access public`.
 4. Then the components: `cd targets/react && npm publish --access public`.
-5. Attach the design-tool files to the release: tag the merge `vX.Y.Z`, create a GitHub release for the tag, and upload `targets/design-tools/tokens.json`, `tokens.css` and `overview.svg` as its assets, for example `gh release create vX.Y.Z targets/design-tools/tokens.json targets/design-tools/tokens.css targets/design-tools/overview.svg`. There is no release automation yet.
+5. Attach the design-tool files to the release, from the tag:
+   1. Tag the merge `vX.Y.Z`, push the tag, and check it out: `git checkout vX.Y.Z`.
+   2. Check that the files are the design's: `(cd design && mix prism.gen --check)`. The commands here run from the repository root.
+   3. Create a GitHub release for the tag with `targets/design-tools/tokens.json`, `tokens.css` and `overview.svg` as its assets: `gh release create vX.Y.Z targets/design-tools/tokens.json targets/design-tools/tokens.css targets/design-tools/overview.svg`. If the release exists already (a rerun), upload them again instead: `gh release upload vX.Y.Z targets/design-tools/tokens.json targets/design-tools/tokens.css targets/design-tools/overview.svg --clobber`.
+
+   There is no release automation yet.
 
 ## License
 
