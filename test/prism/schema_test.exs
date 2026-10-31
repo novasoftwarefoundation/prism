@@ -1,7 +1,21 @@
 defmodule Prism.SchemaTest do
   use ExUnit.Case, async: true
 
-  @family ~s(  family :f, "F", doc: "F", fallback: "serif", faces: [[file: "F", weights: {200, 900}, style: :normal]])
+  @faces ~s([[file: "F", weights: {200, 900}, style: :normal]])
+
+  # A one-line family :f; an option set to nil is left out.
+  defp family(opts \\ []) do
+    [
+      doc: ~s("F"),
+      web: ~s([name: "F", fallback: "serif", faces: #{@faces}]),
+      ios: ":system",
+      android: ":system"
+    ]
+    |> Keyword.merge(opts)
+    |> Enum.reject(fn {_, v} -> is_nil(v) end)
+    |> Enum.map_join(", ", fn {k, v} -> "#{k}: #{v}" end)
+    |> then(&"  family :f, #{&1}")
+  end
 
   defp compile(body) do
     module = "Spec#{System.unique_integer([:positive])}"
@@ -62,41 +76,89 @@ defmodule Prism.SchemaTest do
 
   test "a weight must be 100..1000" do
     assert_compile_error(
-      @family <> ~s(\n  font :b, :f, 750),
+      family() <> ~s(\n  font :b, :f, 750),
       "weight 750 is not 100..1000",
       4
     )
   end
 
-  test "a family needs a doc and a fallback" do
+  test "a family needs a doc and a web fallback" do
+    assert_compile_error(family(doc: nil), "family :f: doc: must be a one-line string", 3)
+
     assert_compile_error(
-      ~s(  family :f, "F", fallback: "serif", faces: [[file: "F", weights: {200, 900}, style: :normal]]),
-      "family :f: doc: must be a one-line string",
+      family(web: ~s([name: "F", fallback: 42, faces: #{@faces}])),
+      "family :f: web: fallback: must be a one-line string",
+      3
+    )
+  end
+
+  test "a family names every platform" do
+    compile(family())
+
+    for platform <- [:web, :ios, :android] do
+      assert_compile_error(
+        family([{platform, nil}]),
+        "family :f: missing #{platform}: (every family names web, ios, android)",
+        3
+      )
+    end
+
+    assert_compile_error(family(windows: ":system"), "unknown option :windows", 3)
+  end
+
+  test "a platform binds :system or a named font with its faces" do
+    compile(
+      family(
+        ios: ~s([name: "Brand", faces: #{@faces}]),
+        android: ~s([name: "Brand", faces: #{@faces}])
+      )
+    )
+
+    assert_compile_error(
+      family(ios: ~s("SF Pro")),
+      "family :f: ios: is :system or [name:, faces: [...]]",
       3
     )
 
     assert_compile_error(
-      ~s(  family :f, "F", doc: "F", fallback: 42, faces: [[file: "F", weights: {200, 900}, style: :normal]]),
-      "family :f: fallback: must be a one-line string",
+      family(android: ~s([name: "Brand"])),
+      "family :f: android: is :system or",
+      3
+    )
+
+    assert_compile_error(
+      family(ios: ~s([name: "Brand", fallback: "serif", faces: #{@faces}])),
+      "family :f: ios: is :system or",
+      3
+    )
+
+    assert_compile_error(
+      family(ios: ~s([name: "Brand", faces: []])),
+      "family :f: ios: a face is",
+      3
+    )
+
+    assert_compile_error(
+      family(web: ":system"),
+      "web: :system is not supported on the web yet",
       3
     )
   end
 
   test "spec text can't break out of a JS or CSS string or comment" do
     assert_compile_error(
-      ~s(  family :f, "F\\"oo", doc: "F", fallback: "serif", faces: [[file: "F", weights: {200, 900}, style: :normal]]),
-      "the CSS name: must be a one-line string",
+      family(web: ~s([name: "F\\"oo", fallback: "serif", faces: #{@faces}])),
+      "web: name: must be a one-line string",
       3
     )
 
-    assert_compile_error(
-      ~s(  family :f, "F", doc: "F */ x", fallback: "serif", faces: [[file: "F", weights: {200, 900}, style: :normal]]),
-      "doc: must be a one-line string",
-      3
-    )
+    assert_compile_error(family(doc: ~s("F */ x")), "doc: must be a one-line string", 3)
 
     assert_compile_error(
-      ~s|  family :f, "F", doc: "F", fallback: "serif", faces: [[file: "F\\")", weights: {200, 900}, style: :normal]]|,
+      family(
+        web:
+          ~s|[name: "F", fallback: "serif", faces: [[file: "F\\")", weights: {200, 900}, style: :normal]]]|
+      ),
       "file in A-Z a-z 0-9 . _ -",
       3
     )
@@ -138,7 +200,7 @@ defmodule Prism.SchemaTest do
     )
 
     assert_compile_error(
-      @family <> ~s(\n  font :b, :f, 700, weight: 300),
+      family() <> ~s(\n  font :b, :f, 700, weight: 300),
       ":weight is an argument, not an option",
       4
     )

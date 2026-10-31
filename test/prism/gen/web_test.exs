@@ -52,14 +52,18 @@ defmodule Prism.Gen.WebTest do
   test "strings are escaped in JS and CSS, and text that can't be a comment fails" do
     %{tokens: tokens} = Prism.Tokens.__schema__()
 
-    family = fn css_name ->
+    family = fn name ->
       %{
         kind: :family,
-        name: :nunito,
-        css_name: css_name,
-        doc: "Nunito (> 20px sizes)",
-        fallback: "sans-serif",
-        faces: [[file: "Nunito-VariableFont_wght", weights: {200, 900}, style: :normal]],
+        name: :display,
+        doc: "Headings (> 20px)",
+        web: [
+          name: name,
+          fallback: "sans-serif",
+          faces: [[file: "Nunito-VariableFont_wght", weights: {200, 900}, style: :normal]]
+        ],
+        ios: :system,
+        android: :system,
         group: nil
       }
     end
@@ -78,5 +82,18 @@ defmodule Prism.Gen.WebTest do
     assert_raise ArgumentError, ~r/can't be written in a comment/, fn ->
       Prism.Gen.Web.generate(%{tokens: [group | tl(tokens)]})
     end
+  end
+
+  test "the web output reads only the web binding of a family" do
+    %{tokens: tokens} = spec = Prism.Tokens.__schema__()
+    brand = [name: "Brand", faces: [[file: "Brand", weights: {400, 700}, style: :normal]]]
+
+    native =
+      Enum.map(tokens, fn
+        %{kind: :family} = family -> %{family | ios: brand, android: brand}
+        token -> token
+      end)
+
+    assert Prism.Gen.Web.generate(%{tokens: native}) == Prism.Gen.Web.generate(spec)
   end
 end

@@ -5,7 +5,8 @@ defmodule Prism.Gen.Web do
   (`css/components.css` is still hand-written).
 
   The templates in `web/` hold the web mechanics (the plugin, the utilities,
-  the line clamps); every design value comes from the spec. The output spells
+  the line clamps); every design value comes from the spec. Fonts come from
+  each family's `web:` binding only. The output spells
   values the way prism 0.1.7 does, so consumers see no change: upper-case hex
   and two-decimal alphas in the preset, `0px` in text shadows, prettier's
   80-column wrap.
@@ -119,14 +120,16 @@ defmodule Prism.Gen.Web do
     tokens(spec, :font)
     |> Enum.chunk_by(& &1.family)
     |> Enum.map_join("\n", fn [first | _] = fonts ->
-      family = token(spec, :family, first.family)
-      "        // #{comment!(family.doc)}\n" <> Enum.map_join(fonts, "\n", &fun.(&1, family))
+      family = token(spec, :family, first.family).web
+
+      "        // #{comment!(family_note(family, first.family, spec))}\n" <>
+        Enum.map_join(fonts, "\n", &fun.(&1, family))
     end)
   end
 
   defp preset_font_families(spec) do
     by_family(spec, fn font, family ->
-      "        #{key(font.name)}: [#{js_str(family.css_name)}, #{js_str(family.fallback)}],"
+      "        #{key(font.name)}: [#{js_str(family[:name])}, #{js_str(family[:fallback])}],"
     end)
   end
 
@@ -136,7 +139,7 @@ defmodule Prism.Gen.Web do
 
       """
               #{js_str(".font-#{key_name(font.name)}")}: {
-                "font-family": #{js_str("#{family.css_name}, #{family.fallback}")},
+                "font-family": #{js_str("#{family[:name]}, #{family[:fallback]}")},
                 "font-weight": #{js_str("#{font.weight}")},#{italic}
               },\
       """
@@ -146,22 +149,41 @@ defmodule Prism.Gen.Web do
   defp key_name(name), do: name |> to_string() |> String.replace("_", "-")
 
   defp font_faces(spec) do
-    for family <- tokens(spec, :family), face <- family.faces do
+    for family <- tokens(spec, :family), web = family.web, face <- web[:faces] do
       {from, to} = face[:weights]
 
       %{
-        family: family.css_name,
-        doc: family.doc,
+        family: web[:name],
+        sizes: sizes(family.doc),
         file: face[:file],
         weights: "#{from} #{to}",
         style: face[:style],
-        first: face == hd(family.faces)
+        first: face == hd(web[:faces])
       }
     end
   end
 
-  # "Nunito (> 20px sizes)" → "> 20px", for base.css's face comments.
-  defp sizes(doc), do: doc |> String.split("(") |> List.last() |> String.replace(" sizes)", "")
+  # A family's size range: "Headings (> 20px)" → "> 20px", or nil.
+  defp sizes(doc) do
+    case Regex.run(~r/\(([^()]+)\)$/, doc) do
+      [_, sizes] -> sizes
+      nil -> nil
+    end
+  end
+
+  # The preset's comment above a family's fonts: "Nunito (> 20px sizes)".
+  defp family_note(web, name, spec) do
+    case sizes(token(spec, :family, name).doc) do
+      nil -> web[:name]
+      sizes -> "#{web[:name]} (#{sizes} sizes)"
+    end
+  end
+
+  # base.css's comment above a family's faces: "Nunito - Variable font for sizes > 20px".
+  defp face_note(%{family: family, sizes: nil}), do: "#{family} - Variable font"
+
+  defp face_note(%{family: family, sizes: sizes}),
+    do: "#{family} - Variable font for sizes #{sizes}"
 
   # Wrapped like prettier does at 80 columns, as in 0.1.7.
   defp font_src(face) do

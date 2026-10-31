@@ -67,44 +67,56 @@ defmodule Prism.Tokens do
   radius :default, {0.25, :rem}
   radius :full, {50, :percent}
 
-  family :nunito, "Nunito",
-    doc: "Nunito (> 20px sizes)",
-    fallback: "sans-serif",
-    faces: [[file: "Nunito-VariableFont_wght", weights: {200, 900}, style: :normal]]
+  # Families are roles; each platform binds them to a font. The web keeps 0.1.7's
+  # Nunito and Nunito Sans; iOS and Android use their system fonts.
+  family :display,
+    doc: "Headings (> 20px)",
+    web: [
+      name: "Nunito",
+      fallback: "sans-serif",
+      faces: [[file: "Nunito-VariableFont_wght", weights: {200, 900}, style: :normal]]
+    ],
+    ios: :system,
+    android: :system
 
-  family :nunito_sans, "Nunito Sans",
-    doc: "Nunito Sans (≤ 20px sizes)",
-    fallback: "sans-serif",
-    faces: [
-      [file: "NunitoSans-VariableFont_wght", weights: {200, 1000}, style: :normal],
-      [file: "NunitoSans-Italic-VariableFont_wght", weights: {200, 1000}, style: :italic]
-    ]
+  family :text,
+    doc: "Body text (≤ 20px)",
+    web: [
+      name: "Nunito Sans",
+      fallback: "sans-serif",
+      faces: [
+        [file: "NunitoSans-VariableFont_wght", weights: {200, 1000}, style: :normal],
+        [file: "NunitoSans-Italic-VariableFont_wght", weights: {200, 1000}, style: :italic]
+      ]
+    ],
+    ios: :system,
+    android: :system
 
   # Font styles: family and weight (`font-…`). Sizes are separate (`text-…`).
-  font :title0, :nunito, 800
-  font :title1, :nunito, 800
-  font :title2, :nunito, 800
-  font :title3, :nunito, 800
-  font :title4, :nunito, 800
-  font :title5, :nunito, 700
-  font :bodylarge, :nunito, 300
-  font :introdesktop, :nunito, 500
-  font :quote, :nunito, 700
-  font :title6, :nunito_sans, 700
-  font :title7, :nunito_sans, 700
-  font :caption, :nunito_sans, 500
-  font :link, :nunito_sans, 500
-  font :subhead, :nunito_sans, 600
-  font :button, :nunito_sans, 700
-  font :footnote, :nunito_sans, 500
-  font :intro, :nunito_sans, 500
-  font :label, :nunito_sans, 700
-  font :body, :nunito_sans, 300
-  font :hint, :nunito_sans, 300, italic: true
-  font :tablehead, :nunito_sans, 700
-  font :tablerow, :nunito_sans, 400
-  font :bold, :nunito_sans, 700
-  font :mono, :nunito_sans, 300
+  font :title0, :display, 800
+  font :title1, :display, 800
+  font :title2, :display, 800
+  font :title3, :display, 800
+  font :title4, :display, 800
+  font :title5, :display, 700
+  font :bodylarge, :display, 300
+  font :introdesktop, :display, 500
+  font :quote, :display, 700
+  font :title6, :text, 700
+  font :title7, :text, 700
+  font :caption, :text, 500
+  font :link, :text, 500
+  font :subhead, :text, 600
+  font :button, :text, 700
+  font :footnote, :text, 500
+  font :intro, :text, 500
+  font :label, :text, 700
+  font :body, :text, 300
+  font :hint, :text, 300, italic: true
+  font :tablehead, :text, 700
+  font :tablerow, :text, 400
+  font :bold, :text, 700
+  font :mono, :text, 300
 
   # Text sizes: size and line height in px (`text-…`).
   text :title0, 64, 68

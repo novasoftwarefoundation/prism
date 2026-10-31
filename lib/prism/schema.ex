@@ -9,8 +9,12 @@ defmodule Prism.Schema do
       end
       shadow :prism_card, y: 5, blur: 20, color: {:black, 0.1}
       shadow :floating, :prism_card, deprecated: true
-      family :nunito_sans, "Nunito Sans", fallback: "sans-serif", faces: [...]
-      font :button, :nunito_sans, 700      # family and weight (`font-button`)
+      family :text,
+        doc: "Body text (≤ 20px)",
+        web: [name: "Nunito Sans", fallback: "sans-serif", faces: [...]],
+        ios: :system,
+        android: :system
+      font :button, :text, 700             # family and weight (`font-button`)
       text :button, 18, 18                 # size and line height (`text-button`)
       radius :default, {0.25, :rem}
 
@@ -24,6 +28,8 @@ defmodule Prism.Schema do
   Generators read `__schema__/0`, never the source.
   """
 
+  @platforms [:web, :ios, :android]
+
   # The keys each kind of token has, after the macro has put its arguments in.
   @keys %{
     color: [:value],
@@ -33,13 +39,15 @@ defmodule Prism.Schema do
     height: [:key, :value],
     max_height: [:value],
     radius: [:value],
-    family: [:css_name, :doc, :fallback, :faces],
+    family: [:doc | @platforms],
     font: [:family, :weight, :italic],
     text: [:size, :line_height]
   }
 
   @text_rule ~s(must be a one-line string without ", \\ or */)
   @face_rule "a face is [file:, weights: {from, to}, style: :normal | :italic], file in A-Z a-z 0-9 . _ -"
+
+  @font_rule "is :system or [name:, faces: [...]] (on web also fallback:)"
 
   @shadow_keys %{
     shadow: [:inset, :x, :y, :blur, :spread, :color],
@@ -89,12 +97,20 @@ defmodule Prism.Schema do
     do: token(:max_height, name, [value: value], [], __CALLER__)
 
   @doc """
-  A font family and its font faces (one file per style). Options, all
-  required: `doc:` (the comment above its fonts), `fallback:` (a generic CSS
-  family) and `faces: [[file:, weights: {from, to}, style:]]`.
+  A font family: a role (`:display`, `:text`) that each platform binds to a
+  font. Options, all required:
+
+  - `doc:` what the role is for; a trailing `(…)` such as `(> 20px)` is the
+    size range the web comments name.
+  - `web:`, `ios:`, `android:` one per platform, so a new platform forces a
+    choice. A binding is `:system` (the platform's system font) or a named font
+    `[name:, faces: [[file:, weights: {from, to}, style:]]]`; on the web also
+    `fallback:` (a generic CSS family). The web has no `:system` binding yet.
+
+  Weights and italic belong to the fonts that use the family, so every platform
+  shares them.
   """
-  defmacro family(name, css_name, opts),
-    do: token(:family, name, [css_name: css_name], opts, __CALLER__)
+  defmacro family(name, opts), do: token(:family, name, [], opts, __CALLER__)
 
   @doc "A font style: a family and a weight, optionally `italic: true`."
   defmacro font(name, family, weight, opts \\ []),
@@ -262,26 +278,19 @@ defmodule Prism.Schema do
   end
 
   defp check(%{kind: :family} = family, _) do
-    faces = Map.get(family, :faces)
+    with :ok <- if(text?(Map.get(family, :doc)), do: :ok, else: {:error, "doc: " <> @text_rule}) do
+      Enum.find_value(@platforms, :ok, fn platform ->
+        case Map.fetch(family, platform) do
+          :error ->
+            {:error, "missing #{platform}: (every family names #{Enum.join(@platforms, ", ")})"}
 
-    cond do
-      not text?(family.css_name) or family.css_name == "" ->
-        {:error, "the CSS name: " <> @text_rule}
-
-      not text?(Map.get(family, :doc)) ->
-        {:error, "doc: " <> @text_rule}
-
-      not text?(Map.get(family, :fallback)) ->
-        {:error, "fallback: " <> @text_rule}
-
-      not (is_list(faces) and faces != []) ->
-        {:error, "a family needs faces: [...]"}
-
-      not Enum.all?(faces, &face?/1) ->
-        {:error, @face_rule}
-
-      true ->
-        :ok
+          {:ok, binding} ->
+            case binding(platform, binding) do
+              :ok -> nil
+              {:error, message} -> {:error, "#{platform}: #{message}"}
+            end
+        end
+      end)
     end
   end
 
@@ -302,6 +311,32 @@ defmodule Prism.Schema do
     if is_number(size) and size > 0 and is_number(line_height) and line_height > 0,
       do: :ok,
       else: {:error, "size and line height are numbers in px, greater than 0"}
+  end
+
+  defp binding(:web, :system),
+    do: {:error, ":system is not supported on the web yet; name a font"}
+
+  defp binding(_, :system), do: :ok
+
+  defp binding(platform, font) do
+    keys = if platform == :web, do: [:faces, :fallback, :name], else: [:faces, :name]
+
+    cond do
+      not (Keyword.keyword?(font) and Enum.sort(Keyword.keys(font)) == keys) ->
+        {:error, @font_rule <> ", got #{inspect(font)}"}
+
+      not text?(font[:name]) or font[:name] == "" ->
+        {:error, "name: " <> @text_rule}
+
+      platform == :web and not text?(font[:fallback]) ->
+        {:error, "fallback: " <> @text_rule}
+
+      not (is_list(font[:faces]) and font[:faces] != [] and Enum.all?(font[:faces], &face?/1)) ->
+        {:error, @face_rule}
+
+      true ->
+        :ok
+    end
   end
 
   defp known(seen, kind, ref, message),
