@@ -66,7 +66,8 @@ defmodule Prism.Generator.Web.Components do
   has no background, because it is drawn in its foreground color; and a
   spinner's size is px or rem, because a loading button centers it by half
   its size, as it does any part that is another component, whose size must be
-  px or rem too.
+  px or rem too. A part that is another component has no modifier class of its
+  own, so a state of it, in or outside a variant, can only be a pseudo-class.
 
   Generation fails when a value or a `web:` key of the design is written
   nowhere, so nothing in the design is ignored.
@@ -206,6 +207,18 @@ defmodule Prism.Generator.Web.Components do
   end
 
   def check_part(_component, _other), do: :ok
+
+  @doc false
+  # Checks, for the schema, a state of `part` of `component`, a part that is the
+  # component `other`, in or outside a variant: the markup gives that part no
+  # modifier class, so only a state that is a pseudo-class there can be written.
+  def check_part_state(component, part, other, state) do
+    if Map.has_key?(Classes.pseudo_classes(component, part), state),
+      do: :ok,
+      else:
+        {:error,
+         "the web shows #{inspect(state)} with a modifier class, which a part that is another component doesn't get; give the state to #{inspect(other)} or #{inspect(component)}"}
+  end
 
   defp solid(color, why) when is_tuple(color) or color == :transparent,
     do:
@@ -616,7 +629,7 @@ defmodule Prism.Generator.Web.Components do
   # A variant's part in a state the app sets: the part's modifier class inside the
   # variant, once per name of the variant. The markup gives a part that is another
   # component no modifier class, so there the state has no selector, as outside a
-  # variant.
+  # variant; the schema refuses it on its line.
   defp variant_part(c, p, path, state) do
     case Enum.find(c.parts, &(&1.name == p.name)) do
       %{component: nil} -> selector(Enum.take(path, 2), " ." <> class(state))
