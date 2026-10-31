@@ -3,6 +3,8 @@ defmodule Mix.Tasks.Prism.Gen.WebTest do
 
   @moduletag :tmp_dir
 
+  alias Prism.Generator.Writer
+
   @design_args ["--design", "Prism.Generator.ExampleDesign"]
 
   setup do
@@ -15,7 +17,7 @@ defmodule Mix.Tasks.Prism.Gen.WebTest do
     Mix.Tasks.Prism.Gen.Web.run(@design_args ++ ["--out", dir])
 
     for path <- ["tailwind.preset.js", "css/base.css"] do
-      assert Prism.Generator.generated?(Path.join(dir, path))
+      assert Writer.generated?(Path.join(dir, path))
       assert File.read!(Path.join(dir, path)) == File.read!("test/generator/fixtures/web/#{path}")
     end
 
@@ -29,7 +31,7 @@ defmodule Mix.Tasks.Prism.Gen.WebTest do
     on_exit(fn -> Application.put_all_env(prism: saved) end)
 
     Mix.Tasks.Prism.Gen.Web.run([])
-    assert Prism.Generator.generated?(Path.join(dir, "css/base.css"))
+    assert Writer.generated?(Path.join(dir, "css/base.css"))
   end
 
   test "prism.gen.web needs a design module", %{tmp_dir: dir} do

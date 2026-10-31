@@ -12,7 +12,7 @@ Prism's look is written once, as a design in Elixir, and generated into code for
 
 | Layer | Where | What |
 |---|---|---|
-| Generator | `lib/generator/`, `test/generator/` | Generic: the schema a design is written in (`Prism.Generator.Schema`), the web generator and its templates, and the Mix tasks in `lib/generator/mix/tasks/` (one file per task: `prism.gen.web.ex`). It knows nothing about Prism's values. |
+| Generator | `lib/generator/`, `test/generator/` | Generic: the schema a design is written in (`Prism.Generator.Schema`), the web generator and its templates, the writer that never overwrites a hand-written file (`Prism.Generator.Writer`), and the Mix tasks in `lib/generator/mix/tasks/` (one file per task: `prism.gen.web.ex`). It knows nothing about Prism's values. |
 | Design | `lib/design/`, `test/design/` | Prism's design: `Prism.Design.Tokens`, and its checks (the 0.1.7 golden test, the version check, the font roles). |
 | Targets | `targets/web/` | The npm package: `package.json`, the generated `tailwind.preset.js` and `css/base.css`, the hand-written `css/components.css`, and `fonts/`. Later `targets/swift/`. |
 

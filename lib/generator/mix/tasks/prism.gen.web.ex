@@ -13,6 +13,8 @@ defmodule Mix.Tasks.Prism.Gen.Web do
   """
   use Mix.Task
 
+  alias Prism.Generator.{Web, Writer}
+
   @requirements ["compile"]
 
   @impl true
@@ -24,10 +26,10 @@ defmodule Mix.Tasks.Prism.Gen.Web do
 
     out = opts[:out] || Application.get_env(:prism, :out, ".")
 
-    for {path, source} <- Prism.Generator.Web.generate(design!(opts[:design]).__schema__()) do
+    for {path, source} <- Web.generate(design!(opts[:design]).__schema__()) do
       path = Path.join(out, path)
       File.mkdir_p!(Path.dirname(path))
-      Prism.Generator.write!(path, source)
+      Writer.write!(path, source)
     end
   end
 
