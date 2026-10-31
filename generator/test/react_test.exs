@@ -186,6 +186,14 @@ defmodule Prism.Generator.ReactTest do
         )
       end
 
+      assert_raise ArgumentError, ~r/can't name a prop of :button "variantClasses"/, fn ->
+        React.files(
+          design(
+            "  component :button do\n    variant :primary\n    variants :variant_classes do\n      variant :a\n    end\n  end"
+          )
+        )
+      end
+
       assert_raise ArgumentError, ~r/can't name a prop of :tag "default"/, fn ->
         React.files(
           design(

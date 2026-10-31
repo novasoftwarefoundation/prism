@@ -134,7 +134,10 @@ defmodule Prism.Generator.React do
     names = for {name, _, _, _} <- props(spec), do: name
     fixed = ~w(className children)
 
-    for name <- names -- fixed, name in @reserved or name in @keywords do
+    # The module's own constants, which a prop of the same name would hide.
+    consts = [camel(spec.name) <> "Elements" | Enum.map(spec.axes, &classes_const/1)]
+
+    for name <- names -- fixed, name in @reserved or name in @keywords or name in consts do
       raise ArgumentError,
             "the React target can't name a prop of #{inspect(spec.name)} #{inspect(name)}"
     end
@@ -257,11 +260,15 @@ defmodule Prism.Generator.React do
     states = for s <- list.item_states, do: "#{camel(s.name)}?: boolean"
     fields = Enum.uniq(["selected?: boolean" | states])
 
-    """
+    head = "export type #{item_type(spec, list)} = { #{Enum.join(fields, "; ")} } &"
+    attrs = "ComponentPropsWithoutRef<#{js_str(list.item_element)}>;"
 
-    /** One of the #{words(list.item)} parts: its attributes, and its states. */
-    export type #{item_type(spec, list)} = { #{Enum.join(fields, "; ")} } & ComponentPropsWithoutRef<#{js_str(list.item_element)}>;
-    """
+    type =
+      if String.length("#{head} #{attrs}") <= @width,
+        do: "#{head} #{attrs}",
+        else: "#{head}\n  #{attrs}"
+
+    "\n/** One of the #{words(list.item)} parts: its attributes, and its states. */\n#{type}\n"
   end
 
   defp axis_classes(spec, a) do

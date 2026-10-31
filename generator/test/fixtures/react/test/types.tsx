@@ -1,5 +1,5 @@
-// Type checks of the generated components: `npm run check` fails when a line
-// marked @ts-expect-error compiles, so TypeScript rejects what the design doesn't have.
+// Type checks: `npm run check` fails when a line expected to be an error (the
+// directive above it) compiles, so TypeScript rejects what the design doesn't have.
 import { Button, Select, Spinner, Tag, TextField } from "../src/index.js";
 
 export const accepted = (
