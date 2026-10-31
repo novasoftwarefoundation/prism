@@ -15,9 +15,12 @@ defmodule Mix.Tasks.Prism.Gen do
   - `web`: `Prism.Generator.Web` (a Tailwind preset, base CSS and, for a design
     with components, the component CSS);
   - `react`: `Prism.Generator.React` (a TSX file per component, for a package
-    whose CSS is the web target's).
+    whose CSS is the web target's);
+  - `design_tools`: `Prism.Generator.DesignTools` (a DTCG tokens file, the
+    tokens as CSS custom properties, and an SVG overview of the design).
 
-  Each file starts with a `Prism.Generator.Header` line. A file without one is
+  Each file starts with a `Prism.Generator.Header` line (in a JSON file, the
+  root's `$description`). A file without one is
   hand-written and never overwritten.
 
   With `--check`, nothing is written: the task fails when any file would change,
@@ -31,7 +34,11 @@ defmodule Mix.Tasks.Prism.Gen do
 
   # Every target module has `files/1`: a design's `__schema__/0` to
   # `[{path, body, design_file}]`, the design file being the one the body is made from.
-  @targets %{web: Prism.Generator.Web, react: Prism.Generator.React}
+  @targets %{
+    web: Prism.Generator.Web,
+    react: Prism.Generator.React,
+    design_tools: Prism.Generator.DesignTools
+  }
 
   @impl true
   def run(args) do
@@ -48,7 +55,7 @@ defmodule Mix.Tasks.Prism.Gen do
   # file it is made from.
   defp files(target, dir, schema) do
     for {path, body, from} <- Map.fetch!(@targets, target).files(schema) do
-      {Path.join(dir, path), Header.line(path, design_file(from, dir)) <> "\n" <> body}
+      {Path.join(dir, path), Header.put(path, design_file(from, dir), body)}
     end
   end
 
