@@ -588,19 +588,10 @@ defmodule Prism.Generator.Web.Components do
   # part (`.acme-tag--accent .acme-tag__label--selected`), on the variant or look it
   # belongs to otherwise (`.acme-tag--accent.acme-tag--invalid`).
   defp states(path, node, selectors, custom \\ %{}) do
-    for s <- node.states, s.name != :loading do
+    for s <- node.states, s.name != :loading, sel = state_selector(path, s, selectors) do
       state = path ++ [s.name]
       lines = Map.get(custom, s.name, &declarations/1).(state)
       cursor = if s.name == :disabled, do: ["cursor: not-allowed"], else: []
-
-      sel =
-        case {selectors_for(path, selectors)[s.name], nodes!(path)} do
-          {nil, [{:component, _}]} -> "." <> class(state)
-          {nil, [{:component, _}, {:part, _}]} -> "." <> class(state)
-          {nil, [{:component, _}, {:variant, _}, {:part, _}]} -> variant_part(path, state)
-          {nil, _} -> selector(path, "." <> class(state))
-          {suffix, _} -> selector(path, suffix)
-        end
 
       with_doc(state, [
         rule(sel, lines ++ cursor) | Enum.map(s.parts, &state_part(sel, state, &1))
@@ -608,10 +599,30 @@ defmodule Prism.Generator.Web.Components do
     end
   end
 
+  # A state's selector, or `nil` for a state the markup can't show, which is then
+  # written nowhere, so generation fails.
+  defp state_selector(path, s, selectors) do
+    state = path ++ [s.name]
+
+    case {selectors_for(path, selectors)[s.name], nodes!(path)} do
+      {nil, [{:component, _}]} -> "." <> class(state)
+      {nil, [{:component, _}, {:part, _}]} -> "." <> class(state)
+      {nil, [{:component, c}, {:variant, _}, {:part, p}]} -> variant_part(c, p, path, state)
+      {nil, _} -> selector(path, "." <> class(state))
+      {suffix, _} -> selector(path, suffix)
+    end
+  end
+
   # A variant's part in a state the app sets: the part's modifier class inside the
-  # variant, once per name of the variant.
-  defp variant_part(path, state),
-    do: selector(Enum.take(path, 2), " ." <> class(state))
+  # variant, once per name of the variant. The markup gives a part that is another
+  # component no modifier class, so there the state has no selector, as outside a
+  # variant.
+  defp variant_part(c, p, path, state) do
+    case Enum.find(c.parts, &(&1.name == p.name)) do
+      %{component: nil} -> selector(Enum.take(path, 2), " ." <> class(state))
+      _ -> nil
+    end
+  end
 
   # The states of a part that is a form control are the browser's; any other part
   # is an element.

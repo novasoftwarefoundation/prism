@@ -358,6 +358,32 @@ defmodule Prism.Generator.Web.ComponentsTest do
              "\n.only-select--dense .only-select__field:focus {\n  border-color: #101010;\n}\n"
 
     refute css =~ ~r/\{\n\}/
+
+    # A part that is another component gets no modifier class from its markup: a state
+    # the app sets is written nowhere and fails, as it does outside a variant. A
+    # pseudo-class state is written.
+    badge = fn state ->
+      compile("""
+        component :tag do
+          part :badge, component: :step_indicator
+          variant :accent do
+            part :badge do
+              state :#{state}, opacity: 0.3
+            end
+          end
+        end
+        component :step_indicator do
+          style size: 10
+        end
+      """)
+    end
+
+    assert_raise ArgumentError, ~r/writes nothing for tag.accent.badge.selected/, fn ->
+      css(badge.(:selected))
+    end
+
+    assert css(badge.(:hovered)) =~
+             "\n.only-tag--accent .only-step-indicator:hover {\n  opacity: 0.3;\n}\n"
   end
 
   test "a state's part change follows every name of a variant, without empty rules" do
