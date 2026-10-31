@@ -79,7 +79,7 @@
  }
  
  .prism-button--text:active {
-@@ -143,6 +122,45 @@
+@@ -143,6 +122,47 @@
    padding-bottom: 0;
  }
  
@@ -116,6 +116,8 @@
 +.prism-button--icon {
 +  width: 24px;
 +  height: 24px;
++  padding: 0;
++  background-color: transparent;
 +}
 +
 +.prism-button--icon:active {
@@ -125,7 +127,7 @@
  /* Button with loading state */
  .prism-button--loading {
    position: relative;
-@@ -159,32 +177,164 @@
+@@ -159,32 +179,164 @@
    /* Use margins instead of transform for centering because
       the spinner animation uses transform: rotate() which would
       override translate(-50%, -50%) centering */
@@ -299,7 +301,7 @@
  .prism-text-field {
    display: block;
    width: 100%;
-@@ -217,17 +367,17 @@
+@@ -217,17 +369,17 @@
    cursor: not-allowed;
  }
  
@@ -320,7 +322,7 @@
  .prism-text-area {
    display: block;
    width: 100%;
-@@ -255,7 +405,7 @@
+@@ -255,7 +407,7 @@
  }
  
  /* ==========================================================================
@@ -329,7 +331,7 @@
     ========================================================================== */
  
  .prism-field__label {
-@@ -332,7 +482,7 @@
+@@ -332,7 +484,7 @@
  }
  
  /* ==========================================================================
@@ -338,7 +340,7 @@
     ========================================================================== */
  
  .prism-select {
-@@ -414,8 +564,12 @@
+@@ -414,8 +566,12 @@
     ========================================================================== */
  
  .prism-spinner {
@@ -351,7 +353,7 @@
    animation: prism-spin 1s linear infinite;
  }
  
-@@ -424,6 +578,11 @@
+@@ -424,6 +580,11 @@
    height: 16px;
  }
  
@@ -363,7 +365,7 @@
  .prism-spinner--32 {
    width: 32px;
    height: 32px;
-@@ -438,16 +597,39 @@
+@@ -438,16 +599,39 @@
    }
  }
  
@@ -408,7 +410,7 @@
  /* ==========================================================================
     Checkbox (bonus component)
     ========================================================================== */
-@@ -477,7 +659,7 @@
+@@ -477,7 +661,7 @@
  }
  
  /* ==========================================================================
@@ -417,7 +419,7 @@
     ========================================================================== */
  
  /* Base tag styles - colored label with background opacity */
-@@ -502,7 +684,7 @@
+@@ -502,7 +686,7 @@
    line-height: 16px;
  }
  
@@ -426,7 +428,7 @@
  .prism-tag--accent .prism-tag__label {
    background-color: rgba(66, 114, 239, 0.2);
    color: #4272ef;
-@@ -520,24 +702,23 @@
+@@ -520,24 +704,23 @@
    color: #f28d15;
  }
  
@@ -455,7 +457,7 @@
  .prism-message-bar {
    display: flex;
    justify-content: center;
-@@ -551,35 +732,35 @@
+@@ -551,35 +734,35 @@
    line-height: 16px;
  }
  
@@ -497,7 +499,7 @@
  .prism-step-indicator {
    display: flex;
    align-items: center;
-@@ -595,19 +776,19 @@
+@@ -595,19 +778,19 @@
    font-variant-numeric: tabular-nums;
  }
  

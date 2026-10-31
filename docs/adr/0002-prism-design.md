@@ -101,7 +101,7 @@ Prism is a look for scientific software: a Tailwind preset plus component CSS, p
     | `prism-btn` | `prism-button` |
     | `prism-btn-content` | `prism-button__label` |
     | `prism-btn-primary`, `-secondary`, `-plain`, `-link` | `prism-button--primary`, `--secondary`, `--plain`, `--link` |
-    | `prism-btn-label` | `prism-button--text` |
+    | `prism-btn-label` | `prism-button--text`, which has no padding at the sides (0.1.7's had 16px); with `prism-button--padded` it is 15px 16px ([ADR 0006](0006-button-looks.md), decision 5) |
     | `prism-btn-primary-icon`, `-secondary-icon`, `-plain-icon` | `prism-button--primary`, `--secondary`, `--plain` with `prism-button--with-icon` (and the icon as `prism-button__icon`) |
     | `prism-btn-success`, `-warning` | `prism-button--success`, `--warning` |
     | `prism-btn-danger`, `prism-btn-delete` | `prism-button--danger` |

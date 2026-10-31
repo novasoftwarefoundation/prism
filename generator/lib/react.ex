@@ -28,7 +28,7 @@ defmodule Prism.Generator.React do
   - **A part with `position:`** in the design gets a `<part>Position` prop,
     `"start"` or `"end"` (`iconPosition`), with the design's side as its
     default: the part goes at that side of the content, which follows the
-    text's direction.
+    text's direction. Any other value throws when it renders.
   - **Each value** (a spinner's `progress`) is a number prop from 0 to 100,
     clamped. While the app gives it, the element gets the value's class
     (`--progress`), `role="progressbar"` with `aria-valuenow`,
@@ -437,6 +437,18 @@ defmodule Prism.Generator.React do
           ""
       end
 
+    # A part's side is "start" or "end"; any other value would drop the part.
+    positions =
+      for p <- spec.positions do
+        prop = camel(p.name)
+
+        """
+          if (#{prop} !== "start" && #{prop} !== "end") {
+            throw new Error(`#{prop}: ${JSON.stringify(#{prop})} is not one of "start", "end"`);
+          }
+        """
+      end
+
     root = root(spec)
 
     [
@@ -445,6 +457,7 @@ defmodule Prism.Generator.React do
       pattern,
       ",\n  ref,\n) {\n",
       guard,
+      positions,
       Enum.map(spec.values, &value_consts/1),
       "  return (\n",
       render(root, 4),

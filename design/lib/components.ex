@@ -115,8 +115,13 @@ defmodule Prism.Design.Components do
       end
     end
 
-    # An icon only: the app gives the icon and a label for assistive technology.
-    variant :icon, size: 24, web: [doc: "Icon button - an icon only"] do
+    # An icon only: the app gives the icon and a label for assistive technology. No
+    # padding and no background, also without an app's CSS reset.
+    variant :icon,
+      size: 24,
+      padding: [y: 0, x: 0],
+      background: :transparent,
+      web: [doc: "Icon button - an icon only"] do
       state :pressed, opacity: 0.8
     end
 

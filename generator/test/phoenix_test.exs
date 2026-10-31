@@ -371,6 +371,20 @@ defmodule Prism.Generator.PhoenixTest do
                )
     end
 
+    test "a side that is neither :start nor :end fails when it renders, not drops the part" do
+      for side <- [nil, "end", :left] do
+        assigns = %{side: side}
+
+        assert_raise ArgumentError,
+                     "icon_position: #{inspect(side)} is not one of :start, :end",
+                     fn ->
+                       rendered_to_string(
+                         ~H"<Kit.button icon_position={@side}>Save<:icon>*</:icon></Kit.button>"
+                       )
+                     end
+      end
+    end
+
     test "the spinner, a part that is another component, is there only while loading" do
       assigns = %{}
       refute html(~H"<Kit.button>Save</Kit.button>") =~ "kit-spinner"

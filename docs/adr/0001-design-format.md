@@ -143,7 +143,8 @@ Today the generator has the schema (tokens, typography and components), the web 
    - an unknown property, state or binding key; an option named like a node's own fields (`name:`, `kind:`, `group:`, `line:`) is refused as an unknown option;
    - a variant named by neither a snake_case atom nor a whole number above 0, an axis with both, or a default or alias of the other kind; a part's `variants:` on a part that isn't another component, or naming an axis or a variant that component doesn't have, or an alias;
    - two variants, aliases, states, flags or looks with a part of a component with one name, or a part with the name of one of them but a variant; a change to a part the component doesn't declare or a look with one; a `component:` that isn't another component;
-   - a `with_variant` that names no variant, an alias, or a variant of its own variant's axis; a flag's `default:` that isn't `true` or `false`; a `position:` other than `:start` or `:end`, or on a part that is another component.
+   - a `with_variant` that names no variant, an alias, or a variant of its own variant's axis; a flag's `default:` that isn't `true` or `false`; a `position:` other than `:start` or `:end`, or on a part that is another component;
+   - on the web, a look, a web key or a state of a part that is another component, outside a variant: the web writes that part only by its own component's rules, so a variant or a state of the component changes it instead.
 
 6. **Naming:**
    - Design names are snake_case atoms.

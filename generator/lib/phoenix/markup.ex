@@ -12,6 +12,7 @@ if Code.ensure_loaded?(Phoenix.Component) do
           element -> element
         end
 
+      for p <- spec.positions, do: position!(p.name, assigns[p.name])
       values = values(spec, assigns)
 
       assigns =
@@ -42,6 +43,12 @@ if Code.ensure_loaded?(Phoenix.Component) do
             "as: #{inspect(tag)} is not one of #{Enum.map_join(Prism.Generator.Web.Elements.as(), ", ", &inspect/1)}"
           )
     end
+
+    # A part's side is `:start` or `:end`; any other value would drop the part.
+    defp position!(_name, side) when side in [:start, :end], do: :ok
+
+    defp position!(name, side),
+      do: raise(ArgumentError, "#{name}: #{inspect(side)} is not one of :start, :end")
 
     # One child: an element with its attributes and the slot entries it renders, an
     # element without content, or text.

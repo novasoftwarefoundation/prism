@@ -17,9 +17,11 @@ if [ "${1-}" = --update ]; then
   cp package.json package-lock.json "$saved/"
   trap 'cp "$saved/package.json" "$saved/package-lock.json" . && rm -rf "$saved"' EXIT
   # dash, /bin/sh on Debian and Ubuntu, runs no EXIT trap when a signal ends it:
-  # exiting on Ctrl-C or SIGTERM runs it.
+  # exiting on Ctrl-C, SIGTERM, a closed terminal (SIGHUP) or Ctrl-\ (SIGQUIT) runs it.
   trap 'exit 130' INT
   trap 'exit 143' TERM
+  trap 'exit 129' HUP
+  trap 'exit 131' QUIT
 fi
 
 npm pkg set \

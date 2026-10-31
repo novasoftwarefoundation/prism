@@ -118,6 +118,20 @@ defmodule Prism.Design.ComponentsTest do
     assert unpadded == [plain: [y: 4, x: 0], text: [y: 1, x: 0]]
   end
 
+  # A button element has padding and a background of its own; the CSS doesn't rely
+  # on an app's reset to remove them.
+  test "an icon button has no padding and no background, in its own CSS" do
+    button = Enum.find(@design.components, &(&1.name == :button))
+    icon = Enum.find(button.variants, &(&1.name == :icon))
+    assert icon.style == [size: 24, padding: [y: 0, x: 0], background: :transparent]
+
+    {_, css, _} =
+      @design |> Prism.Generator.Web.files() |> List.keyfind("css/components.css", 0)
+
+    assert css =~
+             "\n.prism-button--icon {\n  width: 24px;\n  height: 24px;\n  padding: 0;\n  background-color: transparent;\n}\n"
+  end
+
   test "the icon is at the start of the label unless the app puts it at the end" do
     button = Enum.find(@design.components, &(&1.name == :button))
     assert Enum.find(button.parts, &(&1.name == :icon)).position == :start

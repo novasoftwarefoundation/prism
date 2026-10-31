@@ -522,6 +522,55 @@ defmodule Prism.Generator.Schema.ComponentsTest do
     assert [%{parts: [%{states: [%{name: :hovered}]}]}] = c.variants
   end
 
+  test "outside a variant, a part that is another component has no look or state of its own" do
+    message =
+      ": outside a variant, the web writes a part that is another component only by :spinner's own rules, so it has no look or state of its own; give it to :spinner, or change the part in a variant or a state of :c"
+
+    assert_compile_error(
+      "  component :c do\n    part :s, component: :spinner, opacity: 0.5\n  end\n  component :spinner",
+      "component :c, part :s" <> message,
+      13
+    )
+
+    # Also a property or a doc in its web binding.
+    assert_compile_error(
+      "  component :c do\n    part :s, component: :spinner, web: [opacity: 0.5]\n  end\n  component :spinner",
+      "component :c, part :s" <> message,
+      13
+    )
+
+    assert_compile_error(
+      "  component :c do\n    part :s, component: :spinner, web: [doc: \"Spinner\"]\n  end\n  component :spinner",
+      "component :c, part :s" <> message,
+      13
+    )
+
+    # A state of it, even one the browser sets, on the state's line.
+    assert_compile_error(
+      "  component :c do\n    part :s, component: :spinner do\n      state :hovered, opacity: 0.5\n    end\n  end\n  component :spinner",
+      "component :c, part :s, state :hovered" <> message,
+      14
+    )
+
+    # A variant or a state of the component changes it; another target's binding is
+    # that target's.
+    [c, _] =
+      compile("""
+        component :c do
+          part :s, component: :spinner, ios: [opacity: 0.5]
+          state :loading do
+            part :s, opacity: 0.5
+          end
+          variant :v do
+            part :s, opacity: 0.8
+          end
+        end
+        component :spinner
+      """).components
+
+    assert [%{name: :s, component: :spinner, style: [], states: []}] = c.parts
+  end
+
   test "axes: variants outside a block are :variant, a block names another axis" do
     assert_compile_error(
       "  component :c do\n    variants :variant do\n      variant :v\n    end\n  end",

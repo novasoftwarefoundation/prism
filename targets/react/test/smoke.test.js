@@ -67,6 +67,10 @@ test("the icon goes at the start of the label, or at its end", () => {
   );
   assert.match(start, /prism-button__icon">&lt;<\/span><span class="prism-button__label">Back/);
   assert.match(end, /prism-button__label">Next<\/span><span class="prism-button__icon">&gt;/);
+  assert.throws(
+    () => renderToStaticMarkup(h(Prism.Button, { icon: ">", iconPosition: "right" }, "Next")),
+    /iconPosition: "right" is not one of "start", "end"/,
+  );
 });
 
 test("plain and text buttons are padded unless padded is false", () => {

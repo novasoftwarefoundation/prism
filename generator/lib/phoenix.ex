@@ -53,7 +53,7 @@ if Code.ensure_loaded?(Phoenix.Component) do
       with `position:` in the design goes at the `:start` or the `:end` of
       the content, as the attribute `<part>_position` says (`icon_position`,
       with the design's side as its default); `start` and `end` follow the
-      text's direction.
+      text's direction. Any other value fails when it renders.
     - **Each value** (a spinner's `progress`) is an attribute, a number from
       0 to 100 or `nil` (the default). With a number, clamped to 0..100, the
       element gets the value's class (`--progress`), `role="progressbar"`
