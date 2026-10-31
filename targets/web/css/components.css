@@ -86,12 +86,12 @@
 .prism-button--plain {
   background-color: transparent;
   color: #222222;
-  padding: 1px 0;
+  padding: 4px 0;
 }
 
 .prism-button--plain:active {
-  padding-top: 2px;
-  padding-bottom: 0;
+  padding-top: 5px;
+  padding-bottom: 3px;
 }
 
 /* Plain button with icon */

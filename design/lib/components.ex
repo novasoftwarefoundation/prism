@@ -75,9 +75,9 @@ defmodule Prism.Design.Components do
     variant :plain,
       background: :transparent,
       foreground: :grey1,
-      padding: [y: 1, x: 0],
+      padding: [y: 4, x: 0],
       web: [doc: "Plain button - text only, no background"] do
-      state :pressed, padding: [top: 2, bottom: 0]
+      state :pressed, padding: [top: 5, bottom: 3]
       with_part :icon, gap: 8, web: [doc: "Plain button with icon"]
     end
 

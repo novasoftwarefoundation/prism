@@ -109,11 +109,13 @@ defmodule Prism.Design.ComponentsTest do
     assert Enum.map(withs, & &1.name) == [:plain, :text]
     primary = Enum.find(button.variants, &(&1.name == :primary))
 
-    for w <- withs do
-      assert w.style == primary.style |> Keyword.take([:padding])
-      v = Enum.find(button.variants, &(&1.name == w.name))
-      assert v.style[:padding] == [y: 1, x: 0], "#{w.name} without padding fits its text"
-    end
+    for w <- withs, do: assert(w.style == Keyword.take(primary.style, [:padding]))
+
+    # Without padding, each keeps its 0.1.7 height and fits its text at the sides.
+    unpadded =
+      for v <- button.variants, v.name in [:plain, :text], do: {v.name, v.style[:padding]}
+
+    assert unpadded == [plain: [y: 4, x: 0], text: [y: 1, x: 0]]
   end
 
   test "the icon is at the start of the label unless the app puts it at the end" do

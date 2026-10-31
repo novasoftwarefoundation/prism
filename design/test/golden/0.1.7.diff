@@ -28,7 +28,7 @@
  }
  
  /* Secondary button - outlined */
-@@ -81,44 +78,26 @@
+@@ -81,19 +78,9 @@
  
  /* Secondary button with icon */
  .prism-button--secondary.prism-button--with-icon {
@@ -48,17 +48,7 @@
  /* Plain button - text only, no background */
  .prism-button--plain {
    background-color: transparent;
-   color: #222222;
--  padding: 4px 0;
-+  padding: 1px 0;
- }
- 
- .prism-button--plain:active {
--  padding-top: 5px;
--  padding-bottom: 3px;
-+  padding-top: 2px;
-+  padding-bottom: 0;
- }
+@@ -108,17 +95,9 @@
  
  /* Plain button with icon */
  .prism-button--plain.prism-button--with-icon {
