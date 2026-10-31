@@ -32,9 +32,18 @@ defmodule Prism.Generator.Header do
   """
   def put(path, design_file, body) do
     case {Path.extname(path), body} do
-      {".json", "{\n" <> members} -> "{\n" <> line(path, design_file) <> "\n" <> members
-      {".json", _} -> raise ArgumentError, "a JSON body must be an object that starts with {\\n"
-      _ -> line(path, design_file) <> "\n" <> body
+      # An empty object: the header is its only member.
+      {".json", "{\n}" <> rest} ->
+        "{\n" <> String.trim_trailing(line(path, design_file), ",") <> "\n}" <> rest
+
+      {".json", "{\n" <> members} ->
+        "{\n" <> line(path, design_file) <> "\n" <> members
+
+      {".json", _} ->
+        raise ArgumentError, "a JSON body must be an object that starts with {\\n"
+
+      _ ->
+        line(path, design_file) <> "\n" <> body
     end
   end
 
