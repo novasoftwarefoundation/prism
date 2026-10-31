@@ -1,233 +1,48 @@
-# @novasoftwarefoundation/prism
+# Prism
 
-A Tailwind-based UI framework for scientific software.
+A Tailwind-based UI framework for scientific software, published on npm as `@novasoftwarefoundation/prism`.
 
 Part of the [Nova Software Foundation](https://novasf.org) - open source software for science.
 
-## Features
+To use Prism in an app, see the package's README: [clients/web/README.md](clients/web/README.md) (install, Tailwind preset, CSS, classes).
 
-- **Brand-neutral design** - Decoupled from specific branding for maximum third-party adoption
-- **Hybrid approach** - Both Tailwind preset (for customization) and ready-made component classes
-- **Variable fonts** - Uses Nunito and Nunito Sans variable fonts for optimal typography
-- **Easy to adopt** - Drop-in CSS classes for common components
+## Layout
 
-## Installation
+Prism's look is written once, as a design in Elixir, and generated into client code per platform. The repository is one Mix project with three layers:
 
-```bash
-npm install @novasoftwarefoundation/prism
-```
+| Layer | Where | What |
+|---|---|---|
+| Generator | `lib/generator/`, `test/generator/` | Generic: the schema a design is written in (`Prism.Generator.Schema`), the web generator and its templates, and `mix prism.gen.web`. It knows nothing about Prism's values. |
+| Design | `lib/design/`, `test/design/` | Prism's design: `Prism.Design.Tokens`, and its checks (the 0.1.7 golden test, the version check, the font roles). |
+| Client code | `clients/web/` | The npm package: `package.json`, the generated `tailwind.preset.js` and `css/base.css`, the hand-written `css/components.css`, and `fonts/`. Later `clients/swift/`. |
 
-## Usage
+`config/config.exs` names the design and where its output goes. Decisions are in `docs/adr/`: [0001: design format](docs/adr/0001-design-format.md) and [0002: Prism's design](docs/adr/0002-prism-design.md).
 
-### 1. Configure Tailwind
+## Change the design
 
-Add the Prism preset to your `tailwind.config.js`:
-
-```javascript
-module.exports = {
-  presets: [require("@novasoftwarefoundation/prism/tailwind.preset")],
-  content: [
-    // your content paths
-  ],
-};
-```
-
-### 2. Import CSS
-
-Import the base and component styles in your main CSS file:
-
-```css
-@import "@novasoftwarefoundation/prism/css/base.css";
-@import "@novasoftwarefoundation/prism/css/components.css";
-
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-```
-
-### 3. Use Components
-
-```html
-<!-- Buttons -->
-<button class="prism-btn prism-btn-primary">Primary Button</button>
-<button class="prism-btn prism-btn-secondary">Secondary Button</button>
-<button class="prism-btn prism-btn-plain">Plain Button</button>
-
-<!-- Inputs -->
-<input type="text" class="prism-input" placeholder="Enter text" />
-<textarea class="prism-textarea" placeholder="Enter description"></textarea>
-
-<!-- Radio buttons -->
-<div class="prism-radio-group">
-  <label class="prism-radio-label">
-    <input type="radio" name="option" class="prism-radio" />
-    <span class="prism-radio-text">Option 1</span>
-  </label>
-  <label class="prism-radio-label">
-    <input type="radio" name="option" class="prism-radio" />
-    <span class="prism-radio-text">Option 2</span>
-  </label>
-</div>
-
-<!-- Dropdown -->
-<div class="prism-dropdown">
-  <input type="text" class="prism-dropdown-input" value="Select option" />
-  <div class="prism-dropdown-options">
-    <div class="prism-dropdown-option">Option 1</div>
-    <div class="prism-dropdown-option">Option 2</div>
-  </div>
-</div>
-
-<!-- Spinner -->
-<div class="prism-spinner"></div>
-
-<!-- Tags / Badges -->
-<span class="prism-tag prism-tag-primary">
-  <span class="prism-tag-inner">New</span>
-</span>
-<span class="prism-tag prism-tag-success">
-  <span class="prism-tag-inner">Complete</span>
-</span>
-
-<!-- Alert Banners -->
-<div class="prism-alert prism-alert-info">Information message</div>
-<div class="prism-alert prism-alert-success">Success message</div>
-<div class="prism-alert prism-alert-warning">Warning message</div>
-<div class="prism-alert prism-alert-error">Error message</div>
-
-<!-- Number Icons (Step Indicators) -->
-<span class="prism-number-icon prism-number-icon-completed">1</span>
-<span class="prism-number-icon prism-number-icon-active">2</span>
-<span class="prism-number-icon prism-number-icon-inactive">3</span>
-```
-
-## Design Tokens
-
-### Colors
-
-| Token          | Value     | Usage                    |
-| -------------- | --------- | ------------------------ |
-| `primary`      | `#4272EF` | Primary actions, links   |
-| `primarylight` | `#E3EAFD` | Primary backgrounds      |
-| `secondary`    | `#FF5E5E` | Secondary actions        |
-| `tertiary`     | `#FFCF60` | Accents, highlights      |
-| `success`      | `#52BA12` | Success states           |
-| `warning`      | `#F28D15` | Warning states, errors   |
-| `error`        | `#DB1E1E` | Error states             |
-| `grey1-6`      | Various   | Text and background greys|
-
-### Typography
-
-Prism uses a two-font system:
-- **Nunito** - For larger text (>20px): titles, headings
-- **Nunito Sans** - For smaller text (≤20px): body, labels, buttons
-
-Font classes: `font-title0` through `font-title7`, `font-body`, `font-button`, `font-label`, etc.
-
-## Component Classes
-
-### Buttons
-
-| Class                     | Description                        |
-| ------------------------- | ---------------------------------- |
-| `prism-btn`               | Base button (required)             |
-| `prism-btn-primary`       | Filled primary button              |
-| `prism-btn-secondary`     | Outlined button                    |
-| `prism-btn-plain`         | Text-only button                   |
-| `prism-btn-link`          | Link-style button                  |
-| `prism-btn-primary-icon`  | Primary button with icon           |
-| `prism-btn-secondary-icon`| Secondary button with icon         |
-
-### Inputs
-
-| Class                | Description             |
-| -------------------- | ----------------------- |
-| `prism-input`        | Standard text input     |
-| `prism-input-error`  | Input with error state  |
-| `prism-textarea`     | Multi-line text input   |
-| `prism-label`        | Form label              |
-| `prism-label-error`  | Error message text      |
-
-### Radio Buttons
-
-| Class               | Description              |
-| ------------------- | ------------------------ |
-| `prism-radio-group` | Container for radios     |
-| `prism-radio-label` | Label wrapper            |
-| `prism-radio`       | Radio input              |
-| `prism-radio-text`  | Radio label text         |
-
-### Dropdown
-
-| Class                   | Description            |
-| ----------------------- | ---------------------- |
-| `prism-dropdown`        | Container              |
-| `prism-dropdown-input`  | Trigger input          |
-| `prism-dropdown-options`| Options container      |
-| `prism-dropdown-option` | Individual option      |
-
-### Spinner
-
-| Class                 | Description           |
-| --------------------- | --------------------- |
-| `prism-spinner`       | Base spinner (24px)   |
-| `prism-spinner-sm`    | Small spinner (16px)  |
-| `prism-spinner-lg`    | Large spinner (32px)  |
-| `prism-spinner-white` | White colored         |
-| `prism-spinner-primary`| Primary colored      |
-
-### Tags / Badges
-
-| Class                | Description                    |
-| -------------------- | ------------------------------ |
-| `prism-tag`          | Base tag container             |
-| `prism-tag-inner`    | Inner content with styling     |
-| `prism-tag-primary`  | Primary colored tag            |
-| `prism-tag-success`  | Success/green colored tag      |
-| `prism-tag-warning`  | Warning/orange colored tag     |
-| `prism-tag-error`    | Error/red colored tag          |
-| `prism-tag-danger`   | Alias for error                |
-| `prism-tag-secondary`| Grey/neutral colored tag       |
-
-### Alert Banners
-
-| Class                 | Description                   |
-| --------------------- | ----------------------------- |
-| `prism-alert`         | Base alert banner             |
-| `prism-alert-info`    | Info/primary colored alert    |
-| `prism-alert-success` | Success/green colored alert   |
-| `prism-alert-warning` | Warning/orange colored alert  |
-| `prism-alert-error`   | Error/red colored alert       |
-
-### Number Icons (Step Indicators)
-
-| Class                        | Description                    |
-| ---------------------------- | ------------------------------ |
-| `prism-number-icon`          | Base circular number badge     |
-| `prism-number-icon-inactive` | Grey/inactive state            |
-| `prism-number-icon-active`   | Primary/current step state     |
-| `prism-number-icon-completed`| Green/completed state          |
-
-## Spec and generators
-
-The design values live in an Elixir spec; the web files are generated from it. The repository has three parts:
-
-- `dsl/`: the language, a Mix project of its own (`prism_dsl`): the schema DSL a spec is written in, and the generators. It knows nothing about Prism. See [dsl/README.md](dsl/README.md) and its [ADR 0001: spec format](dsl/docs/adr/0001-spec-format.md).
-- `spec/`: Prism's spec, a Mix project (`prism_spec`) that depends on `dsl/`. `spec/lib/prism/tokens.ex` holds the tokens; Prism's own decisions are in [spec/docs/adr/0001-prism-spec.md](spec/docs/adr/0001-prism-spec.md).
-- The root: what the npm package ships (`package.json`, `tailwind.preset.js`, `css/`, `fonts/`).
-
-`tailwind.preset.js` and `css/base.css` are generated: don't edit them by hand. Change the spec, then regenerate and commit the result:
+`clients/web/tailwind.preset.js` and `clients/web/css/base.css` are generated: don't edit them by hand. Change `lib/design/tokens.ex`, then regenerate and commit the result:
 
 ```sh
-cd spec
-mix deps.get
-mix prism.gen.web   # writes ../tailwind.preset.js and ../css/base.css
+mix prism.gen.web   # writes clients/web/tailwind.preset.js and clients/web/css/base.css
 mix test
 ```
 
-`mix test` includes a golden test: the output must equal prism 0.1.7 apart from each file's header line and the reviewed diff in `spec/test/golden/0.1.7.diff`. CI fails when the committed files differ from what the spec generates. `css/components.css` is still hand-written.
+`mix test` includes a golden test: the output must equal prism 0.1.7 apart from each file's header line and the reviewed diff in `test/design/golden/0.1.7.diff`. CI fails when the committed files differ from what the design generates. `css/components.css` is still hand-written.
 
-`dsl/` and `spec/` are not part of the npm package; it ships the same files as before (`.github/npm-files.txt`).
+## The generator
+
+- The schema turns a design into plain data, `__schema__/0`, whose shape is documented in `Prism.Generator.Schema`. The generators read only that data, never the schema's internals; a test checks that no generator calls into the schema.
+- The generator gets the design only from `--design MODULE` or `config :prism, design: MODULE`, never by naming it. CI fails when a file in `lib/generator/` depends on `lib/design/`, directly or through another file (`mix xref graph`, see `.github/scripts/generator-boundary.sh`), or when the generator's files mention Prism's values.
+- Its tests use a neutral example design (`test/generator/support/example_design.ex`) and compare its output with reviewed fixtures in `test/generator/fixtures/`.
+- **Moving it to its own repository:** move `lib/generator/` and `test/generator/` into a new Mix project, and add one dependency line to this project's `mix.exs`, e.g. `{:prism_generator, git: "<url>", tag: "<version>"}`.
+
+## Publish
+
+Publishing to npm is manual for now, from `clients/web/`:
+
+1. Bump the version in `mix.exs` and `clients/web/package.json` (a test checks they are equal) and merge it.
+2. Check the package: `cd clients/web && npm pack --dry-run` lists the files in `.github/npm-files.txt`.
+3. Publish: `cd clients/web && npm publish --access public`.
 
 ## License
 

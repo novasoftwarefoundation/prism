@@ -9,8 +9,8 @@ permissions:
   contents: read
 
 jobs:
-  dsl:
-    name: DSL on its own
+  design:
+    name: Generator, design and generated files
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -18,50 +18,23 @@ jobs:
           persist-credentials: false
       - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
         with:
-          version-file: dsl/.tool-versions
+          version-file: .tool-versions
           version-type: strict
-      # A copy outside the repository proves the DSL needs nothing around it.
-      - run: cp -R dsl "$RUNNER_TEMP/dsl"
-      - name: The DSL knows nothing about Prism's spec
-        run: |
-          if grep -rniE 'nunito|novasoftwarefoundation|0\.1\.7|Prism\.Tokens|4272EF' "$RUNNER_TEMP/dsl"; then
-            echo "::error::dsl/ mentions Prism's spec or package. Keep Prism-specific values in spec/."
-            exit 1
-          fi
-      - run: mix compile --warnings-as-errors
-        working-directory: ${{ runner.temp }}/dsl
-      - run: mix format --check-formatted
-        working-directory: ${{ runner.temp }}/dsl
-      - run: mix test
-        working-directory: ${{ runner.temp }}/dsl
-
-  spec:
-    name: Prism spec and generated files
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: spec
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
-        with:
-          version-file: spec/.tool-versions
-          version-type: strict
-      - run: mix deps.get
       - run: mix compile --warnings-as-errors
       - run: mix format --check-formatted
-      # The 0.1.7 golden test and the spec/mix.exs / package.json version check.
+      - name: The generator doesn't depend on Prism's design
+        run: .github/scripts/generator-boundary.sh
+      # The generator's tests on the example design, and Prism's checks: the
+      # 0.1.7 golden test, the version check and the font roles.
       - run: mix test
-      # Writes into the repository root (config :prism_dsl, out: "..").
+      # Writes into clients/web (config :prism, out: "clients/web").
       - run: mix prism.gen.web
-      - name: Committed files match the spec
+      - name: Committed files match the design
         run: |
           if [ -n "$(git status --porcelain)" ]; then
             git status --short
             git diff
-            echo "::error::Generated files differ from the spec. Run 'mix prism.gen.web' in spec/ and commit the result."
+            echo "::error::Generated files differ from the design. Run 'mix prism.gen.web' and commit the result."
             exit 1
           fi
 
@@ -76,9 +49,12 @@ jobs:
         with:
           node-version-file: .tool-versions
       - name: The package ships exactly the reviewed files
+        working-directory: clients/web
         run: |
           npm pack --dry-run --json | jq -r '.[0].files[].path' | LC_ALL=C sort > "$RUNNER_TEMP/npm-files.txt"
-          diff -u .github/npm-files.txt "$RUNNER_TEMP/npm-files.txt" || {
-            echo "::error::npm would publish a different file list. Update package.json 'files' or .github/npm-files.txt."
+          diff -u ../../.github/npm-files.txt "$RUNNER_TEMP/npm-files.txt" || {
+            echo "::error::npm would publish a different file list. Update clients/web/package.json 'files' or .github/npm-files.txt."
             exit 1
           }
+      - name: The package's LICENSE is the repository's
+        run: cmp LICENSE clients/web/LICENSE
