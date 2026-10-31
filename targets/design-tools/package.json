@@ -1,0 +1,18 @@
+{
+  "name": "prism-design-tools-checks",
+  "private": true,
+  "description": "Checks of the generated design-tool files: tokens.json against DTCG 2025.10, tokens.css and overview.svg. Not published; the files are release assets.",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "test": "node test/check.mjs . ../../generator/test/fixtures/design_tools"
+  },
+  "devDependencies": {
+    "@terrazzo/parser": "2.10.0",
+    "ajv": "8.20.0",
+    "ajv-formats": "3.0.1",
+    "fast-xml-parser": "5.11.2",
+    "postcss": "8.5.32",
+    "style-dictionary": "5.7.1"
+  }
+}

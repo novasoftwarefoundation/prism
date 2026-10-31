@@ -120,6 +120,25 @@ jobs:
       - name: The package's LICENSE is the repository's
         run: cmp LICENSE targets/react/LICENSE
 
+  design-tools:
+    name: Design-tool files
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: targets/design-tools
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .tool-versions
+      # Prism's files and the generator's fixtures: tokens.json against the DTCG 2025.10
+      # schema and through Terrazzo and Style Dictionary, tokens.css with the same names,
+      # overview.svg as standalone SVG.
+      - run: npm ci
+      - run: npm test
+
   npm-package:
     name: npm file list
     runs-on: ubuntu-latest
