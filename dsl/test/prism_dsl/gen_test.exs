@@ -67,4 +67,14 @@ defmodule PrismDsl.GenTest do
       assert File.ls!(".") == []
     end)
   end
+
+  test "the generators read only the spec's data, not the schema's internals" do
+    for path <-
+          ["lib/prism_dsl/gen.ex" | Path.wildcard("lib/prism_dsl/gen/**/*")] ++
+            Path.wildcard("lib/mix/tasks/*.ex"),
+        File.regular?(path) do
+      code = path |> File.read!() |> String.replace(~r/@(module)?doc\s+"""(?s:.*?)"""/, "")
+      refute code =~ "PrismDsl.Schema.", "#{path} calls into PrismDsl.Schema"
+    end
+  end
 end

@@ -7,6 +7,10 @@ The language of a style spec: a schema DSL for design tokens, and generators tha
 - `lib/mix/tasks/prism.gen.web.ex`: `mix prism.gen.web`
 - `docs/adr/`: decisions, starting with [0001: spec format](docs/adr/0001-spec-format.md)
 
+## Inside the DSL
+
+The schema (`PrismDsl.Schema`) turns a spec into plain data: `__schema__/0`, whose shape is documented in the schema's moduledoc. The generators (`PrismDsl.Gen.*` and the `prism.gen.*` tasks) read only that data, never the schema's internals, so either side can change on its own as long as the data stays the same. A test checks that no generator refers to `PrismDsl.Schema`.
+
 ## Use
 
 A spec is a Mix project that depends on the DSL, writes its spec in a module that uses `PrismDsl.Schema`, and names it in its config:

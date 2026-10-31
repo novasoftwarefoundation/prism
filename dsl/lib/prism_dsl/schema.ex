@@ -26,7 +26,30 @@ defmodule PrismDsl.Schema do
   Every mistake fails at compile time and points at its line: an unknown
   option, a name that isn't a snake_case atom, a duplicate name, a value of the
   wrong type, or a reference to a token that doesn't exist or has another kind.
-  Generators read `__schema__/0`, never the source.
+
+  ## The spec as data
+
+  Generators read `__schema__/0`, never the source or this module's internals.
+  It returns
+
+      %{tokens: [token], web: web | nil}
+
+  - Every token is a map with `kind`, `name` (an atom) and `group` (its
+    group's text or `nil`), in the order of the spec, plus per kind:
+    - `:color`: `value` (`"#RRGGBB"` or the name of a color);
+    - `:shadow`: `value` (a keyword list or the name of a shadow), and
+      `deprecated` when given;
+    - `:text_shadow`: `value` (a keyword list);
+    - `:space` and `:height`: `key` (the web key, `"2px"` or an integer step)
+      and `value` (px);
+    - `:max_height`: `value` (px); `:radius`: `value` (a length);
+    - `:family`: `doc`, and `web`, `ios`, `android` (each `:system` or a
+      keyword list with `name`, `faces` and, on the web, `fallback`);
+    - `:font`: `family`, `weight`, and `italic` when given;
+    - `:text`: `size` and `line_height` (px).
+  - `web` is the `web` declaration as a map with every key (`prefix`,
+    `fonts_url`, `line_clamps`, `preset_doc`, `base_doc`, `font_classes_doc`),
+    or `nil` without one.
   """
 
   @platforms [:web, :ios, :android]
