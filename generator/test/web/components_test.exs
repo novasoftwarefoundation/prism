@@ -360,16 +360,15 @@ defmodule Prism.Generator.Web.ComponentsTest do
 
     refute css =~ ~r/\{\n\}/
 
-    # A part that is another component gets no modifier class from its markup: a state
-    # the app sets is written nowhere and fails, as it does outside a variant. A
-    # pseudo-class state is written.
-    badge = fn state ->
+    # A part that is another component gets no modifier class from its markup, so the
+    # schema refuses a state the app sets on it. A pseudo-class state is written.
+    badge =
       compile("""
         component :tag do
           part :badge, component: :step_indicator
           variant :accent do
             part :badge do
-              state :#{state}, opacity: 0.3
+              state :hovered, opacity: 0.3
             end
           end
         end
@@ -377,13 +376,8 @@ defmodule Prism.Generator.Web.ComponentsTest do
           style size: 10
         end
       """)
-    end
 
-    assert_raise ArgumentError, ~r/writes nothing for tag.accent.badge.selected/, fn ->
-      css(badge.(:selected))
-    end
-
-    assert css(badge.(:hovered)) =~
+    assert css(badge) =~
              "\n.only-tag--accent .only-step-indicator:hover {\n  opacity: 0.3;\n}\n"
   end
 

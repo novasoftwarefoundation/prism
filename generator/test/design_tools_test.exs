@@ -100,7 +100,7 @@ defmodule Prism.Generator.DesignToolsTest do
     assert json["text-shadow"]["default"]["$value"]["spread"] == %{"value" => 0, "unit" => "px"}
   end
 
-  test "a type style refers to its family, weight and size; its line height is a multiple" do
+  test "a typography token refers to its family, weight and size; its line height is a multiple" do
     json = JSON.decode!(bodies(ExampleDesign.__schema__())["tokens.json"])
 
     assert json["typography"]["heading"]["$value"] == %{

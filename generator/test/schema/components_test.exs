@@ -488,6 +488,37 @@ defmodule Prism.Generator.Schema.ComponentsTest do
     )
   end
 
+  test "a part that is another component has no state the app sets, in a variant or not" do
+    message =
+      ": the web shows :selected with a modifier class, which a part that is another component doesn't get; give the state to :spinner or :c"
+
+    assert_compile_error(
+      "  component :c do\n    part :s, component: :spinner do\n      state :selected, opacity: 0.5\n    end\n  end\n  component :spinner",
+      "component :c, part :s, state :selected" <> message,
+      14
+    )
+
+    assert_compile_error(
+      "  component :c do\n    part :s, component: :spinner\n    variants :size do\n      variant :v do\n        part :s do\n          state :selected, opacity: 0.5\n        end\n      end\n    end\n  end\n  component :spinner",
+      "component :c, variants :size, variant :v, part :s, state :selected" <> message,
+      17
+    )
+
+    assert_compile_error(
+      "  component :c do\n    part :s, component: :spinner\n    variant :v do\n      part :s do\n        state :invalid\n      end\n    end\n  end\n  component :spinner",
+      "component :c, variant :v, part :s, state :invalid: the web shows :invalid",
+      16
+    )
+
+    # A pseudo-class state of the part is the browser's.
+    [c, _] =
+      compile(
+        "  component :c do\n    part :s, component: :spinner\n    variant :v do\n      part :s do\n        state :hovered, opacity: 0.5\n      end\n    end\n  end\n  component :spinner"
+      ).components
+
+    assert [%{parts: [%{states: [%{name: :hovered}]}]}] = c.variants
+  end
+
   test "axes: variants outside a block are :variant, a block names another axis" do
     assert_compile_error(
       "  component :c do\n    variants :variant do\n      variant :v\n    end\n  end",

@@ -267,7 +267,7 @@ defmodule Prism.Design.Components do
   end
 
   # Tags and message bars pair the subhead font (600) with the 14/16 text size, a
-  # pair no type style has; see ADR 0002.
+  # pair no typography token has; see ADR 0002.
   component :tag,
     web: [
       section: "Tags",

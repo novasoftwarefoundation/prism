@@ -61,7 +61,7 @@ jobs:
       - run: mix format --check-formatted
       # Fails when a committed file in targets/ differs from what the design generates.
       - run: mix prism.gen --check
-      # The 0.1.7 golden test, the version check, the font roles, the type styles, and
+      # The 0.1.7 golden test, the version check, the font roles, the typography, and
       # Prism's components rendered through Prism.Generator.Phoenix.
       - run: mix test --warnings-as-errors
 

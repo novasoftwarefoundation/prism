@@ -15,7 +15,7 @@ defmodule Prism.Design.DesignToolsTest do
           {"tokens.css", "design/lib/tokens.ex"},
           {"overview.svg", "design/lib/components.ex"}
         ] do
-      assert Prism.Generator.Header.generated?(Path.join(@dir, path))
+      assert Prism.Generator.Header.exact?(Path.join(@dir, path))
       assert read(path) =~ Prism.Generator.Header.line(path, file)
     end
   end

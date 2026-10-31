@@ -78,7 +78,7 @@ module.exports = {
         },
       });
 
-      // Font styles
+      // Fonts
       addComponents({
         // Acme Display (> 24px sizes)
         ".font-heading": {

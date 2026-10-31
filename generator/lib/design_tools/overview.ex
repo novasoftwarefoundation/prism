@@ -5,7 +5,7 @@ defmodule Prism.Generator.DesignTools.Overview do
   design tool imports as editable layers and a browser opens as is.
 
   - **Tokens**: color swatches with their name and value; the font families,
-    fonts and text sizes, and each type style, in their own fonts; spacing and
+    fonts and text sizes, and each typography token, in their own fonts; spacing and
     heights as bars; radii; shadows on cards; text shadows on text.
   - **Components**: a sheet per component, a row per variant (each variant of
     the `:variant` axis, each variant of another axis combined with the
@@ -320,7 +320,7 @@ defmodule Prism.Generator.DesignTools.Overview do
          end}
       end
 
-    flow(ctx, "typography", "Type styles", items, 12)
+    flow(ctx, "typography", "Typography", items, 12)
   end
 
   # Layers are named by the tokens' DTCG paths, with `/` as design tools nest them.
@@ -1344,7 +1344,7 @@ defmodule Prism.Generator.DesignTools.Overview do
   defp css_length({n, :rem}), do: "#{num(n)}rem"
   defp css_length({n, :percent}), do: "#{num(n)}%"
 
-  # A type style, or the inherited default without one: `%{family, weight, italic, size,
+  # A typography token, or the inherited default without one: `%{family, weight, italic, size,
   # line_height}`.
   defp type_of(ctx, nil),
     do: %{family: ctx.caption, weight: 400, italic: false, size: 16, line_height: 24}
