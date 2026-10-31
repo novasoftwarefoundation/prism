@@ -63,7 +63,7 @@ defmodule Prism.Generator.ReactTest do
     assert button =~ ~s|  accent: undefined,\n  danger: "kit-button--danger",|
     assert button =~ ~s|loading && "kit-button--loading"|
     assert button =~ ~s|present(icon) && "kit-button--with-icon"|
-    assert button =~ ~s|{loading && <span className="kit-spinner" />}|
+    assert button =~ ~s|{loading && <span className="kit-spinner kit-spinner--16" />}|
   end
 
   # A design of `body`, on the tokens of Prism.Generator.TokensOnly.

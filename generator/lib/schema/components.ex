@@ -1,8 +1,8 @@
 defmodule Prism.Generator.Schema.Components do
   @moduledoc """
   The component part of the schema: `component`, `style`, `variant`,
-  `variants`, `part`, `with_part`, `with_variant`, `flag` and `state`. A design that uses
-  `Prism.Generator.Schema` imports these macros.
+  `variants`, `part`, `with_part`, `with_variant`, `flag`, `state` and
+  `value`. A design that uses `Prism.Generator.Schema` imports these macros.
 
       component :button, web: [section: "Buttons"] do
         style typography: :button, radius: :default, transition: {150, :ease_in_out}
@@ -37,13 +37,19 @@ defmodule Prism.Generator.Schema.Components do
     variants combine with one of the first. `aliases:` gives a variant more
     names. `default:` on the component (for the `:variant` axis) or on a
     `variants` block is the variant the axis has when the app picks none: one
-    of its variants, or a name without a look of its own, such as `:medium`
-    for a size axis whose medium is the component's own look.
+    of its variants, or a name without a look of its own, such as `24` for a
+    size axis whose 24 is the component's own look.
+  - A variant's name is a snake_case atom, or a whole number above 0 for a
+    variant named by a number it has, such as a size in px (`variant 16,
+    size: 16`). An axis's variants, aliases and default are all names or
+    all numbers.
   - A `part` is a named piece of the component (a label, an icon), in the
     order the design gives them. `component:` makes the part another component.
     A variant or a state may change a part's look by naming it again. A
     part's own state changes only that part; a state of the component may
-    change any of its parts.
+    change any of its parts. `variants:` picks the other component's variants
+    for a part that is one (`part :spinner, component: :spinner, variants:
+    [size: 20]`): one variant per axis, by its name.
   - `with_part` is the look while the component has one of its parts, such
     as a button with an icon: in a component or a variant, it names a part
     the component declares. It is not a variant: whether the part is there
@@ -62,6 +68,12 @@ defmodule Prism.Generator.Schema.Components do
     its look with one.
   - A `state` changes the look while it holds. States have a fixed meaning that
     every target knows; see `states/0`.
+  - A `value` is a number the app gives, from 0 to 100, that the look
+    follows, such as a spinner's progress (`value :progress, stroke: {16,
+    :percent}, track: :grey4`). Its properties are the look while the app
+    gives it; without it, the component looks as it does without a value.
+    Each target knows the values of its components by name, and draws what
+    follows the number (on the web, the length of a ring's arc).
 
   Every node takes `web:`, `ios:` and `android:`, its binding for that target:
   properties whose values replace the shared ones there, and keys of the
@@ -108,7 +120,9 @@ defmodule Prism.Generator.Schema.Components do
     shadow: {:shadow, "a shadow token"},
     opacity: {:opacity, "a number from 0 to 1"},
     transition: {:motion, "how changes animate: {milliseconds, easing}"},
-    rotation: {:motion, "one full turn: {milliseconds, easing}"}
+    rotation: {:motion, "one full turn: {milliseconds, easing}"},
+    stroke: {:length, "the width of the line it draws, such as a ring"},
+    track: {:color, "the line beyond a value's length, such as a ring's rest"}
   ]
 
   @easings [:linear, :ease, :ease_in, :ease_out, :ease_in_out]
@@ -122,11 +136,12 @@ defmodule Prism.Generator.Schema.Components do
     variants: [:default | @targets],
     style: [],
     variant: [:aliases | @targets],
-    part: [:component, :position | @targets],
+    part: [:component, :position, :variants | @targets],
     with_part: @targets,
     with_variant: @targets,
     flag: [:default | @targets],
-    state: @targets
+    state: @targets,
+    value: @targets
   }
 
   # The sides a part with `position:` may have.
@@ -135,14 +150,15 @@ defmodule Prism.Generator.Schema.Components do
   # What may be declared directly inside what; `nil` is the top of the design.
   @children %{
     nil => [:component],
-    component: [:style, :variants, :variant, :part, :with_part, :flag, :state],
+    component: [:style, :variants, :variant, :part, :with_part, :flag, :state, :value],
     variants: [:variant],
     variant: [:part, :with_part, :with_variant, :state],
     part: [:state],
     with_part: [:state],
     with_variant: [:state],
     flag: [:with_variant, :state],
-    state: [:part]
+    state: [:part],
+    value: []
   }
 
   @doc "The states, with what each means: `[{name, meaning}]`."
@@ -232,17 +248,37 @@ defmodule Prism.Generator.Schema.Components do
   defmacro state(name, props \\ [], block \\ []),
     do: node(:state, name, props, block, __CALLER__)
 
+  @doc """
+  A value: a number from 0 to 100 the app gives, and the look while it gives
+  it (`value :progress, stroke: {16, :percent}, track: :grey4`).
+  """
+  defmacro value(name, props \\ []),
+    do: node(:value, name, props, [], __CALLER__)
+
   # `variant :dark do … end` passes the block as the second argument.
   defp node(kind, name, [do: block], [], caller), do: node(kind, name, [], [do: block], caller)
 
   defp node(kind, name, props, block, caller) do
-    unless snake_case?(name),
-      do:
+    cond do
+      snake_case?(name) ->
+        :ok
+
+      kind in [:variant, :with_variant] ->
+        unless number?(name),
+          do:
+            fail(
+              caller.file,
+              caller.line,
+              "#{kind} #{Macro.to_string(name)}: name must be a snake_case atom or a whole number above 0"
+            )
+
+      true ->
         fail(
           caller.file,
           caller.line,
           "#{kind} #{Macro.to_string(name)}: name must be a snake_case atom"
         )
+    end
 
     body = Keyword.get(block, :do)
 
@@ -354,8 +390,11 @@ defmodule Prism.Generator.Schema.Components do
       # The web places a part that is another component by that component's look.
       component = Enum.find(built, &(&1.name == c.name))
       other = Enum.find(built, &(&1.name == ref))
+      part = Enum.find(component.parts, &(&1.name == p.name))
+      part_variants!(p, part.variants, other, file)
 
-      with {:error, message} <- Prism.Generator.Web.Components.check_part(component, other),
+      with {:error, message} <-
+             Prism.Generator.Web.Components.check_part(component, part, other),
            do: fail(file, p.line, "#{path_label(p)}: #{message}")
 
       # The part's own states, in or outside a variant.
@@ -368,6 +407,32 @@ defmodule Prism.Generator.Schema.Components do
     end
 
     built
+  end
+
+  # The variants a part picks of the component it is: one per axis of that
+  # component, each one of the axis's variants, by its name.
+  defp part_variants!(p, picks, other, file) do
+    fail = &fail(file, p.line, "#{path_label(p)}: variants: #{&1}")
+
+    for {axis, name} <- picks do
+      of_axis = for v <- other.variants, v.axis == axis, do: v
+
+      cond do
+        of_axis == [] ->
+          fail.("#{inspect(other.name)} has no axis #{inspect(axis)}")
+
+        Enum.any?(of_axis, &(&1.name == name)) ->
+          :ok
+
+        v = Enum.find(of_axis, &(name in &1.aliases)) ->
+          fail.("#{inspect(name)} is an alias of #{inspect(v.name)}; name the variant")
+
+        true ->
+          fail.(
+            "#{inspect(name)} is not a variant of #{inspect(other.name)}'s #{inspect(axis)}; it has #{Enum.map_join(of_axis, ", ", &inspect(&1.name))}"
+          )
+      end
+    end
   end
 
   defp component!(c, nodes, known, file) do
@@ -419,9 +484,15 @@ defmodule Prism.Generator.Schema.Components do
 
         {opts, props} = split!(v, file)
         aliases = Keyword.get(opts, :aliases, [])
+        kind? = if number?(v.name), do: &number?/1, else: &snake_case?/1
 
-        unless is_list(aliases) and Enum.all?(aliases, &snake_case?/1),
-          do: fail(file, v.line, "#{path_label(v)}: aliases: must be a list of snake_case atoms")
+        unless is_list(aliases) and Enum.all?(aliases, kind?),
+          do:
+            fail(
+              file,
+              v.line,
+              "#{path_label(v)}: aliases: must be a list of #{if number?(v.name), do: "whole numbers above 0, as the variant's name is", else: "snake_case atoms"}"
+            )
 
         Map.merge(
           %{
@@ -437,6 +508,17 @@ defmodule Prism.Generator.Schema.Components do
           bindings!(v, opts, known, file)
         )
       end
+
+    # An axis's variants are all names or all numbers.
+    for {axis, [first | _] = of_axis} <- Enum.group_by(variants, & &1.axis),
+        v <- of_axis,
+        number?(v.name) != number?(first.name) do
+      fail(
+        file,
+        v.node.line,
+        "#{path_label(v.node)}: the #{inspect(axis)} axis's variants are all names or all numbers, and #{inspect(first.name)} is #{if number?(first.name), do: "a number", else: "a name"}"
+      )
+    end
 
     # A variant's looks with a variant of another axis, now that every variant is known.
     variants =
@@ -474,6 +556,29 @@ defmodule Prism.Generator.Schema.Components do
       for p <- children(nodes, c, :part) do
         {opts, props} = split!(p, file)
         position = opts[:position]
+        picks = Keyword.get(opts, :variants, [])
+
+        cond do
+          picks == [] ->
+            :ok
+
+          opts[:component] == nil ->
+            fail(
+              file,
+              p.line,
+              "#{path_label(p)}: variants: is for a part that is another component"
+            )
+
+          not Keyword.keyword?(picks) or Keyword.keys(picks) != Enum.uniq(Keyword.keys(picks)) ->
+            fail(
+              file,
+              p.line,
+              "#{path_label(p)}: variants: must be a keyword list of an axis and a variant, each axis once"
+            )
+
+          true ->
+            :ok
+        end
 
         cond do
           position == nil ->
@@ -502,6 +607,7 @@ defmodule Prism.Generator.Schema.Components do
             name: p.name,
             component: opts[:component],
             position: position,
+            variants: picks,
             style: props!(p, props, known, file),
             states: states!(nodes, p, c, known, file)
           },
@@ -513,6 +619,16 @@ defmodule Prism.Generator.Schema.Components do
     states = states!(nodes, c, c, known, file)
     defaults = defaults!(c, opts[:default], nodes, variants, file)
 
+    values =
+      for v <- children(nodes, c, :value) do
+        {opts, props} = split!(v, file)
+
+        Map.merge(
+          %{name: v.name, style: props!(v, props, known, file)},
+          bindings!(v, opts, known, file)
+        )
+      end
+
     # Variants (with their aliases), states, flags and the looks with a part share
     # one set of names, as their modifier classes would; parts share another with
     # all of them but the variants, whose classes (`__icon`, `--icon`) can't be
@@ -522,6 +638,7 @@ defmodule Prism.Generator.Schema.Components do
 
     modifiers =
       Enum.map(states, &{&1.name, "state"}) ++
+        Enum.map(values, &{&1.name, "value"}) ++
         Enum.map(flags, &{&1.name, "flag"}) ++
         Enum.map(withs, &{&1, "look with a part"}) ++ Enum.map(defaults, &{&1, "default"})
 
@@ -544,7 +661,8 @@ defmodule Prism.Generator.Schema.Components do
         axes: axes,
         with_parts: with_parts,
         flags: flags,
-        states: states
+        states: states,
+        values: values
       },
       bindings!(c, opts, known, file)
     )
@@ -599,9 +717,19 @@ defmodule Prism.Generator.Schema.Components do
     for {node, axis, default} <- axes, default != nil, reduce: [] do
       acc ->
         fail = &fail(file, node.line, "#{path_label(node)}: default: #{inspect(default)} #{&1}")
-        unless snake_case?(default), do: fail.("must be a snake_case atom")
         of_axis = for v <- variants, v.axis == axis, do: v
         if of_axis == [], do: fail.("is the default of the :variant axis, which has no variants")
+
+        cond do
+          number?(hd(of_axis).name) and not number?(default) ->
+            fail.("must be a whole number above 0, as the axis's variants are")
+
+          not number?(hd(of_axis).name) and not snake_case?(default) ->
+            fail.("must be a snake_case atom")
+
+          true ->
+            :ok
+        end
 
         cond do
           Enum.any?(of_axis, &(&1.name == default)) ->
@@ -996,6 +1124,8 @@ defmodule Prism.Generator.Schema.Components do
 
   defp snake_case?(name),
     do: is_atom(name) and Regex.match?(~r/\A[a-z][a-z0-9_]*\z/, Atom.to_string(name))
+
+  defp number?(name), do: is_integer(name) and name > 0
 
   defp label(%{kind: :style}), do: "style"
   defp label(%{kind: kind, name: name}), do: "#{kind} #{inspect(name)}"

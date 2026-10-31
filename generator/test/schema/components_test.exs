@@ -118,11 +118,14 @@ defmodule Prism.Generator.Schema.ComponentsTest do
         13
       )
 
-      assert_compile_error(
-        "  component :c do\n    part :p, #{key}: :x\n  end",
-        "component :c, part :p: unknown option #{inspect(key)}",
-        13
-      )
+      # A part's `variants:` is its own option: the variants of the component it is.
+      if key != :variants,
+        do:
+          assert_compile_error(
+            "  component :c do\n    part :p, #{key}: :x\n  end",
+            "component :c, part :p: unknown option #{inspect(key)}",
+            13
+          )
 
       assert_compile_error(
         "  component :c do\n    state :pressed, #{key}: :x\n  end",
@@ -586,6 +589,162 @@ defmodule Prism.Generator.Schema.ComponentsTest do
         "  component :c, default: :plain do\n    variants :tone do\n      variant :plain\n    end\n  end",
         "component :c: default: :plain is the default of the :variant axis, which has no variants",
         12
+      )
+    end
+  end
+
+  describe "a variant named by a number" do
+    test "is a whole number above 0, as are its axis's other variants and default" do
+      %{components: [c]} =
+        compile("""
+          component :c do
+            variants :size, default: 24 do
+              variant 16, size: 16
+              variant 32, size: 32, aliases: [30]
+            end
+            variant :bold do
+              with_variant 16, weight: 700
+            end
+          end
+        """)
+
+      assert [%{name: :size, default: 24}] = c.axes
+      assert [%{name: 16, axis: :size}, %{name: 32, aliases: [30]}, %{name: :bold}] = c.variants
+      assert [%{with_variants: [%{name: 16, style: [weight: 700]}]}] = Enum.drop(c.variants, 2)
+    end
+
+    test "fails as any other name: zero, negative, a float, or mixed with names" do
+      for name <- ["0", "-16", "16.5"] do
+        assert_compile_error(
+          "  component :c do\n    variant #{name}\n  end",
+          "variant #{name}: name must be a snake_case atom or a whole number above 0",
+          13
+        )
+      end
+
+      # Only variants: a part, state or component has a name.
+      assert_compile_error(
+        "  component :c do\n    part 16\n  end",
+        "part 16: name must be a snake_case atom",
+        13
+      )
+
+      assert_compile_error(
+        "  component :c do\n    variants :size do\n      variant 16\n      variant :large\n    end\n  end",
+        "component :c, variants :size, variant :large: the :size axis's variants are all names or all numbers, and 16 is a number",
+        15
+      )
+
+      assert_compile_error(
+        "  component :c do\n    variants :size, default: :medium do\n      variant 16\n    end\n  end",
+        "component :c, variants :size: default: :medium must be a whole number above 0, as the axis's variants are",
+        13
+      )
+
+      assert_compile_error(
+        "  component :c do\n    variants :size, default: 24 do\n      variant :small\n    end\n  end",
+        "component :c, variants :size: default: 24 must be a snake_case atom",
+        13
+      )
+
+      assert_compile_error(
+        "  component :c do\n    variants :size do\n      variant 16, aliases: [:small]\n    end\n  end",
+        "variant 16: aliases: must be a list of whole numbers above 0, as the variant's name is",
+        14
+      )
+    end
+  end
+
+  describe "a value" do
+    test "is a number the app gives, with its look while it gives it" do
+      [c] =
+        compile(
+          "  component :c do\n    value :progress, stroke: {16, :percent}, track: :ink, web: [doc: \"With progress\"]\n  end"
+        ).components
+
+      assert [
+               %{
+                 name: :progress,
+                 style: [stroke: {16, :percent}, track: :ink],
+                 web: [doc: "With progress"],
+                 ios: [],
+                 android: []
+               }
+             ] = c.values
+
+      assert [%{values: []}] = compile("  component :d").components
+    end
+
+    test "is declared in a component, has no block, and shares the component's names" do
+      assert_compile_error(
+        "  component :c do\n    variant :v do\n      value :progress\n    end\n  end",
+        "value :progress can't be declared inside variant :v",
+        14
+      )
+
+      assert_compile_error(
+        "  component :c do\n    value :progress, track: :nope\n  end",
+        "component :c, value :progress: track: unknown color :nope",
+        13
+      )
+
+      assert_compile_error(
+        "  component :c do\n    value :progress, max: 10\n  end",
+        "component :c, value :progress: unknown option :max",
+        13
+      )
+
+      assert_compile_error(
+        "  component :c do\n    state :loading\n    value :loading\n  end",
+        ":loading is both a state and a value",
+        12
+      )
+
+      assert_compile_error(
+        "  component :c do\n    part :progress\n    value :progress\n  end",
+        ":progress is both a part and a value",
+        12
+      )
+    end
+  end
+
+  describe "a part's variants" do
+    @spinner "  component :spinner do\n    variants :size, default: 24 do\n      variant 16, size: 16\n      variant 20, size: 20, aliases: [21]\n    end\n    variant :accent\n  end\n"
+
+    test "pick the variants of the component the part is, one per axis" do
+      [c, _] =
+        compile(
+          "  component :c do\n    part :s, component: :spinner, variants: [size: 20, variant: :accent]\n  end\n" <>
+            @spinner
+        ).components
+
+      assert [%{name: :s, variants: [size: 20, variant: :accent]}] = c.parts
+
+      assert [%{variants: []}] =
+               compile("  component :d do\n    part :p\n  end").components
+               |> Enum.map(&hd(&1.parts))
+    end
+
+    test "name an axis of that component and one of its variants, not an alias" do
+      for {picks, message} <- [
+            {"[tone: :danger]", "variants: :spinner has no axis :tone"},
+            {"[size: 18]", "variants: 18 is not a variant of :spinner's :size; it has 16, 20"},
+            {"[size: 21]", "variants: 21 is an alias of 20; name the variant"},
+            {"[size: 16, size: 20]",
+             "variants: must be a keyword list of an axis and a variant, each axis once"}
+          ] do
+        assert_compile_error(
+          "  component :c do\n    part :s, component: :spinner, variants: #{picks}\n  end\n" <>
+            @spinner,
+          "component :c, part :s: " <> message,
+          13
+        )
+      end
+
+      assert_compile_error(
+        "  component :c do\n    part :s, variants: [size: 16]\n  end",
+        "component :c, part :s: variants: is for a part that is another component",
+        13
       )
     end
   end

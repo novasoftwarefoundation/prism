@@ -35,6 +35,7 @@ test("a button's classes are classes of the generated components.css", () => {
     "prism-button__icon",
     "prism-button__label",
     "prism-spinner",
+    "prism-spinner--20",
   ]);
 
   // The icon part has no look of its own, so no rule: its class is a hook for the app.
@@ -75,6 +76,27 @@ test("plain and text buttons are padded unless padded is false", () => {
   assert.match(markup({ variant: "primary" }), /class="prism-button prism-button--primary"/);
 });
 
+test("a spinner's progress: the class, the progressbar's attributes and the ring", () => {
+  const markup = renderToStaticMarkup(h(Prism.Spinner, { size: 32, progress: 40 }));
+  assert.match(
+    markup,
+    /^<span role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="40" class="prism-spinner prism-spinner--32 prism-spinner--progress"><svg/,
+  );
+  assert.match(
+    markup,
+    /class="prism-spinner__indicator"[^>]* r="42" pathLength="100" stroke-dasharray="40 100"/,
+  );
+  assert.match(renderToStaticMarkup(h(Prism.Spinner, { progress: 140 })), /aria-valuenow="100"/);
+  // At 0, the track without the arc, whose round ends would draw a dot.
+  assert.doesNotMatch(renderToStaticMarkup(h(Prism.Spinner, { progress: 0 })), /__indicator/);
+
+  // Without one, the spinner as it was.
+  assert.equal(
+    renderToStaticMarkup(h(Prism.Spinner, { size: 16 })),
+    '<span class="prism-spinner prism-spinner--16"></span>',
+  );
+});
+
 test("every axis value and state of every component renders a class of the CSS", () => {
   const elements = [
     ...["primary", "secondary", "plain", "link", "text", "soft", "icon"].flatMap((variant) =>
@@ -90,8 +112,10 @@ test("every axis value and state of every component renders a class of the CSS",
     h(Prism.RadioGroup, null, h(Prism.Radio, { checked: true, disabled: true, onChange }, "x")),
     h(Prism.Select, { icon: "v", options: [{ selected: true, children: "x" }] }, "x"),
     h(Prism.Checkbox, { checked: true, disabled: true, onChange }),
-    ...["medium", "small", "large"].flatMap((size) =>
-      ["accent", "inverse"].map((variant) => h(Prism.Spinner, { size, variant })),
+    ...[16, 20, 24, 32].flatMap((size) =>
+      ["accent", "inverse"].flatMap((variant) =>
+        [undefined, 40].map((progress) => h(Prism.Spinner, { size, variant, progress })),
+      ),
     ),
     ...["accent", "success", "warning", "danger", "neutral"].map((tone) =>
       h(Prism.Tag, { tone }, "x"),

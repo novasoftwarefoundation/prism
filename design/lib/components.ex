@@ -12,7 +12,8 @@ defmodule Prism.Design.Components do
 
   The names are the ones design systems share (ADR 0002): a component, its
   parts, and separate axes for `variant` (emphasis), `tone` (color meaning),
-  `size` and `status`. Tones are `accent`, `neutral`, `highlight`, `info`,
+  `size` and `status`; a spinner's sizes are named by their px (ADR 0007).
+  Tones are `accent`, `neutral`, `highlight`, `info`,
   `success`, `warning` and `danger`. The web target's mechanics are keyed on the
   component and part names too, so a rename changes the generator as well.
 
@@ -43,7 +44,8 @@ defmodule Prism.Design.Components do
     part :label
     # The app puts the icon at the start (the default) or the end of the label.
     part :icon, position: :start
-    part :spinner, component: :spinner
+    # 20px, beside the 18px label.
+    part :spinner, component: :spinner, variants: [size: 20]
 
     # With an icon, a button spaces the icon from its label (`--with-icon`).
     variant :primary,
@@ -248,15 +250,25 @@ defmodule Prism.Design.Components do
   component :spinner, web: [section: "Spinner"] do
     style size: 24, rotation: {1000, :linear}
 
-    # Medium has no class.
-    variants :size, default: :medium do
-      variant :small, size: 16
-      variant :large, size: 32
+    # Named by their px; 24 is the spinner's own and has no class.
+    variants :size, default: 24 do
+      variant 16, size: 16
+      variant 20, size: 20
+      variant 32, size: 32
     end
 
     variant :accent, foreground: :primary, web: [doc: "Spinner colors"]
     # On a colored background.
     variant :inverse, foreground: :white
+
+    # With a progress value: a light grey track, and an arc in the spinner's color as
+    # long as the value, with a thicker line than the spinner's own. grey4 is the
+    # closest grey to the #e0e0e0 track this replaces.
+    value(:progress,
+      stroke: {16, :percent},
+      track: :grey4,
+      web: [doc: "Spinner with a progress value"]
+    )
   end
 
   component :checkbox, web: [section: "Checkbox (bonus component)"] do

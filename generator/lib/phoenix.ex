@@ -26,7 +26,8 @@ if Code.ensure_loaded?(Phoenix.Component) do
     - **Each axis** (`variant`, and each `variants` block such as `tone` or
       `size`) is an atom attribute with `values:` from the design: its variants
       and their aliases, and its default when that is a name without a look
-      of its own. Phoenix warns at compile time about any other value. Its
+      of its own; an integer attribute when they are numbers (`size={16}`).
+      Phoenix warns at compile time about any other value. Its
       default is the axis's `default:` in the design; a default that is one of
       the variants adds that variant's class, one without a look adds none. An
       axis without a default adds no class until the app picks a variant.
@@ -53,6 +54,12 @@ if Code.ensure_loaded?(Phoenix.Component) do
       the content, as the attribute `<part>_position` says (`icon_position`,
       with the design's side as its default); `start` and `end` follow the
       text's direction.
+    - **Each value** (a spinner's `progress`) is an attribute, a number from
+      0 to 100 or `nil` (the default). With a number, clamped to 0..100, the
+      element gets the value's class (`--progress`), `role="progressbar"`
+      with `aria-valuenow`, `aria-valuemin` and `aria-valuemax`, and what the
+      value draws (a spinner's ring); with `nil`, none of them. Any other value
+      fails when it renders.
     - `class` appends the app's classes to the component's own; `rest` takes
       global attributes (`id`, `phx-*`, `aria-*`, `data-*`) and the element's
       own (`type`, `name`, `value`, …).
@@ -76,7 +83,7 @@ if Code.ensure_loaded?(Phoenix.Component) do
     | `radio_group` | `<div role="radiogroup">` | the inner block (the radios) |
     | `radio` | `<label>` | its `control` (an `<input type="radio">`, which gets `rest`), `label` holds the inner block |
     | `select` | `<div>` | `field` (a `<button>`) holds the inner block; `<:icon>`; `listbox` (a `<ul>`) holds the `<:option>` entries |
-    | `spinner` | `<span>` | none |
+    | `spinner` | `<span>` | none; with `progress`, an `<svg>` ring |
     | `checkbox` | `<input type="checkbox">` | none |
     | `tag` | `<span>` | `label` holds the inner block |
     | `message_bar` | `<div>` | the inner block |
@@ -164,6 +171,7 @@ if Code.ensure_loaded?(Phoenix.Component) do
             Enum.map(spec.flags, & &1.name) ++
             Enum.map(spec.positions, & &1.name) ++
             Enum.map(spec.states, & &1.name) ++
+            Enum.map(spec.values, & &1.name) ++
             for(%{as: :slot, name: n} = child <- spec.children, child[:side] != :end, do: n) ++
             for(%{as: :list, item: item} <- spec.children, do: item)
 
@@ -216,7 +224,8 @@ if Code.ensure_loaded?(Phoenix.Component) do
           ]
 
           opts = if a.default, do: Keyword.put(opts, :default, a.default), else: opts
-          quote do: Phoenix.Component.attr(unquote(a.name), :atom, unquote(opts))
+          type = if Enum.all?(a.values, &is_integer/1), do: :integer, else: :atom
+          quote do: Phoenix.Component.attr(unquote(a.name), unquote(type), unquote(opts))
         end
 
       flags =
@@ -245,6 +254,18 @@ if Code.ensure_loaded?(Phoenix.Component) do
       states =
         for s <- spec.states,
             do: quote(do: Phoenix.Component.attr(unquote(s.name), :boolean, default: false))
+
+      values =
+        for v <- spec.values do
+          doc =
+            "A number from #{v.min} to #{v.max} (clamped), or `nil`: with one, adds `#{v.class}` and `role=\"progressbar\"`."
+
+          quote do:
+                  Phoenix.Component.attr(unquote(v.name), :any,
+                    default: nil,
+                    doc: unquote(doc)
+                  )
+        end
 
       as =
         case spec.element do
@@ -290,7 +311,7 @@ if Code.ensure_loaded?(Phoenix.Component) do
             slot <- slots(child),
             do: slot
 
-      axes ++ flags ++ positions ++ states ++ as ++ value ++ common ++ slots
+      axes ++ flags ++ positions ++ states ++ values ++ as ++ value ++ common ++ slots
     end
 
     defp only_doc(%{only: nil}), do: ""

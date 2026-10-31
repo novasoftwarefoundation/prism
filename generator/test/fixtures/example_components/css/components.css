@@ -63,8 +63,8 @@
   /* Use margins instead of transform for centering because
      the spinner animation uses transform: rotate() which would
      override translate(-50%, -50%) centering */
-  margin-top: -12px;
-  margin-left: -12px;
+  margin-top: -8px;
+  margin-left: -8px;
 }
 
 .kit-button:not(.kit-button--loading) .kit-spinner {
@@ -241,9 +241,14 @@
   animation: kit-spin 1s linear infinite;
 }
 
-.kit-spinner--small {
+.kit-spinner--16 {
   width: 16px;
   height: 16px;
+}
+
+.kit-spinner--32 {
+  width: 32px;
+  height: 32px;
 }
 
 @keyframes kit-spin {
@@ -257,6 +262,29 @@
 
 .kit-spinner--accent {
   color: #1a73e8;
+}
+
+.kit-spinner--progress {
+  background-color: transparent;
+  -webkit-mask: none;
+  mask: none;
+}
+
+.kit-spinner--progress svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke-width: 12;
+}
+
+.kit-spinner--progress .kit-spinner__track {
+  stroke: rgba(16, 16, 16, 0.1);
+}
+
+.kit-spinner--progress .kit-spinner__indicator {
+  stroke: currentColor;
+  stroke-linecap: round;
 }
 
 .kit-checkbox {

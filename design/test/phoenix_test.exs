@@ -44,7 +44,8 @@ defmodule Prism.Design.PhoenixTest do
              "prism-button--with-icon",
              "prism-button__icon",
              "prism-button__label",
-             "prism-spinner"
+             "prism-spinner",
+             "prism-spinner--20"
            ]
 
     # The icon part has no look of its own, so no rule: its class is a hook for the app.
@@ -151,9 +152,9 @@ defmodule Prism.Design.PhoenixTest do
       <UI.select>x<:icon>v</:icon><:option selected>x</:option></UI.select>
       <UI.checkbox checked disabled />
       """,
-      for size <- [:medium, :small, :large], variant <- [:accent, :inverse] do
-        assigns = %{size: size, variant: variant}
-        ~H"<UI.spinner size={@size} variant={@variant} />"
+      for size <- [16, 20, 24, 32], variant <- [:accent, :inverse], progress <- [nil, 40] do
+        assigns = %{size: size, variant: variant, progress: progress}
+        ~H"<UI.spinner size={@size} variant={@variant} progress={@progress} />"
       end,
       for tone <- [:accent, :success, :warning, :danger, :neutral] do
         assigns = %{tone: tone}

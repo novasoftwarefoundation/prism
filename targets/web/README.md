@@ -94,10 +94,10 @@ Classes follow BEM: `prism-<component>`, `__<part>` for a part, `--<name>` for a
   <img class="prism-button__icon" src="close.svg" alt="" />
 </button>
 
-<!-- A loading button: the spinner shows only while --loading is set -->
+<!-- A loading button: the spinner (20px) shows only while --loading is set -->
 <button class="prism-button prism-button--primary prism-button--loading">
   <span class="prism-button__label">Save</span>
-  <span class="prism-spinner prism-spinner--inverse"></span>
+  <span class="prism-spinner prism-spinner--20"></span>
 </button>
 
 <!-- Fields -->
@@ -130,7 +130,17 @@ Classes follow BEM: `prism-<component>`, `__<part>` for a part, `--<name>` for a
 
 <!-- Spinner: an empty element, drawn in its text color -->
 <span class="prism-spinner" role="status" aria-label="Loading"></span>
-<span class="prism-spinner prism-spinner--small prism-spinner--accent"></span>
+<span class="prism-spinner prism-spinner--16 prism-spinner--accent"></span>
+
+<!-- Spinner with a progress value (40 of 100): a ring, the arc as long as the value -->
+<span class="prism-spinner prism-spinner--32 prism-spinner--progress"
+      role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="40">
+  <svg viewBox="0 0 100 100" aria-hidden="true">
+    <circle class="prism-spinner__track" cx="50" cy="50" r="42" />
+    <circle class="prism-spinner__indicator" cx="50" cy="50" r="42" pathLength="100"
+            stroke-dasharray="40 100" transform="rotate(-90 50 50)" />
+  </svg>
+</span>
 
 <!-- Tags -->
 <span class="prism-tag prism-tag--accent">
@@ -233,12 +243,15 @@ Font classes: `font-title0` through `font-title7`, `font-body`, `font-button`, `
 | Class | Description |
 | --- | --- |
 | `prism-spinner` | Spinner (24px), in the text color around it |
-| `prism-spinner--small` | Small spinner (16px) |
-| `prism-spinner--large` | Large spinner (32px) |
+| `prism-spinner--16`, `--20`, `--32` | Spinner of 16, 20 or 32px; 24px has no class |
 | `prism-spinner--accent` | Accent colored |
 | `prism-spinner--inverse` | White, for colored backgrounds |
+| `prism-spinner--progress` | With a progress value: a light grey ring with an arc in the spinner's color, as long as the value |
+| `prism-spinner__track`, `prism-spinner__indicator` | The progress ring's two circles |
 
-The spinner is an empty element drawn with an image (inline in `components.css`) as a mask over its text color, so a text color utility colors it too.
+The spinner is an empty element drawn with an image (inline in `components.css`) as a mask over its text color, so a text color utility colors it too. A loading button's spinner is 20px.
+
+With a progress value, the spinner holds an SVG ring instead of the image, in a box of 100 (see the example above): the indicator's `pathLength` is 100, so its `stroke-dasharray` is the value and 100. The ring's line is thicker than the spinner's own (16 of 100), and the spinner keeps turning. Give it `role="progressbar"` with `aria-valuenow`, `aria-valuemin` and `aria-valuemax`. At 0, leave the indicator out: its round ends would still draw a dot. The Phoenix and React components write all of this from one number (`progress`), clamped to 0..100.
 
 ### Checkbox
 
@@ -312,8 +325,8 @@ The spinner is an empty element drawn with an image (inline in `components.css`)
 | `prism-dropdown-option` | `prism-select__option` |
 | `prism-dropdown-option selected` | `prism-select__option prism-select__option--selected` |
 | `prism-spinner` | `prism-spinner` |
-| `prism-spinner-sm` | `prism-spinner--small` |
-| `prism-spinner-lg` | `prism-spinner--large` |
+| `prism-spinner-sm` | `prism-spinner--16` |
+| `prism-spinner-lg` | `prism-spinner--32` |
 | `prism-spinner-primary` | `prism-spinner--accent` |
 | `prism-spinner-white` | `prism-spinner--inverse` |
 | `prism-checkbox` | `prism-checkbox` |
@@ -337,6 +350,8 @@ The spinner is an empty element drawn with an image (inline in `components.css`)
 Also:
 
 - **Spinner.** It is no longer a tinted image: use an empty element (`<span class="prism-spinner"></span>`, not an `<img>`). Its image is inline in `components.css` and drawn as a mask over its text color, so CSS that drew it as a mask in an app can go, and the app serves no image for it. In a button it shows only while the button has `prism-button--loading`.
+- **Spinner sizes by their pixels.** `--16`, `--20` and `--32` (24px has no class); there is no `--small` or `--large`. In Phoenix `size={16}`, in React `size={16}`. A loading button's spinner is 20px (it was 24px): the components render `prism-spinner prism-spinner--20` in it.
+- **Spinner progress** is new: `--progress` with an SVG ring, or `progress={40}` in the Phoenix and React components, which add `role="progressbar"` and the ARIA values.
 - **Buttons with an icon** also take their variant's disabled look now.
 - **Tones color by variant.** A tone colors a primary button's background, and the text and border of the other variants: `.prism-button--primary.prism-button--danger`, `.prism-button--secondary.prism-button--danger`. A tone class without a variant class no longer colors anything. `--neutral` (dark grey) and `--highlight` (yellow) are new tones, and `--soft` and `--icon` new variants.
 - **Plain and text buttons fit their text** unless they have `prism-button--padded` (15px top and bottom, 16px at the sides, as tall as a primary button). Without it, a plain button is as in 0.1.7 (4px top and bottom, none at the sides); a text button keeps 0.1.7's label button's 1px top and bottom but has no padding at the sides (it had 16px). The Phoenix and React components add `--padded` by default (`padded={false}` leaves it off).

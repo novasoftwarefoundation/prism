@@ -23,12 +23,19 @@ defmodule Prism.Design.ReactTest do
 
   test "the button's classes are classes of the generated components.css" do
     button = File.read!(Path.join(@dir, "Button.tsx"))
-    classes = for [_, class] <- Regex.scan(~r/"(prism-[a-z_-]+)"/, button), uniq: true, do: class
+    # A literal may hold several classes (the spinner's and its size's).
+    classes =
+      for [_, list] <- Regex.scan(~r/"(prism-[a-z0-9_ -]+)"/, button),
+          class <- String.split(list),
+          uniq: true,
+          do: class
 
     assert "prism-button" in classes
     assert "prism-button--danger" in classes
     assert "prism-button--with-icon" in classes
     assert "prism-spinner" in classes
+    # The loading button's spinner is 20px.
+    assert "prism-spinner--20" in classes
 
     # The icon part has no look of its own, so no rule: its class is a hook for the app.
     assert Enum.reject(classes, &in_css?/1) == ["prism-button__icon"]

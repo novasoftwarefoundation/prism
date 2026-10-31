@@ -6,22 +6,25 @@ import { classNames } from "./helpers.js";
 export type SpinnerVariant = "accent";
 
 /** The spinner's size. */
-export type SpinnerSize = "medium" | "small";
+export type SpinnerSize = 16 | 24 | 32;
 
 const variantClasses: Record<SpinnerVariant, string> = {
   accent: "kit-spinner--accent",
 };
 
 const sizeClasses: Record<SpinnerSize, string | undefined> = {
-  medium: undefined,
-  small: "kit-spinner--small",
+  16: "kit-spinner--16",
+  24: undefined,
+  32: "kit-spinner--32",
 };
 
 export interface SpinnerOwnProps {
   /** No default: without one, it adds no class. */
   variant?: SpinnerVariant;
-  /** Default "medium", which has no class. */
+  /** Default 24, which has no class. */
   size?: SpinnerSize;
+  /** From 0 to 100, clamped; adds `kit-spinner--progress` and `role="progressbar"`. */
+  progress?: number;
   /** Classes after the component's own. */
   className?: string;
 }
@@ -31,19 +34,51 @@ export type SpinnerProps = SpinnerOwnProps &
 
 /** The design's `spinner` component. */
 export const Spinner = forwardRef<HTMLSpanElement, SpinnerProps>(function Spinner(
-  { variant, size = "medium", className, ...rest },
+  { variant, size = 24, progress, className, ...rest },
   ref,
 ) {
+  // The progress, within 0 and 100, and its attributes while the app gives it.
+  const progressValue =
+    progress === undefined ? undefined : Math.min(100, Math.max(0, progress));
+  const progressAttributes =
+    progressValue === undefined
+      ? {}
+      : {
+          role: "progressbar",
+          "aria-valuemin": 0,
+          "aria-valuemax": 100,
+          "aria-valuenow": progressValue,
+        };
+
   return (
     <span
       ref={ref}
+      {...progressAttributes}
       {...rest}
       className={classNames(
         "kit-spinner",
         variant && variantClasses[variant],
         sizeClasses[size],
+        progressValue !== undefined && "kit-spinner--progress",
         className,
       )}
-    />
+    >
+      {progressValue !== undefined && (
+        <svg viewBox="0 0 100 100" aria-hidden="true">
+          <circle className="kit-spinner__track" cx="50" cy="50" r="44" />
+          {progressValue > 0 && (
+            <circle
+              className="kit-spinner__indicator"
+              cx="50"
+              cy="50"
+              r="44"
+              pathLength="100"
+              strokeDasharray={`${progressValue} 100`}
+              transform="rotate(-90 50 50)"
+            />
+          )}
+        </svg>
+      )}
+    </span>
   );
 });

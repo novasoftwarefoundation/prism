@@ -120,7 +120,11 @@ defmodule Prism.Generator.PhoenixTest do
       # A default without a look of its own is a value, first.
       assert attr.(:button, :tone).opts[:values] == [:accent, :danger]
       assert attr.(:button, :tone).opts[:default] == :accent
-      assert attr.(:spinner, :size).opts[:values] == [:medium, :small]
+
+      # An axis named by numbers is an integer attribute, its values in their order.
+      assert %{type: :integer, opts: opts} = attr.(:spinner, :size)
+      assert opts[:values] == [16, 24, 32]
+      assert opts[:default] == 24
 
       # Without a default in the design, there is none.
       refute Keyword.has_key?(attr.(:spinner, :variant).opts, :default)
@@ -140,9 +144,9 @@ defmodule Prism.Generator.PhoenixTest do
             {~H"<Kit.button tone={:danger}>x</Kit.button>",
              "kit-button kit-button--primary kit-button--danger"},
             {~H"<Kit.text_field variant={:inverse} />", "kit-text-field kit-text-field--inverse"},
-            {~H"<Kit.spinner size={:medium} />", "kit-spinner"},
-            {~H"<Kit.spinner size={:small} variant={:accent} />",
-             "kit-spinner kit-spinner--accent kit-spinner--small"},
+            {~H"<Kit.spinner size={24} />", "kit-spinner"},
+            {~H"<Kit.spinner size={16} variant={:accent} />",
+             "kit-spinner kit-spinner--accent kit-spinner--16"},
             {~H"<Kit.tag tone={:accent}>x</Kit.tag>", "kit-tag kit-tag--accent"},
             {~H"<Kit.message_bar tone={:danger}>x</Kit.message_bar>",
              "kit-message-bar kit-message-bar--danger"},
@@ -182,7 +186,7 @@ defmodule Prism.Generator.PhoenixTest do
 
       assert html(~H"<Kit.button loading>Save</Kit.button>") ==
                norm(
-                 ~s(<button class="kit-button kit-button--primary kit-button--loading"><span class="kit-button__label">Save</span><span class="kit-spinner"></span></button>)
+                 ~s(<button class="kit-button kit-button--primary kit-button--loading"><span class="kit-button__label">Save</span><span class="kit-spinner kit-spinner--16"></span></button>)
                )
 
       # The radio's row is no form control, so its disabled state is a class; it
@@ -371,8 +375,9 @@ defmodule Prism.Generator.PhoenixTest do
       assigns = %{}
       refute html(~H"<Kit.button>Save</Kit.button>") =~ "kit-spinner"
 
+      # With the variant the part picks.
       assert html(~H"<Kit.button loading>Save</Kit.button>") =~
-               norm(~s(<span class="kit-spinner"></span>))
+               norm(~s(<span class="kit-spinner kit-spinner--16"></span>))
     end
 
     test "parts come in the design's order" do
@@ -409,6 +414,67 @@ defmodule Prism.Generator.PhoenixTest do
                  ~s(<div class="kit-field"><label for="name" class="kit-field__label">Name</label>CONTROL) <>
                    ~s(<p class="kit-field__error-message">Required</p></div>)
                )
+    end
+  end
+
+  describe "values" do
+    defp ring(value),
+      do:
+        ~s(<svg viewBox="0 0 100 100" aria-hidden="true">) <>
+          ~s(<circle class="kit-spinner__track" cx="50" cy="50" r="44"></circle>) <>
+          ~s(<circle class="kit-spinner__indicator" cx="50" cy="50" r="44" pathLength="100" ) <>
+          ~s|stroke-dasharray="#{value} 100" transform="rotate(-90 50 50)"></circle></svg>|
+
+    test "a value is an attribute, nil by default" do
+      attr = Enum.find(Kit.__components__()[:spinner].attrs, &(&1.name == :progress))
+      assert %{type: :any, opts: opts} = attr
+      assert opts[:default] == nil
+    end
+
+    test "with a number: the class, the progressbar's attributes and the ring" do
+      assigns = %{}
+
+      assert html(~H"<Kit.spinner progress={40} />") ==
+               norm(
+                 ~s(<span role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="40" ) <>
+                   ~s(class="kit-spinner kit-spinner--progress">) <>
+                   ring(40) <> "</span>"
+               )
+    end
+
+    test "a number out of range clamps to 0 and 100; a fraction stays" do
+      for {given, shown} <- [{140, "100"}, {40.5, "40.5"}] do
+        assigns = %{given: given}
+        html = html(~H"<Kit.spinner progress={@given} />")
+        assert html =~ ~s(aria-valuenow="#{shown}"), html
+        assert html =~ ~s(stroke-dasharray="#{shown} 100"), html
+      end
+    end
+
+    # At 0 the arc's round ends would still draw a dot.
+    test "at 0, and below, the track without the arc" do
+      for given <- [0, -5] do
+        assigns = %{given: given}
+        html = html(~H"<Kit.spinner progress={@given} />")
+        assert html =~ ~s(aria-valuenow="0"), html
+        assert html =~ "kit-spinner__track"
+        refute html =~ "kit-spinner__indicator"
+      end
+    end
+
+    test "without one, the spinner as it is, with no role" do
+      assigns = %{}
+
+      assert html(~H"<Kit.spinner size={16} progress={nil} />") ==
+               norm(~s(<span class="kit-spinner kit-spinner--16"></span>))
+    end
+
+    test "anything but a number or nil fails when it renders" do
+      assigns = %{}
+
+      assert_raise ArgumentError, ~s(progress: "40" is not a number from 0 to 100, or nil), fn ->
+        html(~H'<Kit.spinner progress="40" />')
+      end
     end
   end
 
@@ -461,7 +527,8 @@ defmodule Prism.Generator.PhoenixTest do
       <Kit.field><:label>x</:label>x<:error_message>x</:error_message></Kit.field>
       <Kit.radio_group><Kit.radio checked disabled>x</Kit.radio></Kit.radio_group>
       <Kit.select>x<:icon>v</:icon><:option selected>x</:option></Kit.select>
-      <Kit.spinner size={:small} variant={:accent} />
+      <Kit.spinner size={16} variant={:accent} />
+      <Kit.spinner size={32} progress={40} />
       <Kit.checkbox checked disabled />
       <Kit.tag tone={:accent}>x</Kit.tag>
       <Kit.message_bar tone={:danger}>x</Kit.message_bar>

@@ -44,7 +44,7 @@ defmodule Prism.Design.ComponentsTest do
              radio_group: [],
              radio: [],
              select: [],
-             spinner: [size: [:small, :large], variant: [:accent, :inverse]],
+             spinner: [size: [16, 20, 32], variant: [:accent, :inverse]],
              checkbox: [],
              tag: [tone: [:accent, :success, :warning, :danger, :neutral]],
              message_bar: [tone: [:info, :success, :warning, :danger]],
@@ -121,6 +121,27 @@ defmodule Prism.Design.ComponentsTest do
   test "the icon is at the start of the label unless the app puts it at the end" do
     button = Enum.find(@design.components, &(&1.name == :button))
     assert Enum.find(button.parts, &(&1.name == :icon)).position == :start
+  end
+
+  # ADR 0007: sizes by their px, a progress value, and 20px in the button.
+  test "the spinner's sizes are 16, 20, 24 and 32, its own 24" do
+    spinner = Enum.find(@design.components, &(&1.name == :spinner))
+
+    assert spinner.style[:size] == 24
+    assert [%{name: :size, default: 24}] = spinner.axes
+
+    assert for(%{axis: :size} = v <- spinner.variants, do: {v.name, v.style}) ==
+             [{16, [size: 16]}, {20, [size: 20]}, {32, [size: 32]}]
+  end
+
+  test "with a progress value, a grey4 track and a 16% stroke; the button's spinner is 20px" do
+    spinner = Enum.find(@design.components, &(&1.name == :spinner))
+
+    assert [%{name: :progress, style: [stroke: {16, :percent}, track: :grey4]}] =
+             spinner.values
+
+    button = Enum.find(@design.components, &(&1.name == :button))
+    assert Enum.find(button.parts, &(&1.name == :spinner)).variants == [size: 20]
   end
 
   test "the spinner's color is its foreground, a token" do

@@ -34,12 +34,13 @@ defmodule Prism.Generator.ExampleComponents do
   # is a name without a class.
   # The app picks the icon's side of the label; a variant has a part's name; the
   # tone's looks are with variants; one flag is on by default and has looks only
-  # with a variant, the other has a look of its own.
+  # with a variant, the other has a look of its own. The spinner part picks the
+  # spinner's 16.
   component :button, default: :primary do
     style typography: :body, radius: :default
     part :label
     part :icon, position: :start
-    part :spinner, component: :spinner
+    part :spinner, component: :spinner, variants: [size: 16]
 
     variant :primary, background: :accent, foreground: :paper do
       state :pressed, shadow: :pressed
@@ -121,15 +122,18 @@ defmodule Prism.Generator.ExampleComponents do
     end
   end
 
-  # No default color: it takes the text color around it.
+  # No default color: it takes the text color around it. Its sizes are named by
+  # their px; 24 is its own. With a progress value, a ring with a faint track.
   component :spinner do
     style size: 24, rotation: {1000, :linear}
 
-    variants :size, default: :medium do
-      variant :small, size: 16
+    variants :size, default: 24 do
+      variant 16, size: 16
+      variant 32, size: 32
     end
 
     variant :accent, foreground: :accent
+    value(:progress, stroke: {12, :percent}, track: {:ink, 0.1})
   end
 
   component :checkbox do

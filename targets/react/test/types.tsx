@@ -13,7 +13,8 @@ export const accepted = (
     <Field label="Email" labelProps={{ htmlFor: "email" }} errorMessage="Required">
       <TextField id="email" invalid />
     </Field>
-    <Spinner size="large" variant="inverse" />
+    <Spinner size={32} variant="inverse" />
+    <Spinner size={20} progress={40} />
     <Tag tone="neutral">Draft</Tag>
   </>
 );
@@ -78,6 +79,15 @@ export const looks = (
 
 // @ts-expect-error: 0.1.7's names are gone
 export const oldName = <Button variant="label">Save</Button>;
+
+// @ts-expect-error: 0.2.0's sizes are their px: no small, medium or large
+export const namedSize = <Spinner size="large" />;
+
+// @ts-expect-error: no such size
+export const unknownSize = <Spinner size={18} />;
+
+// @ts-expect-error: the progress is a number
+export const progressAsText = <Spinner progress="40" />;
 
 // @ts-expect-error: danger is the red tone, error is no tone
 export const errorTone = <Tag tone="error">Failed</Tag>;

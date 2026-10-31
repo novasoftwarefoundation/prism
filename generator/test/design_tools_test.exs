@@ -263,5 +263,25 @@ defmodule Prism.Generator.DesignToolsTest do
       assert svg =~ ~s(<g id="button/primary/loading">)
       assert svg =~ ~r/<g id="checkbox\/default\/checked">(?:(?!<\/g>).)*<polyline/s
     end
+
+    test "a spinner's sizes by their numbers, and its progress as a ring at 40" do
+      svg = svg(ExampleComponents.__schema__())
+
+      for id <- ~w(spinner/no-variant/enabled spinner/accent/enabled spinner/accent+16/enabled
+                 spinner/accent+32/enabled spinner/accent+progress-40/enabled),
+          do: assert(svg =~ ~s(<g id="#{id}">), id)
+
+      [_, ring] = Regex.run(~r/<g id="spinner\/accent\+progress-40\/enabled">(.*?)<\/g>/s, svg)
+
+      # 24px, a stroke of 12%: the track in its color, then the arc, 40 of 100, from the top.
+      assert ring =~
+               ~r/r="10.56" fill="none" stroke-width="2.88" stroke="#101010" stroke-opacity="0.1"\/>/
+
+      assert ring =~
+               ~r/stroke="#1A73E8" stroke-linecap="round" stroke-dasharray="26.54 66.35" transform="rotate\(-90 /
+
+      # The button's spinner is the size its part picks.
+      assert svg =~ ~r/<g id="button\/primary\/loading">(?:(?!<g id=).)*<circle [^>]* r="7"/s
+    end
   end
 end

@@ -13,8 +13,9 @@ defmodule Prism.Generator.Web.Components do
   the button's `:label` and `:icon`, the field's `:label` and
   `:error_message`, the radio's `:control` and `:label`, the select's
   `:field`, `:icon`, `:listbox` and `:option`, the tag's `:label`, and on any
-  component a part that is another component. A design component it doesn't
-  know fails generation, and so does a part it doesn't write. Each component
+  component a part that is another component, and these values (`values/0`):
+  the spinner's `:progress`. A design component it doesn't know fails
+  generation, and so does a part or a value it doesn't write. Each component
   writes the variants and states the design gives it, so a new variant needs
   no change here.
 
@@ -40,7 +41,9 @@ defmodule Prism.Generator.Web.Components do
     together, the other variant's first (`.acme-button--secondary.acme-button--danger`
     for a `with_variant :secondary` in the tone `danger`);
   - a flag is `--<flag>` (`.acme-button--padded`), after the variant's
-    class for its look with a variant (`.acme-button--text.acme-button--padded`).
+    class for its look with a variant (`.acme-button--text.acme-button--padded`);
+  - a value the app gives is `--<value>` (`.acme-spinner--progress`);
+  - a variant named by a number is that number (`.acme-spinner--16`).
 
   So a part never reads as a variant: `.acme-button__label` and
   `.acme-button--text` can't be confused, and a variant may have a part's name
@@ -69,11 +72,14 @@ defmodule Prism.Generator.Web.Components do
   Some values can't be written on the web, so the schema refuses them at
   compile time, on their line: the checkbox's check mark can't have a color
   with alpha or `:transparent`, because it is drawn into an image; a spinner
-  has no background, because it is drawn in its foreground color; and a
-  spinner's size is px or rem, because a loading button centers it by half
-  its size, as it does any part that is another component, whose size must be
-  px or rem too. A part that is another component has no modifier class of its
-  own, so a state of it, in or outside a variant, can only be a pseudo-class.
+  has no background, because it is drawn in its foreground color; a spinner's
+  size is px or rem, because a loading button centers it by half its size, as
+  it does any part that is another component, whose size must be px or rem too
+  (the size of the variants the part picks, when they give one); and a
+  spinner's progress has a stroke in percent, a share of the spinner's size,
+  because its ring is drawn in a box of 100. A part that is another component
+  has no modifier class of its own, so a state of it, in or outside a variant,
+  can only be a pseudo-class.
 
   Generation fails when a value or a `web:` key of the design is written
   nowhere, so nothing in the design is ignored.
@@ -86,6 +92,15 @@ defmodule Prism.Generator.Web.Components do
   where a relative URL would resolve against the app. Its color is its `foreground`, an
   ordinary color. A button hides a part that is another component unless it
   is loading.
+
+  With a progress value (`--progress`), the spinner has no image: the
+  markup (`Prism.Generator.Web.Elements`) puts an SVG ring in it, a box of
+  100 with two circles, `__track` and `__indicator`. The indicator's
+  `pathLength` is 100 and its dash as long as the value, so the app's number
+  is the arc's length as it is. This CSS draws them: the value's `stroke` as
+  the ring's width, its `track` as the track's color, and the indicator in
+  the spinner's color (`currentColor`), with round ends. The spinner keeps
+  turning.
 
   ## Spelling
 
@@ -121,6 +136,9 @@ defmodule Prism.Generator.Web.Components do
     tag: [:label]
   }
 
+  # The values each component writes.
+  @values %{spinner: [:progress]}
+
   @bindings %{
     component: [:section, :doc],
     variants: [:doc],
@@ -129,7 +147,8 @@ defmodule Prism.Generator.Web.Components do
     with_part: [:doc],
     with_variant: [:doc],
     flag: [:doc],
-    state: [:doc]
+    state: [:doc],
+    value: [:doc]
   }
 
   @binding_keys @bindings |> Map.values() |> List.flatten() |> Enum.uniq()
@@ -155,6 +174,9 @@ defmodule Prism.Generator.Web.Components do
 
   @doc "The parts each component writes, besides parts that are other components."
   def parts, do: @parts
+
+  @doc "The values each component writes."
+  def values, do: @values
 
   @doc "The keys a `web:` binding may have besides the properties, per kind of node."
   def bindings, do: @bindings
@@ -186,6 +208,16 @@ defmodule Prism.Generator.Web.Components do
         {:error,
          "a button centers its spinner by half the spinner's size, which a percentage can't give; use px or rem"}
 
+      {{:component, :spinner}, {:value, _}, :stroke, stroke} ->
+        case stroke do
+          {n, :percent} when n > 0 and n <= 50 ->
+            :ok
+
+          _ ->
+            {:error,
+             "the ring is drawn in a box of 100, so its stroke is a share of the spinner's size: give {n, :percent}, n above 0 and at most 50"}
+        end
+
       _ ->
         :ok
     end
@@ -193,11 +225,12 @@ defmodule Prism.Generator.Web.Components do
 
   @doc false
   # Checks, for the schema, a part of `component` that is the component `other`: a
-  # loading button centers it by half its size, so its size is px or rem.
-  def check_part(%{name: :button} = component, other) do
+  # loading button centers it by half its size (the size of the variants the part
+  # picks, or the component's own), so its size is px or rem.
+  def check_part(%{name: :button} = component, part, other) do
     loading? = Enum.any?(component.states, &(&1.name == :loading))
 
-    case web_style(other)[:size] do
+    case part_size(part, other) do
       _ when not loading? ->
         :ok
 
@@ -214,7 +247,19 @@ defmodule Prism.Generator.Web.Components do
     end
   end
 
-  def check_part(_component, _other), do: :ok
+  def check_part(_component, _part, _other), do: :ok
+
+  # The size of a part that is another component: the last size among the
+  # variants it picks, or that component's own.
+  defp part_size(part, other) do
+    picked =
+      for {axis, name} <- part.variants,
+          v = Enum.find(other.variants, &(&1.axis == axis and &1.name == name)),
+          size = web_style(v)[:size],
+          do: size
+
+    List.last(picked) || web_style(other)[:size]
+  end
 
   @doc false
   # Checks, for the schema, a state of `part` of `component`, a part that is the
@@ -254,6 +299,21 @@ defmodule Prism.Generator.Web.Components do
             "the web target has no part #{inspect(p.name)} of #{inspect(c.name)}; " <>
               if(known == [],
                 do: "it writes only parts that are other components there",
+                else: "it knows #{Enum.map_join(known, ", ", &inspect/1)}"
+              )
+          )
+    end
+
+    for c <- components, v <- Map.get(c, :values, []) do
+      known = Map.get(@values, c.name, [])
+
+      unless v.name in known,
+        do:
+          raise(
+            ArgumentError,
+            "the web target has no value #{inspect(v.name)} of #{inspect(c.name)}; " <>
+              if(known == [],
+                do: "it writes no values there",
                 else: "it knows #{Enum.map_join(known, ", ", &inspect/1)}"
               )
           )
@@ -473,6 +533,7 @@ defmodule Prism.Generator.Web.Components do
       }
       """,
       for(v <- c.variants, colors.(v), do: axis_variant(c, v, pseudo(c))),
+      Enum.map(c.values, &progress(c, &1)),
       flags(c, pseudo(c))
     ]
   end
@@ -564,6 +625,36 @@ defmodule Prism.Generator.Web.Components do
   end
 
   # ------------------------------------------------------------ shared rules
+
+  # A spinner with its progress: no image, but the markup's ring, its track in the
+  # track's color and its indicator in the spinner's, with round ends.
+  defp progress(c, v) do
+    path = [c.name, v.name]
+    sel = selector(path)
+    stroke = with {n, :percent} <- get(path, :stroke), do: n
+
+    with_doc(path, [
+      rule(sel, [
+        "background-color: transparent",
+        "-webkit-mask: none",
+        "mask: none",
+        declarations(path, except: [:stroke, :track])
+      ]),
+      rule("#{sel} svg", [
+        "display: block",
+        "width: 100%",
+        "height: 100%",
+        "fill: none",
+        # In the ring's box of 100, a share of the size.
+        "stroke-width: #{Web.number(stroke)}"
+      ]),
+      rule("#{sel} .#{Classes.part(prefix(), c, :track)}", ["stroke: #{value(path, :track)}"]),
+      rule("#{sel} .#{Classes.part(prefix(), c, :indicator)}", [
+        "stroke: currentColor",
+        "stroke-linecap: round"
+      ])
+    ])
+  end
 
   # A component's own states and its looks with a part.
   defp own(path, c, selectors), do: [states(path, c, selectors), with_parts(path, c, selectors)]
@@ -714,7 +805,7 @@ defmodule Prism.Generator.Web.Components do
 
         spinners =
           for %{component: ref} = p <- c.parts, ref != nil do
-            margin = [ref] |> get(:size) |> half() |> css_length()
+            margin = p |> spinner_size(ref) |> half() |> css_length()
 
             [
               rule(".#{class(state)} .#{class([c.name, p.name])}", [
@@ -739,6 +830,18 @@ defmodule Prism.Generator.Web.Components do
           | Enum.map(s.parts, &state_part(".#{class(state)}", state, &1))
         ] ++ spinners
     end
+  end
+
+  # The size of a part that is another component: that of the last variant it
+  # picks that gives one, or the component's own.
+  defp spinner_size(p, ref) do
+    picked =
+      for {_axis, name} <- p.variants,
+          path = [ref, {:variant, name}],
+          has?(path, :size),
+          do: path
+
+    get(List.last(picked) || [ref], :size)
   end
 
   # A part the component declares: its rule, from `lines`, then its states.
@@ -875,7 +978,7 @@ defmodule Prism.Generator.Web.Components do
         [] ->
           [Classes.component(prefix(), c.name)]
 
-        [{kind, _}] when kind in [:part, :with_part, :flag] ->
+        [{kind, _}] when kind in [:part, :with_part, :flag, :value] ->
           [class(path)]
 
         # A flag's look with a variant: the variant's class, then the flag's.
@@ -926,7 +1029,7 @@ defmodule Prism.Generator.Web.Components do
     value = get(path, key)
 
     case key do
-      k when k in [:background, :foreground, :placeholder] -> color(value)
+      k when k in [:background, :foreground, :placeholder, :track] -> color(value)
       k when k in [:transition, :rotation] -> motion(value)
       :shadow -> shadow(value, Keyword.get(opts, :zero, "0"))
     end
@@ -1140,9 +1243,11 @@ defmodule Prism.Generator.Web.Components do
     |> Enum.reverse()
   end
 
+  # A part's `variants` are the variants it picks of the component it is, not nodes.
   defp children(node) do
-    for kind <- [:part, :variant, :with_part, :with_variant, :flag, :state],
+    for kind <- [:part, :variant, :with_part, :with_variant, :flag, :state, :value],
         child <- Map.get(node, :"#{kind}s", []),
+        is_map(child),
         do: {kind, child}
   end
 
@@ -1151,8 +1256,8 @@ defmodule Prism.Generator.Web.Components do
 
   defp label(path) do
     Enum.map_join(path, ".", fn
-      {_kind, name} -> Atom.to_string(name)
-      name -> Atom.to_string(name)
+      {_kind, name} -> to_string(name)
+      name -> to_string(name)
     end)
   end
 
