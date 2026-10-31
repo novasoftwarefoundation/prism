@@ -3,7 +3,7 @@ import { forwardRef, type ComponentPropsWithoutRef, type ReactNode, type Ref } f
 import { classNames, present } from "./helpers.js";
 
 /** The button's variant. */
-export type ButtonVariant = "primary" | "quiet" | "subtle";
+export type ButtonVariant = "primary" | "quiet" | "subtle" | "icon";
 
 /** The button's tone. */
 export type ButtonTone = "accent" | "danger";
@@ -16,6 +16,7 @@ const variantClasses: Record<ButtonVariant, string> = {
   primary: "kit-button--primary",
   quiet: "kit-button--quiet",
   subtle: "kit-button--subtle",
+  icon: "kit-button--icon",
 };
 
 const toneClasses: Record<ButtonTone, string | undefined> = {
@@ -28,6 +29,12 @@ export interface ButtonOwnProps {
   variant?: ButtonVariant;
   /** Default "accent", which has no class. */
   tone?: ButtonTone;
+  /** Adds `kit-button--roomy` with variant "quiet" or "subtle". Default true. */
+  roomy?: boolean;
+  /** Adds `kit-button--strong`. Default false. */
+  strong?: boolean;
+  /** The icon part's side of the content. Default "start". */
+  iconPosition?: "start" | "end";
   /** Sets the element's `disabled`. */
   disabled?: boolean;
   /** Adds `kit-button--loading`; shows the spinner part. */
@@ -66,6 +73,9 @@ export const Button = forwardRef<HTMLElement, ButtonProps>(function Button(
     as: element = "button",
     variant = "primary",
     tone = "accent",
+    roomy = true,
+    strong,
+    iconPosition = "start",
     disabled,
     loading,
     icon,
@@ -90,13 +100,20 @@ export const Button = forwardRef<HTMLElement, ButtonProps>(function Button(
         "kit-button",
         variantClasses[variant],
         toneClasses[tone],
+        roomy && (variant === "quiet" || variant === "subtle") && "kit-button--roomy",
+        strong && "kit-button--strong",
         loading && "kit-button--loading",
         present(icon) && "kit-button--with-icon",
         className,
       )}
     >
+      {iconPosition === "start" && present(icon) && (
+        <span {...iconProps} className={classNames("kit-button__icon", iconProps?.className)}>
+          {icon}
+        </span>
+      )}
       {present(children) && <span className="kit-button__label">{children}</span>}
-      {present(icon) && (
+      {iconPosition === "end" && present(icon) && (
         <span {...iconProps} className={classNames("kit-button__icon", iconProps?.className)}>
           {icon}
         </span>

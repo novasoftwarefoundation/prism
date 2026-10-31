@@ -66,12 +66,19 @@ defmodule Prism.Generator.Schema do
       value as the design writes it (a token's name, `{color, alpha}`,
       `"#RRGGBB"`, `:transparent`, a length, insets such as `[y: 15, x: 16]`
       where `x` is left and right and `y` top and bottom, …);
-    - `parts`: `[%{name, component, style, states}]` in the design's order,
-      `component` being the name of the component the part is, or `nil`;
-    - `variants`: `[%{name, axis, aliases, style, parts, with_parts, states}]`
-      in the design's order; `axis` is `:variant`, or the name of the
-      `variants` block it is in; `parts` are the changes it makes to the
-      component's parts, `[%{name, style, states}]`;
+    - `parts`: `[%{name, component, position, style, states}]` in the
+      design's order, `component` being the name of the component the part
+      is, or `nil`, and `position` the part's side of the content when the app
+      may pick it (`:start` or `:end`), or `nil`;
+    - `variants`: `[%{name, axis, aliases, style, parts, with_parts,
+      with_variants, states}]` in the design's order; `axis` is `:variant`, or
+      the name of the `variants` block it is in; `parts` are the changes it
+      makes to the component's parts, `[%{name, style, states}]`;
+      `with_variants` are its looks with a variant of another axis,
+      `[%{name, style, states}]`, `name` being that variant's;
+    - `flags`: `[%{name, default, style, with_variants, states}]`, the looks
+      the app turns on or off, `default` `true` or `false`; `with_variants`
+      as a variant's, naming a variant of any axis;
     - `default`: the default of the `:variant` axis, and `axes`:
       `[%{name, default}]`, the `variants` blocks. A default is the name of
       one of the axis's variants, a name without a look of its own (no class),
@@ -85,8 +92,8 @@ defmodule Prism.Generator.Schema do
       `[%{name, style, states}]`, with `states` always `[]`; a variant's part
       changes have the same shape, and their `states` are the part's states
       within that variant;
-    - and on every component, part, variant, axis, look with a part and
-      state, `web`, `ios` and `android`: its binding for that target, a
+    - and on every component, part, variant, axis, look with a part or a
+      variant, flag and state, `web`, `ios` and `android`: its binding for that target, a
       keyword list (`[]` without one). A property in a binding replaces the shared one on that target;
       the other keys are the target's own (`Prism.Generator.Web.Components`).
       A target reads only its own binding.

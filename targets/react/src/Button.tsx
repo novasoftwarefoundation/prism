@@ -3,10 +3,10 @@ import { forwardRef, type ComponentPropsWithoutRef, type ReactNode, type Ref } f
 import { classNames, present } from "./helpers.js";
 
 /** The button's variant. */
-export type ButtonVariant = "primary" | "secondary" | "plain" | "link" | "text";
+export type ButtonVariant = "primary" | "secondary" | "plain" | "link" | "text" | "soft" | "icon";
 
 /** The button's tone. */
-export type ButtonTone = "accent" | "success" | "warning" | "danger";
+export type ButtonTone = "accent" | "success" | "warning" | "danger" | "neutral" | "highlight";
 
 /** The elements a button can be: `as`. */
 export const buttonElements = ["button", "a", "span", "div"] as const;
@@ -18,6 +18,8 @@ const variantClasses: Record<ButtonVariant, string> = {
   plain: "prism-button--plain",
   link: "prism-button--link",
   text: "prism-button--text",
+  soft: "prism-button--soft",
+  icon: "prism-button--icon",
 };
 
 const toneClasses: Record<ButtonTone, string | undefined> = {
@@ -25,6 +27,8 @@ const toneClasses: Record<ButtonTone, string | undefined> = {
   success: "prism-button--success",
   warning: "prism-button--warning",
   danger: "prism-button--danger",
+  neutral: "prism-button--neutral",
+  highlight: "prism-button--highlight",
 };
 
 export interface ButtonOwnProps {
@@ -32,6 +36,10 @@ export interface ButtonOwnProps {
   variant?: ButtonVariant;
   /** Default "accent", which has no class. */
   tone?: ButtonTone;
+  /** Adds `prism-button--padded` with variant "plain" or "text". Default true. */
+  padded?: boolean;
+  /** The icon part's side of the content. Default "start". */
+  iconPosition?: "start" | "end";
   /** Sets the element's `disabled`. */
   disabled?: boolean;
   /** Adds `prism-button--loading`; shows the spinner part. */
@@ -70,6 +78,8 @@ export const Button = forwardRef<HTMLElement, ButtonProps>(function Button(
     as: element = "button",
     variant,
     tone = "accent",
+    padded = true,
+    iconPosition = "start",
     disabled,
     loading,
     icon,
@@ -94,13 +104,19 @@ export const Button = forwardRef<HTMLElement, ButtonProps>(function Button(
         "prism-button",
         variant && variantClasses[variant],
         toneClasses[tone],
+        padded && (variant === "plain" || variant === "text") && "prism-button--padded",
         loading && "prism-button--loading",
         present(icon) && "prism-button--with-icon",
         className,
       )}
     >
+      {iconPosition === "start" && present(icon) && (
+        <span {...iconProps} className={classNames("prism-button__icon", iconProps?.className)}>
+          {icon}
+        </span>
+      )}
       {present(children) && <span className="prism-button__label">{children}</span>}
-      {present(icon) && (
+      {iconPosition === "end" && present(icon) && (
         <span {...iconProps} className={classNames("prism-button__icon", iconProps?.className)}>
           {icon}
         </span>

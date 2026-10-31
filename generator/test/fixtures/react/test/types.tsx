@@ -19,6 +19,22 @@ export const accepted = (
 // @ts-expect-error: no such variant
 export const unknownVariant = <Button variant="primray">Save</Button>;
 
+// @ts-expect-error: a side is start or end, never left
+export const leftIcon = <Button iconPosition="left" icon="*">Back</Button>;
+
+// @ts-expect-error: a flag is a boolean
+export const roomyText = <Button roomy="yes">x</Button>;
+
+// The icon's side and the flags.
+export const sides = (
+  <>
+    <Button iconPosition="end" icon="*" roomy={false} strong>
+      Next
+    </Button>
+    <Button variant="icon" icon="*" aria-label="Add" />
+  </>
+);
+
 // @ts-expect-error: no such tone
 export const unknownTone = <Tag tone="error">Done</Tag>;
 

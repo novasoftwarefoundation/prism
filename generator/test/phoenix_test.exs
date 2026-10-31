@@ -114,7 +114,7 @@ defmodule Prism.Generator.PhoenixTest do
 
       # The :variant axis's default is one of its variants; aliases are values too.
       assert %{type: :atom, opts: opts} = attr.(:button, :variant)
-      assert opts[:values] == [:primary, :quiet, :subtle]
+      assert opts[:values] == [:primary, :quiet, :subtle, :icon]
       assert opts[:default] == :primary
 
       # A default without a look of its own is a value, first.
@@ -131,8 +131,11 @@ defmodule Prism.Generator.PhoenixTest do
       assigns = %{}
 
       for {rendered, class} <- [
-            {~H"<Kit.button variant={:quiet}>x</Kit.button>", "kit-button kit-button--quiet"},
-            {~H"<Kit.button variant={:subtle}>x</Kit.button>", "kit-button kit-button--subtle"},
+            {~H"<Kit.button variant={:quiet} roomy={false}>x</Kit.button>",
+             "kit-button kit-button--quiet"},
+            {~H"<Kit.button variant={:subtle} roomy={false}>x</Kit.button>",
+             "kit-button kit-button--subtle"},
+            {~H"<Kit.button variant={:icon}>x</Kit.button>", "kit-button kit-button--icon"},
             {~H"<Kit.button tone={:accent}>x</Kit.button>", "kit-button kit-button--primary"},
             {~H"<Kit.button tone={:danger}>x</Kit.button>",
              "kit-button kit-button--primary kit-button--danger"},
@@ -166,7 +169,7 @@ defmodule Prism.Generator.PhoenixTest do
       assert [%{severity: :warning, message: message}] = Enum.uniq_by(diagnostics, & &1.message)
 
       assert message ==
-               ~s(attribute "variant" in component Prism.Generator.PhoenixTest.Kit.button/1 must be one of [:primary, :quiet, :subtle], got: :primray)
+               ~s(attribute "variant" in component Prism.Generator.PhoenixTest.Kit.button/1 must be one of [:primary, :quiet, :subtle, :icon], got: :primray)
     end
   end
 
@@ -211,8 +214,9 @@ defmodule Prism.Generator.PhoenixTest do
         Enum.sort(for %{type: :boolean, name: name} <- Kit.__components__()[c].attrs, do: name)
       end
 
-      # pressed and focused are the browser's on a button and a text field.
-      assert states.(:button) == [:disabled, :loading]
+      # pressed and focused are the browser's on a button and a text field; the
+      # button's flags are boolean attributes too.
+      assert states.(:button) == [:disabled, :loading, :roomy, :strong]
       assert states.(:text_field) == [:disabled, :invalid]
       assert states.(:text_area) == []
       assert states.(:radio) == [:checked, :disabled]
@@ -242,6 +246,95 @@ defmodule Prism.Generator.PhoenixTest do
     end
   end
 
+  describe "flags" do
+    test "a flag is a boolean attribute with the design's default, adding its class while on" do
+      assigns = %{}
+      attr = fn name -> Enum.find(Kit.__components__()[:button].attrs, &(&1.name == name)) end
+      assert attr.(:roomy).opts[:default] == true
+      assert attr.(:strong).opts[:default] == false
+
+      assert html(~H"<Kit.button strong>x</Kit.button>") =~
+               norm(~s(class="kit-button kit-button--primary kit-button--strong"))
+
+      refute html(~H"<Kit.button>x</Kit.button>") =~ "kit-button--strong"
+    end
+
+    test "a state the app sets inside a flag or a look with a variant is an attribute too" do
+      [spec] =
+        Prism.Generator.Phoenix.components(
+          %{
+            web: %{prefix: "x"},
+            components: [
+              %{
+                name: :text_field,
+                style: [],
+                parts: [],
+                variants: [
+                  %{
+                    name: :inverse,
+                    axis: :variant,
+                    aliases: [],
+                    style: [],
+                    parts: [],
+                    with_parts: [],
+                    with_variants: [],
+                    states: [],
+                    web: [],
+                    ios: [],
+                    android: []
+                  }
+                ],
+                axes: [],
+                default: nil,
+                with_parts: [],
+                flags: [
+                  %{
+                    name: :dense,
+                    default: false,
+                    style: [],
+                    with_variants: [
+                      %{
+                        name: :inverse,
+                        style: [],
+                        states: [%{name: :invalid, style: [opacity: 0.5], parts: [], web: []}],
+                        web: []
+                      }
+                    ],
+                    states: [],
+                    web: [],
+                    ios: [],
+                    android: []
+                  }
+                ],
+                states: [],
+                web: [],
+                ios: [],
+                android: []
+              }
+            ]
+          },
+          __ENV__
+        )
+
+      assert [%{name: :invalid, effects: [{:class, nil, "x-text-field--invalid"}]}] = spec.states
+    end
+
+    # A flag whose only looks are with some variants adds its class only with them,
+    # their aliases included.
+    test "a flag with looks only with some variants adds its class only with those" do
+      assigns = %{}
+
+      assert html(~H"<Kit.button variant={:quiet}>x</Kit.button>") =~
+               norm(~s(class="kit-button kit-button--quiet kit-button--roomy"))
+
+      assert html(~H"<Kit.button variant={:subtle}>x</Kit.button>") =~
+               norm(~s(class="kit-button kit-button--subtle kit-button--roomy"))
+
+      refute html(~H"<Kit.button variant={:primary}>x</Kit.button>") =~ "kit-button--roomy"
+      refute html(~H"<Kit.button variant={:quiet} roomy={false}>x</Kit.button>") =~ "roomy"
+    end
+  end
+
   describe "parts" do
     test "an icon is a slot whose presence adds the look with it" do
       assigns = %{}
@@ -249,7 +342,28 @@ defmodule Prism.Generator.PhoenixTest do
       assert html(~H"<Kit.button>Save<:icon class='i'>*</:icon></Kit.button>") ==
                norm(
                  ~s(<button class="kit-button kit-button--primary kit-button--with-icon">) <>
-                   ~s(<span class="kit-button__label">Save</span><span class="kit-button__icon i">*</span></button>)
+                   ~s(<span class="kit-button__icon i">*</span><span class="kit-button__label">Save</span></button>)
+               )
+    end
+
+    test "a part with position: goes at the side of the content the app picks" do
+      assigns = %{}
+      attr = Enum.find(Kit.__components__()[:button].attrs, &(&1.name == :icon_position))
+      assert %{type: :atom, opts: opts} = attr
+      assert opts[:values] == [:start, :end]
+      assert opts[:default] == :start
+
+      assert html(~H"<Kit.button icon_position={:end}>Save<:icon>*</:icon></Kit.button>") ==
+               norm(
+                 ~s(<button class="kit-button kit-button--primary kit-button--with-icon">) <>
+                   ~s(<span class="kit-button__label">Save</span><span class="kit-button__icon">*</span></button>)
+               )
+
+      # With only a slot, HEEx gives an empty inner block, so the label is empty.
+      assert html(~H"<Kit.button variant={:icon}><:icon>*</:icon></Kit.button>") ==
+               norm(
+                 ~s(<button class="kit-button kit-button--icon kit-button--with-icon">) <>
+                   ~s(<span class="kit-button__icon">*</span><span class="kit-button__label"></span></button>)
                )
     end
 

@@ -240,10 +240,22 @@ defmodule Prism.Generator.Schema.ComponentsTest do
              [:pressed, :hovered, :focused, :disabled, :checked, :selected, :loading, :invalid]
   end
 
-  test "variants, aliases, parts and states of a component share one set of names" do
+  test "variants, aliases, parts, flags and states of a component share one set of names" do
     assert_compile_error(
-      "  component :c do\n    part :x\n    variant :x\n  end",
-      "component :c: :x is both a variant and a part",
+      "  component :c do\n    part :x\n    state :pressed\n    flag :pressed\n  end",
+      "component :c: :pressed is both a state and a flag",
+      12
+    )
+
+    assert_compile_error(
+      "  component :c do\n    part :x\n    flag :x\n  end",
+      "component :c: :x is both a part and a flag",
+      12
+    )
+
+    assert_compile_error(
+      "  component :c do\n    variant :x\n    flag :x\n  end",
+      "component :c: :x is both a variant and a flag",
       12
     )
 
@@ -260,12 +272,136 @@ defmodule Prism.Generator.Schema.ComponentsTest do
     )
   end
 
+  # Their classes can't be confused: `__icon` and `--icon`.
+  test "a variant may have the name of a part" do
+    [c] =
+      compile("  component :c do\n    part :icon\n    variant :icon, size: 24\n  end").components
+
+    assert [%{name: :icon}] = c.parts
+    assert [%{name: :icon, style: [size: 24]}] = c.variants
+  end
+
   test "a variant or state changes only a part the component declares" do
     assert_compile_error(
       "  component :c do\n    variant :v do\n      part :p, opacity: 0\n    end\n  end",
       "component :c, variant :v, part :p: component :c has no part :p",
       14
     )
+  end
+
+  describe "a look with a variant" do
+    test "is the look with a variant of another axis, in a variant or a flag" do
+      [c] =
+        compile("""
+          component :c do
+            variant :solid, background: :ink
+            variant :outlined, aliases: [:framed]
+
+            variants :tone do
+              variant :alert do
+                with_variant :solid, background: :ink, web: [doc: "Alert"]
+
+                with_variant [:outlined], border: [color: :ink] do
+                  state :pressed, opacity: 0.5
+                end
+              end
+            end
+
+            flag :tight, default: true do
+              with_variant [:solid, :alert], padding: [x: 1]
+            end
+          end
+        """).components
+
+      alert = Enum.find(c.variants, &(&1.name == :alert))
+
+      assert [
+               %{name: :solid, style: [background: :ink], states: [], web: [doc: "Alert"]},
+               %{name: :outlined, style: [border: [color: :ink]], states: [%{name: :pressed}]}
+             ] = alert.with_variants
+
+      assert Enum.find(c.variants, &(&1.name == :solid)).with_variants == []
+
+      assert [%{name: :tight, default: true, style: [], with_variants: [solid, tone]}] = c.flags
+      assert {solid.name, tone.name} == {:solid, :alert}
+    end
+
+    test "names a variant of another axis, once, by its name" do
+      assert_compile_error(
+        "  component :c do\n    variant :a\n    variant :b do\n      with_variant :a\n    end\n  end",
+        "with_variant :a: :a is a variant of the same axis, :variant",
+        15
+      )
+
+      assert_compile_error(
+        "  component :c do\n    variant :a, aliases: [:x]\n    variants :tone do\n      variant :t do\n        with_variant :x\n      end\n    end\n  end",
+        ":x is an alias of :a; name the variant",
+        16
+      )
+
+      assert_compile_error(
+        "  component :c do\n    flag :f do\n      with_variant :nope\n    end\n  end",
+        "component :c, flag :f, with_variant :nope: the component has no variant :nope",
+        14
+      )
+
+      assert_compile_error(
+        "  component :c do\n    variant :a\n    flag :f do\n      with_variant [:a, :a]\n    end\n  end",
+        "component :c, flag :f: :a is both a look with a variant and a look with a variant",
+        14
+      )
+
+      assert_compile_error(
+        "  component :c do\n    flag :f do\n      with_variant []\n    end\n  end",
+        "with_variant []: name at least one variant",
+        14
+      )
+    end
+
+    test "is declared only in a variant or a flag" do
+      assert_compile_error(
+        "  component :c do\n    variant :a\n    with_variant :a\n  end",
+        "with_variant :a can't be declared inside component :c",
+        14
+      )
+    end
+  end
+
+  describe "a flag" do
+    test "is off by default, or on with default: true" do
+      [c] = compile("  component :c do\n    flag :f, opacity: 0.5\n  end").components
+      assert [%{name: :f, default: false, style: [opacity: 0.5], with_variants: []}] = c.flags
+
+      assert_compile_error(
+        "  component :c do\n    flag :f, default: :yes\n  end",
+        "component :c, flag :f: default: must be true or false",
+        13
+      )
+    end
+  end
+
+  describe "a part's position" do
+    test "is the side of the content the part has when the app picks none" do
+      [c] = compile("  component :c do\n    part :icon, position: :end\n  end").components
+      assert [%{name: :icon, position: :end}] = c.parts
+
+      [c] = compile("  component :c do\n    part :icon\n  end").components
+      assert [%{name: :icon, position: nil}] = c.parts
+    end
+
+    test "is :start or :end, on a part the app fills" do
+      assert_compile_error(
+        "  component :c do\n    part :icon, position: :left\n  end",
+        "position: :left is not :start or :end",
+        13
+      )
+
+      assert_compile_error(
+        "  component :s\n  component :c do\n    part :spinner, component: :s, position: :end\n  end",
+        "position: is for a part the app fills, not another component",
+        14
+      )
+    end
   end
 
   describe "a look with a part" do

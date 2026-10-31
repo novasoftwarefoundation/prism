@@ -12,8 +12,8 @@ defmodule Prism.Design.Components do
 
   The names are the ones design systems share (ADR 0002): a component, its
   parts, and separate axes for `variant` (emphasis), `tone` (color meaning),
-  `size` and `status`. Tones are `accent`, `neutral`, `info`, `success`,
-  `warning` and `danger`. The web target's mechanics are keyed on the
+  `size` and `status`. Tones are `accent`, `neutral`, `highlight`, `info`,
+  `success`, `warning` and `danger`. The web target's mechanics are keyed on the
   component and part names too, so a rename changes the generator as well.
 
   The `web:` bindings hold only the comments of `css/components.css`.
@@ -41,7 +41,8 @@ defmodule Prism.Design.Components do
   component :button, web: [section: "Buttons", doc: "Base button styles"] do
     style typography: :button, radius: :default, transition: @motion
     part :label
-    part :icon
+    # The app puts the icon at the start (the default) or the end of the label.
+    part :icon, position: :start
     part :spinner, component: :spinner
 
     # With an icon, a button spaces the icon from its label (`--with-icon`).
@@ -70,6 +71,7 @@ defmodule Prism.Design.Components do
       with_part :icon, gap: 12, web: [doc: "Secondary button with icon"]
     end
 
+    # Without padding (`padded` off), a plain or text button fits its text.
     variant :plain,
       background: :transparent,
       foreground: :grey1,
@@ -92,9 +94,28 @@ defmodule Prism.Design.Components do
     # Was 0.1.7's label button.
     variant :text,
       foreground: :primary,
-      padding: [y: 1, x: 16],
+      padding: [y: 1, x: 0],
       web: [doc: "Text button - brand-colored text, minimal styling"] do
       state :pressed, padding: [top: 2, bottom: 0]
+    end
+
+    # The tone's light color behind the tone's color, as a primary button is laid out.
+    variant :soft,
+      background: :primarylight,
+      foreground: :primary,
+      padding: [y: 15, x: 16],
+      web: [doc: "Soft button - the tone's light color as its background"] do
+      state :pressed, padding: [top: 16, bottom: 14], shadow: :prism_btn_pressed
+      state :disabled, opacity: 0.5
+
+      with_part :icon, padding: [y: 4, x: 16], gap: 12, web: [doc: "Soft button with icon"] do
+        state :pressed, padding: [top: 5, bottom: 3]
+      end
+    end
+
+    # An icon only: the app gives the icon and a label for assistive technology.
+    variant :icon, size: 24, web: [doc: "Icon button - an icon only"] do
+      state :pressed, opacity: 0.8
     end
 
     # While loading, the label is hidden and the spinner shows in its place.
@@ -103,11 +124,51 @@ defmodule Prism.Design.Components do
     end
 
     # Combined with a variant above: `prism-button--primary prism-button--danger`.
-    # Without a tone, a button is accent, which has no class.
+    # Without a tone, a button is accent, which has no class. A tone colors the
+    # background of a primary button, and the text (and the border) of the
+    # others; a soft button takes the tone's light color as its background. The
+    # neutral and highlight tones have no light color, so no soft look.
     variants :tone, default: :accent, web: [doc: "Tones"] do
-      variant :success, background: :success, foreground: :white
-      variant :warning, background: :warning, foreground: :white
-      variant :danger, background: :error, foreground: :white
+      variant :success do
+        with_variant(:primary, background: :success, foreground: :white)
+        with_variant(:secondary, foreground: :success, border: [color: :success])
+        with_variant([:plain, :link, :text], foreground: :success)
+        with_variant(:soft, background: :successlight, foreground: :success)
+      end
+
+      variant :warning do
+        with_variant(:primary, background: :warning, foreground: :white)
+        with_variant(:secondary, foreground: :warning, border: [color: :warning])
+        with_variant([:plain, :link, :text], foreground: :warning)
+        with_variant(:soft, background: :warninglight, foreground: :warning)
+      end
+
+      variant :danger do
+        with_variant(:primary, background: :error, foreground: :white)
+        with_variant(:secondary, foreground: :error, border: [color: :error])
+        with_variant([:plain, :link, :text], foreground: :error)
+        with_variant(:soft, background: :errorlight, foreground: :error)
+      end
+
+      variant :neutral do
+        with_variant(:primary, background: :grey1, foreground: :white)
+        with_variant(:secondary, foreground: :grey1, border: [color: :grey1])
+        with_variant([:plain, :link, :text], foreground: :grey1)
+      end
+
+      variant :highlight do
+        with_variant(:primary, background: :tertiary, foreground: :grey1)
+        with_variant(:secondary, foreground: :tertiary, border: [color: :tertiary])
+        with_variant([:plain, :link, :text], foreground: :tertiary)
+      end
+    end
+
+    # On by default: a plain or text button as tall as a primary or secondary one
+    # beside it.
+    flag :padded, default: true, web: [doc: "Plain and text buttons with padding"] do
+      with_variant [:plain, :text], padding: [y: 15, x: 16] do
+        state :pressed, padding: [top: 16, bottom: 14]
+      end
     end
   end
 

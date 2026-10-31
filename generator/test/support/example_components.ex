@@ -32,10 +32,13 @@ defmodule Prism.Generator.ExampleComponents do
 
   # The default of the :variant axis is one of its variants; the tone's default
   # is a name without a class.
+  # The app picks the icon's side of the label; a variant has a part's name; the
+  # tone's looks are with variants; one flag is on by default and has looks only
+  # with a variant, the other has a look of its own.
   component :button, default: :primary do
     style typography: :body, radius: :default
     part :label
-    part :icon
+    part :icon, position: :start
     part :spinner, component: :spinner
 
     variant :primary, background: :accent, foreground: :paper do
@@ -46,13 +49,29 @@ defmodule Prism.Generator.ExampleComponents do
 
     variant :quiet, foreground: :accent, aliases: [:subtle]
 
+    variant :icon, size: 24 do
+      state :pressed, opacity: 0.8
+    end
+
     state :loading do
       part :label, opacity: 0
     end
 
     variants :tone, default: :accent do
-      variant :danger, background: :alarm
+      variant :danger do
+        with_variant(:primary, background: :alarm)
+
+        with_variant :quiet, foreground: :alarm do
+          state :hovered, foreground: :ink
+        end
+      end
     end
+
+    flag :roomy, default: true do
+      with_variant(:quiet, padding: [y: 8, x: 12])
+    end
+
+    flag(:strong, weight: 400)
   end
 
   component :text_field do

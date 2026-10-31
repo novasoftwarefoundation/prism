@@ -54,6 +54,28 @@ export function Profile({
 // @ts-expect-error: no such variant
 export const unknownVariant = <Button variant="primray">Save</Button>;
 
+// @ts-expect-error: a side is start or end, never left
+export const leftIcon = <Button iconPosition="left">Back</Button>;
+
+// The new looks: soft, icon, the neutral and highlight tones, padded and the icon's side.
+export const looks = (
+  <>
+    <Button variant="soft" tone="danger">
+      Delete
+    </Button>
+    <Button variant="icon" icon={<span />} aria-label="Close" />
+    <Button variant="primary" tone="neutral">
+      Sign in
+    </Button>
+    <Button variant="primary" tone="highlight">
+      Try it
+    </Button>
+    <Button variant="plain" padded={false} iconPosition="end" icon={<span />}>
+      Next
+    </Button>
+  </>
+);
+
 // @ts-expect-error: 0.1.7's names are gone
 export const oldName = <Button variant="label">Save</Button>;
 

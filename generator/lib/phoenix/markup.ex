@@ -63,6 +63,7 @@ if Code.ensure_loaded?(Phoenix.Component) do
       axes = for a <- spec.axes, do: a.classes[assigns[a.name]]
       states = for {:class, nil, class} <- effects(spec, assigns), do: class
       withs = for {part, class} <- spec.withs, present?(spec, part, assigns), do: class
+      flags = for f <- spec.flags, assigns[f.name] and with_only?(f, assigns), do: f.class
 
       native =
         for {:native, nil, name} <- effects(spec, assigns), do: {name, true}
@@ -71,8 +72,15 @@ if Code.ensure_loaded?(Phoenix.Component) do
 
       spec.attrs ++
         native ++
-        rest ++ [class: [spec.class | axes ++ states ++ withs] ++ List.wrap(assigns.class)]
+        rest ++
+        [class: [spec.class | axes ++ flags ++ states ++ withs] ++ List.wrap(assigns.class)]
     end
+
+    # A flag whose only looks are with some variants is on only with them.
+    defp with_only?(%{only: nil}, _assigns), do: true
+
+    defp with_only?(%{only: only}, assigns),
+      do: Enum.any?(only, fn {axis, values} -> assigns[axis] in values end)
 
     # What the states the app has set do: `{:class | :native, part | nil, …}`.
     defp effects(spec, assigns),
@@ -103,6 +111,13 @@ if Code.ensure_loaded?(Phoenix.Component) do
                [class: [p.class | part_classes(spec, p.name, assigns)]], entries}
           ]
       end
+    end
+
+    # A part whose side the app picks renders only on that side.
+    defp child(%{as: :slot, side: side} = p, spec, assigns) do
+      if assigns[p.position] == side,
+        do: child(Map.delete(p, :side), spec, assigns),
+        else: []
     end
 
     # One element per slot entry, with the entry's attributes.

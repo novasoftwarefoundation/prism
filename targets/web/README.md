@@ -60,11 +60,38 @@ Classes follow BEM: `prism-<component>`, `__<part>` for a part, `--<name>` for a
 <button class="prism-button prism-button--primary prism-button--danger">
   <span class="prism-button__label">Delete</span>
 </button>
+<!-- A tone colors a primary button's background, and the others' text and border -->
+<button class="prism-button prism-button--secondary prism-button--danger">
+  <span class="prism-button__label">Delete</span>
+</button>
+<!-- Soft: the tone's light color behind its color -->
+<button class="prism-button prism-button--soft prism-button--danger">
+  <span class="prism-button__label">Delete</span>
+</button>
 
-<!-- A button with an icon: the icon part, and --with-icon for its spacing -->
+<!-- Plain and text buttons: --padded lines them up beside a primary button;
+     without it, they fit their text -->
+<button class="prism-button prism-button--text prism-button--padded">
+  <span class="prism-button__label">Cancel</span>
+</button>
+<button class="prism-button prism-button--text">
+  <span class="prism-button__label">Show more</span>
+</button>
+
+<!-- A button with an icon: the icon part, and --with-icon for its spacing. The icon
+     goes before the label (at its start) or after it (at its end). -->
 <button class="prism-button prism-button--primary prism-button--with-icon">
   <img class="prism-button__icon" src="add.svg" alt="" />
   <span class="prism-button__label">Add</span>
+</button>
+<button class="prism-button prism-button--plain prism-button--padded prism-button--with-icon">
+  <span class="prism-button__label">Next</span>
+  <img class="prism-button__icon" src="forward.svg" alt="" />
+</button>
+
+<!-- An icon only, 24×24 -->
+<button class="prism-button prism-button--icon prism-button--with-icon" aria-label="Close">
+  <img class="prism-button__icon" src="close.svg" alt="" />
 </button>
 
 <!-- A loading button: the spinner shows only while --loading is set -->
@@ -159,11 +186,14 @@ Font classes: `font-title0` through `font-title7`, `font-body`, `font-button`, `
 | `prism-button__icon` | The button's icon |
 | `prism-button--primary` | Filled button |
 | `prism-button--secondary` | Outlined button |
-| `prism-button--plain` | Text only, no padding or background |
+| `prism-button--plain` | Text only, no background; fits its text without `--padded` |
 | `prism-button--link` | Looks like a text link |
-| `prism-button--text` | Brand-colored text, minimal styling |
-| `prism-button--with-icon` | Spacing for a button with an icon (with `--primary`, `--secondary` or `--plain`) |
-| `prism-button--success`, `--warning`, `--danger` | Tones, with a variant |
+| `prism-button--text` | Brand-colored text, minimal styling; fits its text without `--padded` |
+| `prism-button--soft` | The tone's light color behind its color, laid out as a primary button |
+| `prism-button--icon` | An icon only, 24×24; give it an `aria-label` |
+| `prism-button--padded` | With `--plain` or `--text`: as tall as a primary button beside it (15px 16px) |
+| `prism-button--with-icon` | Spacing for a button with an icon (with `--primary`, `--secondary`, `--plain` or `--soft`) |
+| `prism-button--success`, `--warning`, `--danger`, `--neutral`, `--highlight` | Tones, with a variant: the background of `--primary`, the text (and border) of `--secondary`, `--plain`, `--link` and `--text`, the light background of `--soft` (no light color for `--neutral` and `--highlight`, so no soft look) |
 | `prism-button--loading` | Loading: hides the label, shows the spinner |
 
 ### Fields
@@ -256,7 +286,7 @@ The spinner is an empty element drawn with an image (inline in `components.css`)
 | `prism-btn-secondary` | `prism-button--secondary` |
 | `prism-btn-plain` | `prism-button--plain` |
 | `prism-btn-link` | `prism-button--link` |
-| `prism-btn-label` | `prism-button--text` |
+| `prism-btn-label` | `prism-button--text` (see below) |
 | `prism-btn-primary-icon` | `prism-button--primary prism-button--with-icon` |
 | `prism-btn-secondary-icon` | `prism-button--secondary prism-button--with-icon` |
 | `prism-btn-plain-icon` | `prism-button--plain prism-button--with-icon` |
@@ -308,6 +338,9 @@ Also:
 
 - **Spinner.** It is no longer a tinted image: use an empty element (`<span class="prism-spinner"></span>`, not an `<img>`). Its image is inline in `components.css` and drawn as a mask over its text color, so CSS that drew it as a mask in an app can go, and the app serves no image for it. In a button it shows only while the button has `prism-button--loading`.
 - **Buttons with an icon** also take their variant's disabled look now.
+- **Tones color by variant.** A tone colors a primary button's background, and the text and border of the other variants: `.prism-button--primary.prism-button--danger`, `.prism-button--secondary.prism-button--danger`. A tone class without a variant class no longer colors anything. `--neutral` (dark grey) and `--highlight` (yellow) are new tones, and `--soft` and `--icon` new variants.
+- **Plain and text buttons fit their text** unless they have `prism-button--padded` (15px top and bottom, 16px at the sides, as tall as a primary button). Without it, a plain button is as in 0.1.7 (4px top and bottom, none at the sides); a text button keeps 0.1.7's label button's 1px top and bottom but has no padding at the sides (it had 16px). The Phoenix and React components add `--padded` by default (`padded={false}` leaves it off).
+- **The icon's side.** The Phoenix and React components put the icon before the label by default now (at its start), and after it with `icon_position={:end}` / `iconPosition="end"`; they used to put it after the label. In plain HTML, the order of the elements is the side.
 - **Buttons with an icon** are styled by two classes together (`.prism-button--primary.prism-button--with-icon`), which is more specific than one Tailwind utility. A padding or gap utility on such a button no longer wins as it did on 0.1.7's `prism-btn-primary-icon`; use Tailwind's important modifier (`!px-4`) or your own CSS for it.
 - `prism-max-lines-*` and `prism-text-shadow*` (in `css/base.css`) keep their names.
 

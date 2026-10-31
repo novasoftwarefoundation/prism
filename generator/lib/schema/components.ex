@@ -1,7 +1,7 @@
 defmodule Prism.Generator.Schema.Components do
   @moduledoc """
   The component part of the schema: `component`, `style`, `variant`,
-  `variants`, `part`, `with_part` and `state`. A design that uses
+  `variants`, `part`, `with_part`, `with_variant`, `flag` and `state`. A design that uses
   `Prism.Generator.Schema` imports these macros.
 
       component :button, web: [section: "Buttons"] do
@@ -48,6 +48,18 @@ defmodule Prism.Generator.Schema.Components do
     as a button with an icon: in a component or a variant, it names a part
     the component declares. It is not a variant: whether the part is there
     decides it, not a choice of the app's.
+  - `position:` on a part lets the app put it at the `:start` or the `:end`
+    of the component's content (`start` and `end` follow the text's
+    direction); its value is the side the part has when the app picks none.
+  - `with_variant` is the look while the component has a variant of another
+    axis too: in a variant, it names a variant of another axis
+    (`with_variant :secondary, foreground: :error` in a tone); in a flag, a
+    variant of any axis. A list (`with_variant [:plain, :text], …`) gives
+    each of them the same look.
+  - A `flag` is a look the app turns on or off, such as a button's padding:
+    `default:` is `true` or `false` (the default) when the app sets nothing.
+    Its own properties are its look on any variant, and its `with_variant`s
+    its look with one.
   - A `state` changes the look while it holds. States have a fixed meaning that
     every target knows; see `states/0`.
 
@@ -110,19 +122,26 @@ defmodule Prism.Generator.Schema.Components do
     variants: [:default | @targets],
     style: [],
     variant: [:aliases | @targets],
-    part: [:component | @targets],
+    part: [:component, :position | @targets],
     with_part: @targets,
+    with_variant: @targets,
+    flag: [:default | @targets],
     state: @targets
   }
+
+  # The sides a part with `position:` may have.
+  @positions [:start, :end]
 
   # What may be declared directly inside what; `nil` is the top of the design.
   @children %{
     nil => [:component],
-    component: [:style, :variants, :variant, :part, :with_part, :state],
+    component: [:style, :variants, :variant, :part, :with_part, :flag, :state],
     variants: [:variant],
-    variant: [:part, :with_part, :state],
+    variant: [:part, :with_part, :with_variant, :state],
     part: [:state],
     with_part: [:state],
+    with_variant: [:state],
+    flag: [:with_variant, :state],
     state: [:part]
   }
 
@@ -180,6 +199,34 @@ defmodule Prism.Generator.Schema.Components do
   """
   defmacro with_part(part, props \\ [], block \\ []),
     do: node(:with_part, part, props, block, __CALLER__)
+
+  @doc """
+  The look while the component has another variant too: `with_variant :primary,
+  background: :error`, and a block of its states. In a variant, it names a
+  variant of another axis; in a flag, a variant of any axis. A list of
+  variants gives each one the same look.
+  """
+  defmacro with_variant(names, props \\ [], block \\ [])
+
+  defmacro with_variant(names, props, block) when is_list(names) do
+    if names == [],
+      do: fail(__CALLER__.file, __CALLER__.line, "with_variant []: name at least one variant")
+
+    nodes = Enum.map(names, &node(:with_variant, &1, props, block, __CALLER__))
+    quote do: (unquote_splicing(nodes))
+  end
+
+  defmacro with_variant(name, props, block),
+    do: node(:with_variant, name, props, block, __CALLER__)
+
+  @doc """
+  A flag: a look the app turns on or off (`flag :padded, default: true do … end`).
+  `default:` is `true` or `false` (the default), its state when the app sets
+  nothing. Its properties are its look on any variant, and its block holds its
+  looks with a variant (`with_variant`) and its states.
+  """
+  defmacro flag(name, props \\ [], block \\ []),
+    do: node(:flag, name, props, block, __CALLER__)
 
   @doc "A state: the look while it holds, and a block of the parts it changes."
   defmacro state(name, props \\ [], block \\ []),
@@ -384,20 +431,77 @@ defmodule Prism.Generator.Schema.Components do
             style: props!(v, props, known, file),
             parts: overrides!(nodes, v, c, known, file),
             with_parts: with_parts!(nodes, v, c, known, file),
-            states: states!(nodes, v, c, known, file)
+            states: states!(nodes, v, c, known, file),
+            node: v
           },
           bindings!(v, opts, known, file)
         )
       end
 
+    # A variant's looks with a variant of another axis, now that every variant is known.
+    variants =
+      for v <- variants do
+        Map.put(
+          v,
+          :with_variants,
+          with_variants!(nodes, v.node, v.axis, c, variants, known, file)
+        )
+      end
+
+    flags =
+      for f <- children(nodes, c, :flag) do
+        {opts, props} = split!(f, file)
+        default = Keyword.get(opts, :default, false)
+
+        unless is_boolean(default),
+          do: fail(file, f.line, "#{path_label(f)}: default: must be true or false")
+
+        Map.merge(
+          %{
+            name: f.name,
+            default: default,
+            style: props!(f, props, known, file),
+            with_variants: with_variants!(nodes, f, nil, c, variants, known, file),
+            states: states!(nodes, f, c, known, file)
+          },
+          bindings!(f, opts, known, file)
+        )
+      end
+
+    variants = Enum.map(variants, &Map.delete(&1, :node))
+
     parts =
       for p <- children(nodes, c, :part) do
         {opts, props} = split!(p, file)
+        position = opts[:position]
+
+        cond do
+          position == nil ->
+            :ok
+
+          opts[:component] != nil ->
+            fail(
+              file,
+              p.line,
+              "#{path_label(p)}: position: is for a part the app fills, not another component"
+            )
+
+          position not in @positions ->
+            fail(
+              file,
+              p.line,
+              "#{path_label(p)}: position: #{inspect(position)} is not :start or :end, the side the part has when the app picks none"
+            )
+
+          true ->
+            :ok
+        end
 
         Map.merge(
           %{
             name: p.name,
             component: opts[:component],
+            position: position,
             style: props!(p, props, known, file),
             states: states!(nodes, p, c, known, file)
           },
@@ -409,19 +513,26 @@ defmodule Prism.Generator.Schema.Components do
     states = states!(nodes, c, c, known, file)
     defaults = defaults!(c, opts[:default], nodes, variants, file)
 
-    # Variants (with their aliases), parts, states and the looks with a part share
-    # one set of names, as their CSS classes would.
+    # Variants (with their aliases), states, flags and the looks with a part share
+    # one set of names, as their modifier classes would; parts share another with
+    # all of them but the variants, whose classes (`__icon`, `--icon`) can't be
+    # confused.
     withs =
       Enum.uniq(for(w <- with_parts ++ Enum.flat_map(variants, & &1.with_parts), do: w.name))
 
-    names =
-      Enum.map(variants, &{&1.name, "variant"}) ++
-        for(v <- variants, a <- v.aliases, do: {a, "variant alias"}) ++
-        Enum.map(parts, &{&1.name, "part"}) ++
-        Enum.map(states, &{&1.name, "state"}) ++
+    modifiers =
+      Enum.map(states, &{&1.name, "state"}) ++
+        Enum.map(flags, &{&1.name, "flag"}) ++
         Enum.map(withs, &{&1, "look with a part"}) ++ Enum.map(defaults, &{&1, "default"})
 
-    unique!(names, c, file)
+    unique!(
+      Enum.map(variants, &{&1.name, "variant"}) ++
+        for(v <- variants, a <- v.aliases, do: {a, "variant alias"}) ++ modifiers,
+      c,
+      file
+    )
+
+    unique!(Enum.map(parts, &{&1.name, "part"}) ++ modifiers, c, file)
 
     Map.merge(
       %{
@@ -432,10 +543,49 @@ defmodule Prism.Generator.Schema.Components do
         variants: variants,
         axes: axes,
         with_parts: with_parts,
+        flags: flags,
         states: states
       },
       bindings!(c, opts, known, file)
     )
+  end
+
+  # A variant's or a flag's looks with another variant: each names a variant of the
+  # component, of another axis than `axis` (the variant's own; `nil` for a flag),
+  # once.
+  defp with_variants!(nodes, node, axis, component, variants, known, file) do
+    withs = children(nodes, node, :with_variant)
+    unique!(Enum.map(withs, &{&1.name, "look with a variant"}), node, file)
+
+    for w <- withs do
+      fail = &fail(file, w.line, "#{path_label(w)}: #{&1}")
+
+      case Enum.find(variants, &(&1.name == w.name)) do
+        nil ->
+          if v = Enum.find(variants, &(w.name in &1.aliases)),
+            do: fail.("#{inspect(w.name)} is an alias of #{inspect(v.name)}; name the variant"),
+            else: fail.("the component has no variant #{inspect(w.name)}")
+
+        %{axis: ^axis} ->
+          fail.(
+            "#{inspect(w.name)} is a variant of the same axis, #{inspect(axis)}, which the app can't combine with it"
+          )
+
+        _ ->
+          :ok
+      end
+
+      {opts, props} = split!(w, file)
+
+      Map.merge(
+        %{
+          name: w.name,
+          style: props!(w, props, known, file),
+          states: states!(nodes, w, component, known, file)
+        },
+        bindings!(w, opts, known, file)
+      )
+    end
   end
 
   # The default of each axis: one of its variants, or a name without a look of its

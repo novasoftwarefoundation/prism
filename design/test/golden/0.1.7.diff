@@ -66,7 +66,7 @@
  /* Link button - looks like a text link */
  .prism-button--link {
    background-color: transparent;
-@@ -132,7 +111,7 @@
+@@ -132,10 +111,10 @@
    text-decoration: none;
  }
  
@@ -74,30 +74,215 @@
 +/* Text button - brand-colored text, minimal styling */
  .prism-button--text {
    color: #4272ef;
-   padding: 1px 16px;
-@@ -163,7 +142,11 @@
+-  padding: 1px 16px;
++  padding: 1px 0;
+ }
+ 
+ .prism-button--text:active {
+@@ -143,6 +122,45 @@
+   padding-bottom: 0;
+ }
+ 
++/* Soft button - the tone's light color as its background */
++.prism-button--soft {
++  background-color: #e3eafd;
++  color: #4272ef;
++  padding: 15px 16px;
++}
++
++.prism-button--soft:active {
++  padding-top: 16px;
++  padding-bottom: 14px;
++  box-shadow: inset 0 4px 0 0 rgba(0, 0, 0, 0.15);
++}
++
++.prism-button--soft:disabled {
++  opacity: 0.5;
++  cursor: not-allowed;
++}
++
++/* Soft button with icon */
++.prism-button--soft.prism-button--with-icon {
++  padding: 4px 16px;
++  gap: 12px;
++}
++
++.prism-button--soft.prism-button--with-icon:active {
++  padding-top: 5px;
++  padding-bottom: 3px;
++}
++
++/* Icon button - an icon only */
++.prism-button--icon {
++  width: 24px;
++  height: 24px;
++}
++
++.prism-button--icon:active {
++  opacity: 0.8;
++}
++
+ /* Button with loading state */
+ .prism-button--loading {
+   position: relative;
+@@ -163,28 +181,160 @@
    margin-left: -12px;
  }
  
 -/* Color variants */
+-.prism-button--success {
 +.prism-button:not(.prism-button--loading) .prism-spinner {
 +  display: none;
 +}
 +
 +/* Tones */
- .prism-button--success {
++.prism-button--primary.prism-button--success {
    background-color: #52ba12;
    color: #ffffff;
-@@ -174,17 +157,16 @@
+ }
+ 
+-.prism-button--warning {
++.prism-button--secondary.prism-button--success {
++  color: #52ba12;
++  border-color: #52ba12;
++}
++
++.prism-button--plain.prism-button--success {
++  color: #52ba12;
++}
++
++.prism-button--link.prism-button--success {
++  color: #52ba12;
++}
++
++.prism-button--text.prism-button--success {
++  color: #52ba12;
++}
++
++.prism-button--soft.prism-button--success {
++  background-color: #ebffdf;
++  color: #52ba12;
++}
++
++.prism-button--primary.prism-button--warning {
+   background-color: #f28d15;
    color: #ffffff;
  }
  
 -.prism-button--danger,
- .prism-button--danger {
+-.prism-button--danger {
++.prism-button--secondary.prism-button--warning {
++  color: #f28d15;
++  border-color: #f28d15;
++}
++
++.prism-button--plain.prism-button--warning {
++  color: #f28d15;
++}
++
++.prism-button--link.prism-button--warning {
++  color: #f28d15;
++}
++
++.prism-button--text.prism-button--warning {
++  color: #f28d15;
++}
++
++.prism-button--soft.prism-button--warning {
++  background-color: #ffefdc;
++  color: #f28d15;
++}
++
++.prism-button--primary.prism-button--danger {
    background-color: #db1e1e;
    color: #ffffff;
  }
  
++.prism-button--secondary.prism-button--danger {
++  color: #db1e1e;
++  border-color: #db1e1e;
++}
++
++.prism-button--plain.prism-button--danger {
++  color: #db1e1e;
++}
++
++.prism-button--link.prism-button--danger {
++  color: #db1e1e;
++}
++
++.prism-button--text.prism-button--danger {
++  color: #db1e1e;
++}
++
++.prism-button--soft.prism-button--danger {
++  background-color: #ffecec;
++  color: #db1e1e;
++}
++
++.prism-button--primary.prism-button--neutral {
++  background-color: #222222;
++  color: #ffffff;
++}
++
++.prism-button--secondary.prism-button--neutral {
++  color: #222222;
++  border-color: #222222;
++}
++
++.prism-button--plain.prism-button--neutral {
++  color: #222222;
++}
++
++.prism-button--link.prism-button--neutral {
++  color: #222222;
++}
++
++.prism-button--text.prism-button--neutral {
++  color: #222222;
++}
++
++.prism-button--primary.prism-button--highlight {
++  background-color: #ffcf60;
++  color: #222222;
++}
++
++.prism-button--secondary.prism-button--highlight {
++  color: #ffcf60;
++  border-color: #ffcf60;
++}
++
++.prism-button--plain.prism-button--highlight {
++  color: #ffcf60;
++}
++
++.prism-button--link.prism-button--highlight {
++  color: #ffcf60;
++}
++
++.prism-button--text.prism-button--highlight {
++  color: #ffcf60;
++}
++
++/* Plain and text buttons with padding */
++.prism-button--plain.prism-button--padded {
++  padding: 15px 16px;
++}
++
++.prism-button--plain.prism-button--padded:active {
++  padding-top: 16px;
++  padding-bottom: 14px;
++}
++
++.prism-button--text.prism-button--padded {
++  padding: 15px 16px;
++}
++
++.prism-button--text.prism-button--padded:active {
++  padding-top: 16px;
++  padding-bottom: 14px;
++}
++
  /* ==========================================================================
 -   Inputs
 +   Text fields
@@ -108,7 +293,7 @@
  .prism-text-field {
    display: block;
    width: 100%;
-@@ -217,17 +199,17 @@
+@@ -217,17 +367,17 @@
    cursor: not-allowed;
  }
  
@@ -129,7 +314,7 @@
  .prism-text-area {
    display: block;
    width: 100%;
-@@ -255,7 +237,7 @@
+@@ -255,7 +405,7 @@
  }
  
  /* ==========================================================================
@@ -138,7 +323,7 @@
     ========================================================================== */
  
  .prism-field__label {
-@@ -332,7 +314,7 @@
+@@ -332,7 +482,7 @@
  }
  
  /* ==========================================================================
@@ -147,7 +332,7 @@
     ========================================================================== */
  
  .prism-select {
-@@ -414,8 +396,12 @@
+@@ -414,8 +564,12 @@
     ========================================================================== */
  
  .prism-spinner {
@@ -160,7 +345,7 @@
    animation: prism-spin 1s linear infinite;
  }
  
-@@ -438,14 +424,13 @@
+@@ -438,14 +592,13 @@
    }
  }
  
@@ -180,7 +365,7 @@
  }
  
  /* ==========================================================================
-@@ -477,7 +462,7 @@
+@@ -477,7 +630,7 @@
  }
  
  /* ==========================================================================
@@ -189,7 +374,7 @@
     ========================================================================== */
  
  /* Base tag styles - colored label with background opacity */
-@@ -502,7 +487,7 @@
+@@ -502,7 +655,7 @@
    line-height: 16px;
  }
  
@@ -198,7 +383,7 @@
  .prism-tag--accent .prism-tag__label {
    background-color: rgba(66, 114, 239, 0.2);
    color: #4272ef;
-@@ -520,24 +505,23 @@
+@@ -520,24 +673,23 @@
    color: #f28d15;
  }
  
@@ -227,7 +412,7 @@
  .prism-message-bar {
    display: flex;
    justify-content: center;
-@@ -551,35 +535,35 @@
+@@ -551,35 +703,35 @@
    line-height: 16px;
  }
  
@@ -269,7 +454,7 @@
  .prism-step-indicator {
    display: flex;
    align-items: center;
-@@ -595,19 +579,19 @@
+@@ -595,19 +747,19 @@
    font-variant-numeric: tabular-nums;
  }
  

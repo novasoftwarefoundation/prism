@@ -35,11 +35,17 @@ defmodule Prism.Generator.Web.Components do
     `.acme-select__option--selected`);
   - a look while the component has a part is `--with-<part>`
     (`.acme-button--with-icon`), combined with a variant's class when the
-    variant gives it (`.acme-button--primary.acme-button--with-icon`).
+    variant gives it (`.acme-button--primary.acme-button--with-icon`);
+  - a look with a variant of another axis is the two variants' classes
+    together, the other variant's first (`.acme-button--secondary.acme-button--danger`
+    for a `with_variant :secondary` in the tone `danger`);
+  - a flag is `--<flag>` (`.acme-button--padded`), after the variant's
+    class for its look with a variant (`.acme-button--text.acme-button--padded`).
 
   So a part never reads as a variant: `.acme-button__label` and
-  `.acme-button--text` can't be confused. A variant's aliases get a selector
-  each.
+  `.acme-button--text` can't be confused, and a variant may have a part's name
+  (`.acme-button--icon`, `.acme-button__icon`). A variant's aliases get a
+  selector each.
 
   ## States
 
@@ -121,6 +127,8 @@ defmodule Prism.Generator.Web.Components do
     variant: [:doc],
     part: [:doc],
     with_part: [:doc],
+    with_variant: [:doc],
+    flag: [:doc],
     state: [:doc]
   }
 
@@ -289,7 +297,8 @@ defmodule Prism.Generator.Web.Components do
       own(n, c, pseudo(c)),
       variants(c, &(&1 == :variant), pseudo(c)),
       loading(c),
-      variants(c, &(&1 != :variant), pseudo(c))
+      variants(c, &(&1 != :variant), pseudo(c)),
+      flags(c, pseudo(c))
     ]
   end
 
@@ -306,7 +315,8 @@ defmodule Prism.Generator.Web.Components do
       ),
       placeholder(n),
       own(n, c, pseudo(c)),
-      variants(c, fn _ -> true end, pseudo(c))
+      variants(c, fn _ -> true end, pseudo(c)),
+      flags(c, pseudo(c))
     ]
   end
 
@@ -319,7 +329,8 @@ defmodule Prism.Generator.Web.Components do
       part(c, :label, &["display: block", declarations(&1)]),
       part(c, :error_message, &declarations/1),
       own(n, c, pseudo(c)),
-      variants(c, fn _ -> true end, pseudo(c))
+      variants(c, fn _ -> true end, pseudo(c)),
+      flags(c, pseudo(c))
     ]
   end
 
@@ -329,7 +340,8 @@ defmodule Prism.Generator.Web.Components do
     [
       rule(n, ".#{class(n)}", ["display: flex", "flex-direction: row", declarations(n)]),
       own(n, c, pseudo(c)),
-      variants(c, fn _ -> true end, pseudo(c))
+      variants(c, fn _ -> true end, pseudo(c)),
+      flags(c, pseudo(c))
     ]
   end
 
@@ -370,7 +382,8 @@ defmodule Prism.Generator.Web.Components do
           declarations(path, only: [:margin])
         ]
       end),
-      variants(c, fn _ -> true end, pseudo(c))
+      variants(c, fn _ -> true end, pseudo(c)),
+      flags(c, pseudo(c))
     ]
   end
 
@@ -427,7 +440,8 @@ defmodule Prism.Generator.Web.Components do
         ]
       end),
       own(n, c, pseudo(c)),
-      variants(c, fn _ -> true end, pseudo(c))
+      variants(c, fn _ -> true end, pseudo(c)),
+      flags(c, pseudo(c))
     ]
   end
 
@@ -458,7 +472,8 @@ defmodule Prism.Generator.Web.Components do
         }
       }
       """,
-      for(v <- c.variants, colors.(v), do: axis_variant(c, v, pseudo(c)))
+      for(v <- c.variants, colors.(v), do: axis_variant(c, v, pseudo(c))),
+      flags(c, pseudo(c))
     ]
   end
 
@@ -484,7 +499,8 @@ defmodule Prism.Generator.Web.Components do
       ]),
       states(n, c, pseudo(c), %{checked: checked}),
       with_parts(n, c, pseudo(c)),
-      variants(c, fn _ -> true end, pseudo(c))
+      variants(c, fn _ -> true end, pseudo(c)),
+      flags(c, pseudo(c))
     ]
   end
 
@@ -508,7 +524,8 @@ defmodule Prism.Generator.Web.Components do
         ]
       end),
       own(n, c, pseudo(c)),
-      variants(c, fn _ -> true end, pseudo(c))
+      variants(c, fn _ -> true end, pseudo(c)),
+      flags(c, pseudo(c))
     ]
   end
 
@@ -523,7 +540,8 @@ defmodule Prism.Generator.Web.Components do
         declarations(n)
       ]),
       own(n, c, pseudo(c)),
-      variants(c, fn _ -> true end, pseudo(c))
+      variants(c, fn _ -> true end, pseudo(c)),
+      flags(c, pseudo(c))
     ]
   end
 
@@ -540,7 +558,8 @@ defmodule Prism.Generator.Web.Components do
         "font-variant-numeric: tabular-nums"
       ]),
       own(n, c, pseudo(c)),
-      variants(c, fn _ -> true end, pseudo(c))
+      variants(c, fn _ -> true end, pseudo(c)),
+      flags(c, pseudo(c))
     ]
   end
 
@@ -566,7 +585,7 @@ defmodule Prism.Generator.Web.Components do
   end
 
   defp variant(c, v, selectors) do
-    path = [c.name, v.name]
+    path = [c.name, {:variant, v.name}]
 
     parts =
       for p <- v.parts do
@@ -577,8 +596,34 @@ defmodule Prism.Generator.Web.Components do
     with_doc(
       path,
       [rule(selector(path), declarations(path)) | parts] ++
-        states(path, v, selectors) ++ with_parts(path, v, selectors)
+        states(path, v, selectors) ++
+        with_parts(path, v, selectors) ++ with_variants(path, v, selectors)
     )
+  end
+
+  # A variant's or a flag's looks with another variant: the rule, then its states.
+  defp with_variants(path, node, selectors) do
+    for w <- node.with_variants do
+      with_path = path ++ [{:with_variant, w.name}]
+
+      with_doc(with_path, [
+        rule(selector(with_path), declarations(with_path)) | states(with_path, w, selectors)
+      ])
+    end
+  end
+
+  # The component's flags, after its variants: each flag's own rule and states,
+  # then its looks with a variant.
+  defp flags(c, selectors) do
+    for f <- c.flags do
+      path = [c.name, f.name]
+
+      with_doc(
+        path,
+        [rule(selector(path), declarations(path)) | states(path, f, selectors)] ++
+          with_variants(path, f, selectors)
+      )
+    end
   end
 
   # A component's or a variant's looks while the component has a part: the rule,
@@ -822,25 +867,44 @@ defmodule Prism.Generator.Web.Components do
   defp selector(path, suffix \\ "") do
     nodes = nodes!(path)
 
+    [{:component, c} | _] = nodes
+    modifier = &Classes.modifier(prefix(), c.name, &1)
+
     alternatives =
       case tl(nodes) do
         [] ->
-          [Classes.component(prefix(), hd(path))]
+          [Classes.component(prefix(), c.name)]
 
-        [{kind, _}] when kind in [:part, :with_part] ->
+        [{kind, _}] when kind in [:part, :with_part, :flag] ->
           [class(path)]
 
-        [{:variant, v} | rest] ->
-          tail =
-            Enum.map_join(rest, fn
-              {:part, _} -> " .#{class(path)}"
-              {:with_part, _} -> ".#{class(path)}"
-            end)
+        # A flag's look with a variant: the variant's class, then the flag's.
+        [{:flag, f}, {:with_variant, w}] ->
+          for other <- names(c, w.name), do: "#{modifier.(other)}.#{modifier.(f.name)}"
 
-          for name <- [v.name | v.aliases], do: Classes.modifier(prefix(), hd(path), name) <> tail
+        [{:variant, v} | rest] ->
+          own = for name <- names(c, v.name), do: modifier.(name)
+
+          Enum.reduce(rest, own, fn
+            {:part, _}, acc ->
+              Enum.map(acc, &"#{&1} .#{class(path)}")
+
+            {:with_part, _}, acc ->
+              Enum.map(acc, &"#{&1}.#{class(path)}")
+
+            # The other variant's class first.
+            {:with_variant, w}, acc ->
+              for other <- names(c, w.name), sel <- acc, do: "#{modifier.(other)}.#{sel}"
+          end)
       end
 
     Enum.map_join(alternatives, ",\n", &".#{&1}#{suffix}")
+  end
+
+  # A variant's names: its own and its aliases.
+  defp names(c, name) do
+    v = Enum.find(c.variants, &(&1.name == name))
+    [v.name | v.aliases]
   end
 
   # A node's properties as declarations, in the design's order; `only:` and `except:`
@@ -1056,7 +1120,9 @@ defmodule Prism.Generator.Web.Components do
 
   defp node!(path), do: path |> nodes!() |> List.last() |> elem(1)
 
-  # The nodes along a path, each as {kind, node}.
+  # The nodes along a path, each as {kind, node}. A variant and a look with a
+  # variant are `{kind, name}` in a path, since a variant may share its name with a
+  # part; every other node is its name.
   defp nodes!([name | names] = path) do
     component =
       Enum.find(Process.get(@design).components, &(&1.name == name)) ||
@@ -1066,7 +1132,7 @@ defmodule Prism.Generator.Web.Components do
 
     names
     |> Enum.reduce([{:component, component}], fn name, [{_, node} | _] = acc ->
-      case Enum.find(children(node), fn {_, child} -> child.name == name end) do
+      case Enum.find(children(node), fn {kind, child} -> path_name(kind, child) == name end) do
         nil -> raise ArgumentError, "#{label(path)}: no #{inspect(name)} there"
         child -> [child | acc]
       end
@@ -1075,12 +1141,20 @@ defmodule Prism.Generator.Web.Components do
   end
 
   defp children(node) do
-    for kind <- [:part, :variant, :with_part, :state],
+    for kind <- [:part, :variant, :with_part, :with_variant, :flag, :state],
         child <- Map.get(node, :"#{kind}s", []),
         do: {kind, child}
   end
 
-  defp label(path), do: Enum.map_join(path, ".", &Atom.to_string/1)
+  defp path_name(kind, node) when kind in [:variant, :with_variant], do: {kind, node.name}
+  defp path_name(_kind, node), do: node.name
+
+  defp label(path) do
+    Enum.map_join(path, ".", fn
+      {_kind, name} -> Atom.to_string(name)
+      name -> Atom.to_string(name)
+    end)
+  end
 
   defp read(entry), do: Process.put(@read, MapSet.put(Process.get(@read), entry))
 
@@ -1104,7 +1178,9 @@ defmodule Prism.Generator.Web.Components do
     keys = for {key, _} <- Keyword.take(node.web, @binding_keys), do: {:web, path, key}
 
     children =
-      for {_, child} <- children(node), entry <- walk(child, path ++ [child.name]), do: entry
+      for {kind, child} <- children(node),
+          entry <- walk(child, path ++ [path_name(kind, child)]),
+          do: entry
 
     [{:node, path} | values] ++ keys ++ children
   end

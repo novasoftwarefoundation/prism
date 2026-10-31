@@ -39,6 +39,15 @@
   color: #1a73e8;
 }
 
+.kit-button--icon {
+  width: 24px;
+  height: 24px;
+}
+
+.kit-button--icon:active {
+  opacity: 0.8;
+}
+
 .kit-button--loading {
   position: relative;
 }
@@ -62,8 +71,27 @@
   display: none;
 }
 
-.kit-button--danger {
+.kit-button--primary.kit-button--danger {
   background-color: #c62828;
+}
+
+.kit-button--quiet.kit-button--danger,
+.kit-button--subtle.kit-button--danger {
+  color: #c62828;
+}
+
+.kit-button--quiet.kit-button--danger:hover,
+.kit-button--subtle.kit-button--danger:hover {
+  color: #101010;
+}
+
+.kit-button--quiet.kit-button--roomy,
+.kit-button--subtle.kit-button--roomy {
+  padding: 8px 12px;
+}
+
+.kit-button--strong {
+  font-weight: 400;
 }
 
 .kit-text-field {

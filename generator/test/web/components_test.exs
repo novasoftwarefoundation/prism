@@ -51,6 +51,7 @@ defmodule Prism.Generator.Web.ComponentsTest do
       style: [],
       parts: [%{name: :label, style: [weight: 700], states: [], web: [], ios: [], android: []}],
       with_parts: [],
+      with_variants: [],
       states: [],
       web: [doc: "A bold tag"],
       ios: [],
@@ -521,5 +522,62 @@ defmodule Prism.Generator.Web.ComponentsTest do
     [before, _] = String.split(css, ".only-button--primary.only-button--with-icon {")
     assert before =~ ".only-button--primary:active"
     refute css =~ "only-button__icon"
+  end
+
+  describe "looks with a variant and flags" do
+    @button """
+      component :button do
+        part :label
+        part :icon, position: :start
+        variant :solid, background: :ink
+        variant :outlined, aliases: [:framed], border: [width: 1, color: :ink]
+        variant :icon, size: 24
+
+        variants :tone do
+          variant :alert do
+            with_variant :solid, background: "#C62828", web: [doc: "Alert"]
+
+            with_variant :outlined, foreground: "#C62828" do
+              state :pressed, opacity: 0.5
+            end
+          end
+        end
+
+        flag :tight, default: true do
+          with_variant :outlined, padding: [x: 1]
+        end
+
+        flag :wide, web: [doc: "Wide"], padding: [x: 32]
+      end
+    """
+
+    test "a look with a variant is both variants' classes, the other variant's first" do
+      css = css(compile(@button))
+
+      assert css =~
+               "/* Alert */\n.only-button--solid.only-button--alert {\n  background-color: #c62828;\n}\n"
+
+      assert css =~
+               ".only-button--outlined.only-button--alert,\n.only-button--framed.only-button--alert {\n  color: #c62828;\n}\n"
+
+      assert css =~
+               ".only-button--outlined.only-button--alert:active,\n.only-button--framed.only-button--alert:active {\n  opacity: 0.5;\n}\n"
+    end
+
+    test "a flag is its class, after a variant's for its look with one" do
+      css = css(compile(@button))
+
+      assert css =~
+               ".only-button--outlined.only-button--tight,\n.only-button--framed.only-button--tight {\n  padding-left: 1px;\n  padding-right: 1px;\n}\n"
+
+      assert css =~
+               "/* Wide */\n.only-button--wide {\n  padding-left: 32px;\n  padding-right: 32px;\n}\n"
+    end
+
+    # A variant and a part with one name have classes that can't be confused.
+    test "a variant may have a part's name" do
+      css = css(compile(@button))
+      assert css =~ ".only-button--icon {\n  width: 24px;\n  height: 24px;\n}\n"
+    end
   end
 end

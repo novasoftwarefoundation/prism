@@ -21,6 +21,13 @@ defmodule Prism.Generator.React do
     design's; a default that is one of the variants adds that variant's
     class, one without a look adds none. An axis without a default adds no
     class until the app picks a variant.
+  - **Each flag** is a boolean prop with the flag's default; while it is
+    true, it adds the flag's class. A flag whose only looks are with some
+    variants adds it only with those (a padding only some variants have).
+  - **A part with `position:`** in the design gets a `<part>Position` prop,
+    `"start"` or `"end"` (`iconPosition`), with the design's side as its
+    default: the part goes at that side of the content, which follows the
+    text's direction.
   - **Each state the app sets** is a boolean prop: a state the CSS writes as a
     modifier class adds that class (`loading`, `invalid`, a radio's
     `disabled`); `disabled` and `checked` on a form control set the element's
@@ -95,10 +102,24 @@ defmodule Prism.Generator.React do
          a.default && js_str(a.default)}
       end
 
+    flags =
+      for f <- spec.flags,
+          do: {camel(f.name), "boolean", flag_doc(f), if(f.default, do: "true")}
+
+    positions =
+      for p <- spec.positions do
+        {camel(p.name), ~s("start" | "end"),
+         "The #{words(p.part)} part's side of the content. Default #{js_str(p.default)}.",
+         js_str(p.default)}
+      end
+
     states = for s <- spec.states, do: {camel(s.name), "boolean", state_doc(spec, s), nil}
 
+    # A part whose side the app picks is there twice; it is one prop.
     parts =
-      Enum.flat_map(spec.children, fn
+      spec.children
+      |> Enum.reject(&(&1[:side] == :end))
+      |> Enum.flat_map(fn
         %{as: :slot, name: name, element: element} ->
           [
             {camel(name), "ReactNode", slot_doc(spec, name), nil},
@@ -126,8 +147,26 @@ defmodule Prism.Generator.React do
       end
 
     axes ++
+      flags ++
+      positions ++
       states ++
       parts ++ [{"className", "string", "Classes after the component's own.", nil}] ++ content
+  end
+
+  defp flag_doc(f) do
+    only =
+      case f.only do
+        nil ->
+          ""
+
+        only ->
+          " with " <>
+            Enum.map_join(only, " or ", fn {axis, values} ->
+              "#{words(axis)} #{Enum.map_join(values, " or ", &js_str/1)}"
+            end)
+      end
+
+    "Adds `#{f.class}`#{only}. Default #{f.default}."
   end
 
   defp check!(spec) do
@@ -424,6 +463,20 @@ defmodule Prism.Generator.React do
         if a.default, do: lookup, else: "#{camel(a.name)} && #{lookup}"
       end
 
+    flags =
+      for f <- spec.flags do
+        only =
+          for {axis, values} <- f.only || [],
+              value <- values,
+              do: "#{camel(axis)} === #{js_str(value)}"
+
+        case only do
+          [] -> "#{camel(f.name)} && #{js_str(f.class)}"
+          [one] -> "#{camel(f.name)} && #{one} && #{js_str(f.class)}"
+          many -> "#{camel(f.name)} && (#{Enum.join(many, " || ")}) && #{js_str(f.class)}"
+        end
+      end
+
     states =
       for {name, {:class, nil, class}} <- effects(spec), do: "#{camel(name)} && #{js_str(class)}"
 
@@ -432,7 +485,7 @@ defmodule Prism.Generator.React do
         if test == "true", do: js_str(class), else: "#{test} && #{js_str(class)}"
       end
 
-    classes = [js_str(spec.class)] ++ axes ++ states ++ withs ++ ["className"]
+    classes = [js_str(spec.class)] ++ axes ++ flags ++ states ++ withs ++ ["className"]
 
     # An element the app picks is typed as its default (`function/3`).
     {ref, rest} =
@@ -478,7 +531,13 @@ defmodule Prism.Generator.React do
           class_attr([js_str(p.class) | part_classes(spec, p.name)] ++ ["#{props}?.className"])
         ]
 
-    [{:cond, "present(#{prop})", {:el, p.element, attrs, [{:expr, "{#{prop}}"}]}}]
+    test =
+      case p do
+        %{side: side} -> "#{camel(p.position)} === #{js_str(side)} && present(#{prop})"
+        _ -> "present(#{prop})"
+      end
+
+    [{:cond, test, {:el, p.element, attrs, [{:expr, "{#{prop}}"}]}}]
   end
 
   defp child(%{as: :control} = p, spec) do
