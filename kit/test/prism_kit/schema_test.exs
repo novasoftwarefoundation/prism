@@ -1,4 +1,4 @@
-defmodule Prism.SchemaTest do
+defmodule PrismKit.SchemaTest do
   use ExUnit.Case, async: true
 
   @faces ~s([[file: "F", weights: {200, 900}, style: :normal]])
@@ -19,7 +19,11 @@ defmodule Prism.SchemaTest do
 
   defp compile(body) do
     module = "Spec#{System.unique_integer([:positive])}"
-    Code.compile_string("defmodule #{module} do\n  use Prism.Schema\n#{body}\nend\n", "spec.ex")
+
+    Code.compile_string(
+      "defmodule #{module} do\n  use PrismKit.Schema\n#{body}\nend\n",
+      "spec.ex"
+    )
   end
 
   defp assert_compile_error(body, message, line) do
@@ -29,18 +33,19 @@ defmodule Prism.SchemaTest do
   end
 
   test "the tokens compile into plain data" do
-    tokens = Prism.Tokens.__schema__().tokens
-    assert %{kind: :color, name: :primary, value: "#4272EF", group: "Brand colors"} in tokens
-    assert %{kind: :color, name: :delete, value: :error, group: "Status colors"} in tokens
+    %{tokens: tokens, web: web} = PrismKit.FixtureSpec.__schema__()
+    assert %{kind: :color, name: :accent, value: "#1A73E8", group: "Brand"} in tokens
+    assert %{kind: :color, name: :link, value: :accent, group: "Brand"} in tokens
+    assert %{prefix: "acme", fonts_url: "../fonts", line_clamps: 2} = web
   end
 
   test "a name that isn't a snake_case atom fails" do
-    assert_compile_error(~s(  color :Primary, "#4272EF"), "name must be a snake_case atom", 3)
+    assert_compile_error(~s(  color :Primary, "#1A73E8"), "name must be a snake_case atom", 3)
   end
 
   test "a duplicate fails at the second one" do
     assert_compile_error(
-      ~s(  color :primary, "#4272EF"\n  color :primary, "#4272EF"),
+      ~s(  color :primary, "#1A73E8"\n  color :primary, "#1A73E8"),
       "color :primary is defined twice",
       4
     )
@@ -55,7 +60,7 @@ defmodule Prism.SchemaTest do
   end
 
   test "colors are upper-case #RRGGBB" do
-    assert_compile_error(~s(  color :primary, "#4272ef"), "write colors as #RRGGBB", 3)
+    assert_compile_error(~s(  color :primary, "#1a73e8"), "write colors as #RRGGBB", 3)
   end
 
   test "an alias of an unknown color fails" do
@@ -71,7 +76,7 @@ defmodule Prism.SchemaTest do
   end
 
   test "a font of an unknown family fails" do
-    assert_compile_error("  font :button, :nunito, 700", "unknown family :nunito", 3)
+    assert_compile_error("  font :button, :display, 700", "unknown family :display", 3)
   end
 
   test "a weight must be 100..1000" do
@@ -87,7 +92,7 @@ defmodule Prism.SchemaTest do
 
     assert_compile_error(
       family(web: ~s([name: "F", fallback: 42, faces: #{@faces}])),
-      "family :f: web: fallback: must be a one-line string",
+      "family :f: web: fallback: must be a CSS family name",
       3
     )
   end
@@ -148,7 +153,7 @@ defmodule Prism.SchemaTest do
   test "spec text can't break out of a JS or CSS string or comment" do
     assert_compile_error(
       family(web: ~s([name: "F\\"oo", fallback: "serif", faces: #{@faces}])),
-      "web: name: must be a one-line string",
+      "web: name: must be a CSS family name",
       3
     )
 
@@ -220,6 +225,109 @@ defmodule Prism.SchemaTest do
   test "offsets and spread may be negative" do
     compile(
       ~s(  color :black, "#000000"\n  shadow :s, x: -2, y: -5, spread: -3, color: {:black, 0.1})
+    )
+  end
+
+  test "font names and fallbacks are plain CSS family names" do
+    assert_compile_error(
+      family(
+        web:
+          ~s([name: "F", fallback: "sans-serif; color: red } body { display: none", faces: #{@faces}])
+      ),
+      "web: fallback: must be a CSS family name",
+      3
+    )
+
+    assert_compile_error(
+      family(web: ~s([name: "F", fallback: "", faces: #{@faces}])),
+      "web: fallback: must be a CSS family name",
+      3
+    )
+
+    assert_compile_error(
+      family(ios: ~s([name: "Brand;", faces: #{@faces}])),
+      "ios: name: must be a CSS family name",
+      3
+    )
+  end
+
+  test "a trailing newline doesn't pass a name, color or file check" do
+    assert_compile_error(~s(  color :primary, "#1A73E8\\n"), "write colors as #RRGGBB", 3)
+
+    assert_compile_error(
+      ~s(  color :"primary\\n", "#1A73E8"),
+      "name must be a snake_case atom",
+      3
+    )
+
+    assert_compile_error(
+      family(
+        web:
+          ~s([name: "F", fallback: "serif", faces: [[file: "F\\n", weights: {200, 900}, style: :normal]]])
+      ),
+      "file in A-Z a-z 0-9 . _ -",
+      3
+    )
+  end
+
+  test "face weights are 1..1000, lowest first" do
+    for weights <- ["{0, 900}", "{200, 5000}", "{900, 200}"] do
+      assert_compile_error(
+        family(
+          web:
+            ~s([name: "F", fallback: "serif", faces: [[file: "F", weights: #{weights}, style: :normal]]])
+        ),
+        "web: weights: {from, to} with 1 <= from <= to <= 1000",
+        3
+      )
+    end
+  end
+
+  test "the web declaration is checked" do
+    compile(~s(  web prefix: "acme", fonts_url: "../fonts"))
+
+    assert_compile_error(
+      ~s(  web prefix: "acme", fonts_url: "../fonts"\n  web prefix: "acme", fonts_url: "../fonts"),
+      "web is declared more than once",
+      3
+    )
+
+    assert_compile_error(
+      ~s(  web prefix: "acme", fonts_url: "f", colour: 1),
+      "unknown option :colour",
+      3
+    )
+
+    assert_compile_error(
+      ~s(  web fonts_url: "../fonts"),
+      "prefix must be a lower-case CSS class prefix",
+      3
+    )
+
+    assert_compile_error(~s(  web prefix: "Acme {", fonts_url: "f"), "prefix must be", 3)
+
+    assert_compile_error(
+      ~s|  web prefix: "acme", fonts_url: "f\\"), x"|,
+      "fonts_url must be a relative path",
+      3
+    )
+
+    assert_compile_error(
+      ~s(  web prefix: "acme", fonts_url: "f", base_doc: "a */ b"),
+      "base_doc must be text without */",
+      3
+    )
+
+    assert_compile_error(
+      ~s(  web prefix: "acme", fonts_url: "f", font_classes_doc: "a\\nb"),
+      "font_classes_doc must be one line",
+      3
+    )
+
+    assert_compile_error(
+      ~s(  web prefix: "acme", fonts_url: "f", line_clamps: -1),
+      "line_clamps must be a number >= 0",
+      3
     )
   end
 end

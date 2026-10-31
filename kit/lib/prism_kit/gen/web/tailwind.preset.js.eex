@@ -1,11 +1,4 @@
-/**
- * Prism UI - Tailwind CSS Preset
- *
- * A playful but professional design system for scientific software.
- * Uses Nunito (>20px) and Nunito Sans (≤20px) variable fonts.
- */
-
-const plugin = require("tailwindcss/plugin");
+<%= doc_block(web.preset_doc) %>const plugin = require("tailwindcss/plugin");
 
 module.exports = {
   theme: {
@@ -61,8 +54,7 @@ module.exports = {
         },
       });
 
-      // Font weight overrides for Nunito/Nunito Sans variable fonts
-      addComponents({
+<%= line_comment(web.font_classes_doc, 6) %>      addComponents({
 <%= preset_font_classes(spec) %>
       });
     }),

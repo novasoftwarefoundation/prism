@@ -1,15 +1,16 @@
-defmodule Prism.Gen.Web do
+defmodule PrismKit.Gen.Web do
   @moduledoc """
-  Generates the web package from the spec: `tailwind.preset.js` and
-  `css/base.css`, two of the files `@novasoftwarefoundation/prism` ships
-  (`css/components.css` is still hand-written).
+  Generates a web package from a spec: a Tailwind preset (`tailwind.preset.js`)
+  and base CSS (`css/base.css`: font faces and utilities).
 
-  The templates in `web/` hold the web mechanics (the plugin, the utilities,
-  the line clamps); every design value comes from the spec. Fonts come from
-  each family's `web:` binding only. The output spells
-  values the way prism 0.1.7 does, so consumers see no change: upper-case hex
-  and two-decimal alphas in the preset, `0px` in text shadows, prettier's
-  80-column wrap.
+  The templates in `web/` hold the web mechanics (the Tailwind plugin, the
+  viewport, safe-area and scrollbar utilities, line clamps); every design value
+  comes from the spec, and names and comments come from its `web` declaration.
+  Fonts come from each family's `web:` binding only.
+
+  The output spelling is fixed, so regenerating gives the same bytes:
+  upper-case hex and two-decimal alphas in the preset, `0` in box shadows and
+  `0px` in text shadows, and `@font-face` sources wrapped at 80 columns.
   """
 
   require EEx
@@ -18,8 +19,12 @@ defmodule Prism.Gen.Web do
   @external_resource Path.join(@dir, "tailwind.preset.js.eex")
   @external_resource Path.join(@dir, "base.css.eex")
 
-  EEx.function_from_file(:defp, :preset_js, Path.join(@dir, "tailwind.preset.js.eex"), [:spec])
-  EEx.function_from_file(:defp, :base_css, Path.join(@dir, "base.css.eex"), [:spec])
+  EEx.function_from_file(:defp, :preset_js, Path.join(@dir, "tailwind.preset.js.eex"), [
+    :spec,
+    :web
+  ])
+
+  EEx.function_from_file(:defp, :base_css, Path.join(@dir, "base.css.eex"), [:spec, :web])
 
   @headers %{
     "tailwind.preset.js" =>
@@ -31,11 +36,13 @@ defmodule Prism.Gen.Web do
   @doc "The header line of a generated file."
   def header(path), do: Map.fetch!(@headers, path)
 
-  @doc "Returns `[{path, source}]` for the web package."
-  def generate(%{tokens: tokens}) do
+  @doc "Returns `[{path, source}]` for the web package of a spec's `__schema__/0`."
+  def generate(%{tokens: tokens, web: web}) do
+    unless web, do: raise(ArgumentError, "the spec has no `web` declaration")
+
     for {path, source} <- [
-          {"tailwind.preset.js", preset_js(tokens)},
-          {"css/base.css", base_css(tokens)}
+          {"tailwind.preset.js", preset_js(tokens, web)},
+          {"css/base.css", base_css(tokens, web)}
         ],
         do: {path, header(path) <> "\n" <> source}
   end
@@ -60,7 +67,7 @@ defmodule Prism.Gen.Web do
 
   defp key(name) do
     key = name |> to_string() |> String.replace("_", "-")
-    if key =~ ~r/^[A-Za-z_$][A-Za-z0-9_$]*$/, do: key, else: js_str(key)
+    if key =~ ~r/\A[A-Za-z_$][A-Za-z0-9_$]*\z/, do: key, else: js_str(key)
   end
 
   # Groups as `// comment` blocks; `blank` puts an empty line between groups.
@@ -171,7 +178,7 @@ defmodule Prism.Gen.Web do
     end
   end
 
-  # The preset's comment above a family's fonts: "Nunito (> 20px sizes)".
+  # The preset's comment above a family's fonts: "Acme Sans (> 20px sizes)".
   defp family_note(web, name, spec) do
     case sizes(token(spec, :family, name).doc) do
       nil -> web[:name]
@@ -179,15 +186,15 @@ defmodule Prism.Gen.Web do
     end
   end
 
-  # base.css's comment above a family's faces: "Nunito - Variable font for sizes > 20px".
+  # base.css's comment above a family's faces: "Acme Sans - Variable font for sizes > 20px".
   defp face_note(%{family: family, sizes: nil}), do: "#{family} - Variable font"
 
   defp face_note(%{family: family, sizes: sizes}),
     do: "#{family} - Variable font for sizes #{sizes}"
 
-  # Wrapped like prettier does at 80 columns, as in 0.1.7.
-  defp font_src(face) do
-    url = "url(#{css_str("../fonts/#{face.file}.woff2")})"
+  # Wrapped like prettier does at 80 columns.
+  defp font_src(face, web) do
+    url = "url(#{css_str("#{web.fonts_url}/#{face.file}.woff2")})"
     line = ~s{  src: #{url} format("woff2-variations");}
 
     if String.length(line) > 81,
@@ -195,13 +202,13 @@ defmodule Prism.Gen.Web do
       else: line
   end
 
-  # `.prism-text-shadow` for :default, `.prism-text-shadow-<name>` for the others.
-  defp text_shadows(spec) do
+  # `.<prefix>-text-shadow` for :default, `.<prefix>-text-shadow-<name>` for the others.
+  defp text_shadows(spec, web) do
     for t <- tokens(spec, :text_shadow) do
       class =
         if t.name == :default,
-          do: "prism-text-shadow",
-          else: "prism-text-shadow-#{key_name(t.name)}"
+          do: "#{web.prefix}-text-shadow",
+          else: "#{web.prefix}-text-shadow-#{key_name(t.name)}"
 
       {class, shadow_css(spec, t.value, zero: "0px", spread: false)}
     end
@@ -261,6 +268,28 @@ defmodule Prism.Gen.Web do
   end
 
   defp hex4(c), do: c |> Integer.to_string(16) |> String.pad_leading(4, "0")
+
+  # A `/** … */` block, then an empty line; nothing without a doc.
+  defp doc_block(nil), do: ""
+
+  defp doc_block(doc) do
+    if String.contains?(doc, "*/"), do: raise(ArgumentError, "#{inspect(doc)} contains */")
+
+    lines =
+      doc
+      |> String.trim_trailing("\n")
+      |> String.split("\n")
+      |> Enum.map_join(fn
+        "" -> " *\n"
+        line -> " * #{line}\n"
+      end)
+
+    "/**\n#{lines} */\n\n"
+  end
+
+  # A `// comment` line in the preset's plugin; nothing without a doc.
+  defp line_comment(nil, _indent), do: ""
+  defp line_comment(doc, indent), do: "#{String.duplicate(" ", indent)}// #{comment!(doc)}\n"
 
   # Text in a `//` or `/* */` comment: it can't be escaped, so it must be one line.
   defp comment!(text) do

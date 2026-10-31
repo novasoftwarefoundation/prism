@@ -4,7 +4,26 @@ defmodule Prism.Tokens do
   `css/base.css`, `css/components.css`). Brand-neutral: these are Prism's
   defaults; a consumer that brands them overrides them in its own build.
   """
-  use Prism.Schema
+  use PrismKit.Schema
+
+  web prefix: "prism",
+      fonts_url: "../fonts",
+      line_clamps: 3,
+      preset_doc: """
+      Prism UI - Tailwind CSS Preset
+
+      A playful but professional design system for scientific software.
+      Uses Nunito (>20px) and Nunito Sans (≤20px) variable fonts.
+      """,
+      base_doc: """
+      Prism UI - Base Styles
+
+      This file contains:
+      - @font-face declarations for Nunito variable fonts
+      - Base reset/normalization
+      - Utility classes
+      """,
+      font_classes_doc: "Font weight overrides for Nunito/Nunito Sans variable fonts"
 
   group "Brand colors" do
     color :primary, "#4272EF"

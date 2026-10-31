@@ -1,17 +1,18 @@
-defmodule Prism.Schema do
+defmodule PrismKit.Schema do
   @moduledoc """
-  The schema of the Prism style spec, written as a DSL. A module that `use`s it
-  is part of the spec: `Prism.Tokens` holds the design tokens.
+  The schema of a style spec, written as a DSL. A module that `use`s it is a
+  spec: it declares design tokens and how the web output is named.
 
+      web prefix: "acme", fonts_url: "../fonts"
       group "Brand colors" do
-        color :primary, "#4272EF"
-        color :delete, :error              # an alias: same value, its own name
+        color :accent, "#1A73E8"
+        color :link, :accent               # an alias: same value, its own name
       end
-      shadow :prism_card, y: 5, blur: 20, color: {:black, 0.1}
-      shadow :floating, :prism_card, deprecated: true
+      shadow :card, y: 5, blur: 20, color: {:black, 0.1}
+      shadow :raised, :card, deprecated: true
       family :text,
         doc: "Body text (≤ 20px)",
-        web: [name: "Nunito Sans", fallback: "sans-serif", faces: [...]],
+        web: [name: "Acme Sans", fallback: "sans-serif", faces: [...]],
         ios: :system,
         android: :system
       font :button, :text, 700             # family and weight (`font-button`)
@@ -48,6 +49,10 @@ defmodule Prism.Schema do
   @face_rule "a face is [file:, weights: {from, to}, style: :normal | :italic], file in A-Z a-z 0-9 . _ -"
 
   @font_rule "is :system or [name:, faces: [...]] (on web also fallback:)"
+  @family_name_rule "must be a CSS family name: letters, digits, spaces, _ and -"
+  @weight_rule "weights: {from, to} with 1 <= from <= to <= 1000"
+
+  @web_keys [:prefix, :fonts_url, :line_clamps, :preset_doc, :base_doc, :font_classes_doc]
 
   @shadow_keys %{
     shadow: [:inset, :x, :y, :blur, :spread, :color],
@@ -56,10 +61,30 @@ defmodule Prism.Schema do
 
   defmacro __using__(_opts) do
     quote do
-      import Prism.Schema
+      import PrismKit.Schema
       Module.register_attribute(__MODULE__, :prism_tokens, accumulate: true)
+      Module.register_attribute(__MODULE__, :prism_web, accumulate: true)
       Module.put_attribute(__MODULE__, :prism_group, nil)
-      @before_compile Prism.Schema
+      @before_compile PrismKit.Schema
+    end
+  end
+
+  @doc """
+  How the web output is named and introduced. Once per spec; the web generator
+  needs it.
+
+  - `prefix:` (required) the prefix of the CSS classes the generator writes,
+    e.g. `"acme"` gives `.acme-text-shadow`.
+  - `fonts_url:` (required) where `css/base.css` finds the font files, relative
+    to it, e.g. `"../fonts"`.
+  - `line_clamps:` the number of `.<prefix>-max-lines-N` classes (default 0).
+  - `preset_doc:`, `base_doc:` the comment block at the top of
+    `tailwind.preset.js` and `css/base.css` (several lines allowed).
+  - `font_classes_doc:` the comment above the preset's font classes (one line).
+  """
+  defmacro web(opts) do
+    quote do
+      @prism_web {unquote(opts), unquote(__CALLER__.line)}
     end
   end
 
@@ -69,7 +94,7 @@ defmodule Prism.Schema do
   """
   defmacro group(doc, do: body) do
     quote do
-      Prism.Schema.__group__(__MODULE__, __ENV__.file, unquote(__CALLER__.line), unquote(doc))
+      PrismKit.Schema.__group__(__MODULE__, __ENV__.file, unquote(__CALLER__.line), unquote(doc))
       unquote(body)
       @prism_group nil
     end
@@ -135,7 +160,7 @@ defmodule Prism.Schema do
   # The macro's arguments go in `args`, its keyword options in `opts`; they are
   # checked and merged in `__before_compile__`, so options may use attributes.
   defp token(kind, name, args, opts, caller) do
-    unless is_atom(name) and Regex.match?(~r/^[a-z][a-z0-9_]*$/, Atom.to_string(name)),
+    unless is_atom(name) and Regex.match?(~r/\A[a-z][a-z0-9_]*\z/, Atom.to_string(name)),
       do:
         __fail__(
           caller.file,
@@ -176,7 +201,11 @@ defmodule Prism.Schema do
   defmacro __before_compile__(env) do
     tokens = env.module |> Module.get_attribute(:prism_tokens) |> Enum.reverse()
     tokens = validate!(tokens, env.file)
-    schema = %{tokens: Enum.map(tokens, &Map.delete(&1, :line))}
+
+    web =
+      env.module |> Module.get_attribute(:prism_web) |> Enum.reverse() |> validate_web!(env.file)
+
+    schema = %{tokens: Enum.map(tokens, &Map.delete(&1, :line)), web: web}
 
     quote do
       @doc "This part of the spec as plain data, for generators."
@@ -224,7 +253,7 @@ defmodule Prism.Schema do
   end
 
   defp check(%{kind: :color, value: "#" <> hex}, _) do
-    if Regex.match?(~r/^[0-9A-F]{6}$/, hex),
+    if Regex.match?(~r/\A[0-9A-F]{6}\z/, hex),
       do: :ok,
       else: {:error, "write colors as #RRGGBB (upper case)"}
   end
@@ -325,14 +354,17 @@ defmodule Prism.Schema do
       not (Keyword.keyword?(font) and Enum.sort(Keyword.keys(font)) == keys) ->
         {:error, @font_rule <> ", got #{inspect(font)}"}
 
-      not text?(font[:name]) or font[:name] == "" ->
-        {:error, "name: " <> @text_rule}
+      not family_name?(font[:name]) ->
+        {:error, "name: " <> @family_name_rule}
 
-      platform == :web and not text?(font[:fallback]) ->
-        {:error, "fallback: " <> @text_rule}
+      platform == :web and not family_name?(font[:fallback]) ->
+        {:error, "fallback: " <> @family_name_rule}
 
       not (is_list(font[:faces]) and font[:faces] != [] and Enum.all?(font[:faces], &face?/1)) ->
         {:error, @face_rule}
+
+      not Enum.all?(font[:faces], &weights?(&1[:weights])) ->
+        {:error, @weight_rule}
 
       true ->
         :ok
@@ -348,15 +380,64 @@ defmodule Prism.Schema do
 
   defp face?(face) do
     Keyword.keyword?(face) and Enum.sort(Keyword.keys(face)) == [:file, :style, :weights] and
-      is_binary(face[:file]) and Regex.match?(~r/^[A-Za-z0-9._-]+$/, face[:file]) and
-      face[:style] in [:normal, :italic] and
-      match?({from, to} when is_integer(from) and is_integer(to) and from <= to, face[:weights])
+      is_binary(face[:file]) and Regex.match?(~r/\A[A-Za-z0-9._-]+\z/, face[:file]) and
+      face[:style] in [:normal, :italic] and match?({_, _}, face[:weights])
   end
+
+  defp weights?({from, to}),
+    do: is_integer(from) and is_integer(to) and 1 <= from and from <= to and to <= 1000
+
+  # Font names reach CSS unquoted (`font-family: Acme Sans, sans-serif`), so only
+  # the characters of a plain family name.
+  defp family_name?(name), do: is_binary(name) and Regex.match?(~r/\A[A-Za-z0-9 _-]+\z/, name)
 
   # Spec text ends up in JS strings and comments and in CSS strings and comments,
   # so it is one line without quotes, backslashes or a comment end.
   defp text?(text) do
     is_binary(text) and String.valid?(text) and not String.contains?(text, "*/") and
       not Regex.match?(~r/["\\\x{0}-\x{1F}\x{7F}\x{2028}\x{2029}]/u, text)
+  end
+
+  # A comment block may have several lines, but no comment end or other controls.
+  defp block_text?(text) do
+    is_binary(text) and String.valid?(text) and not String.contains?(text, "*/") and
+      not Regex.match?(~r/[\x{0}-\x{9}\x{B}-\x{1F}\x{7F}\x{2028}\x{2029}]/u, text)
+  end
+
+  defp validate_web!([], _), do: nil
+
+  defp validate_web!([{opts, line} | rest], file) do
+    fail = &__fail__(file, line, "web#{&1}")
+    if rest != [], do: fail.(" is declared more than once")
+    unless Keyword.keyword?(opts), do: fail.(": options must be a keyword list")
+
+    case Keyword.keys(opts) -- @web_keys do
+      [] -> :ok
+      extra -> fail.(": unknown option #{Enum.map_join(extra, ", ", &inspect/1)}")
+    end
+
+    web =
+      Map.merge(
+        %{line_clamps: 0, preset_doc: nil, base_doc: nil, font_classes_doc: nil},
+        Map.new(opts)
+      )
+
+    checks = [
+      prefix:
+        {&(is_binary(&1) and Regex.match?(~r/\A[a-z][a-z0-9-]*\z/, &1)),
+         "a lower-case CSS class prefix"},
+      fonts_url:
+        {&(is_binary(&1) and Regex.match?(~r/\A[A-Za-z0-9._\/-]+\z/, &1)), "a relative path"},
+      line_clamps: {&(is_integer(&1) and &1 >= 0), "a number >= 0"},
+      preset_doc: {&(is_nil(&1) or block_text?(&1)), "text without */"},
+      base_doc: {&(is_nil(&1) or block_text?(&1)), "text without */"},
+      font_classes_doc: {&(is_nil(&1) or text?(&1)), "one line " <> @text_rule}
+    ]
+
+    for {key, {ok?, rule}} <- checks, not ok?.(web[key]) do
+      fail.(": #{key} must be #{rule}, got #{inspect(web[key])}")
+    end
+
+    web
   end
 end
