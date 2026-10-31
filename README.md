@@ -12,7 +12,7 @@ Prism's look is written once, as a design in Elixir, and generated into code for
 
 | Layer | Where | What |
 |---|---|---|
-| Generator | `lib/generator/`, `test/generator/` | Generic: the schema a design is written in (`Prism.Generator.Schema`), the web generator and its templates, and `mix prism.gen.web`. It knows nothing about Prism's values. |
+| Generator | `lib/generator/`, `test/generator/` | Generic: the schema a design is written in (`Prism.Generator.Schema`), the web generator and its templates, and the Mix tasks in `lib/generator/mix/tasks/` (one file per task: `prism.gen.web.ex`). It knows nothing about Prism's values. |
 | Design | `lib/design/`, `test/design/` | Prism's design: `Prism.Design.Tokens`, and its checks (the 0.1.7 golden test, the version check, the font roles). |
 | Targets | `targets/web/` | The npm package: `package.json`, the generated `tailwind.preset.js` and `css/base.css`, the hand-written `css/components.css`, and `fonts/`. Later `targets/swift/`. |
 
@@ -34,7 +34,7 @@ mix test
 - The schema turns a design into plain data, `__schema__/0`, whose shape is documented in `Prism.Generator.Schema`. The generators read only that data, never the schema's internals; a test checks that no generator calls into the schema.
 - The generator gets the design only from `--design MODULE` or `config :prism, design: MODULE`, never by naming it. CI fails when any file in `lib/generator/`, subfolders included, depends on `lib/design/`, directly or through another file (`mix xref graph`, see `.github/scripts/generator-boundary.sh`), or when the generator's files mention Prism's values or the path `lib/design`.
 - Its tests use a neutral example design (`test/generator/support/example_design.ex`) and compare its output with reviewed fixtures in `test/generator/fixtures/`.
-- **Moving it to its own repository:** move `lib/generator/` and `test/generator/` into a new Mix project, and add one dependency line to this project's `mix.exs`, e.g. `{:prism_generator, git: "<url>", tag: "<version>"}`.
+- **Moving it to its own repository:** move `lib/generator/` and `test/generator/` into a new Mix project (where `lib/generator/mix/tasks/` becomes `lib/mix/tasks/`), and add one dependency line to this project's `mix.exs`, e.g. `{:prism_generator, git: "<url>", tag: "<version>"}`.
 
 ## Publish
 

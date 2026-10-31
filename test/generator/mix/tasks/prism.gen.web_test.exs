@@ -1,4 +1,4 @@
-defmodule Prism.Generator.TasksTest do
+defmodule Mix.Tasks.Prism.Gen.WebTest do
   use ExUnit.Case, async: false
 
   @moduletag :tmp_dir

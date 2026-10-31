@@ -33,6 +33,6 @@ Prism is a look for scientific software: a Tailwind preset plus component CSS, p
 ## Consequences
 
 - Prism's look is edited in `lib/design/tokens.ex` and regenerated with `mix prism.gen.web`; CI fails when the committed files differ.
-- The generator can move to its own repository by moving `lib/generator/` and `test/generator/` out and adding one dependency line; nothing in Prism's design changes.
+- The generator can move to its own repository by moving `lib/generator/` and `test/generator/` out (`lib/generator/mix/tasks/` becomes `lib/mix/tasks/` there) and adding one dependency line; nothing in Prism's design changes.
 - Swift comes later in `targets/swift/`, with its own `Package.swift`.
 - 0.1.7's inconsistencies stay until someone changes them on purpose.
