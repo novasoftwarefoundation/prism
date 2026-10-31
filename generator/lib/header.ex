@@ -50,24 +50,11 @@ defmodule Prism.Generator.Header do
     end
   end
 
-  @doc "Whether the file at `path` starts with a header, so `mix prism.gen` may replace it."
-  def generated?(path) do
-    lines = path |> File.read!() |> String.split("\n", parts: 3)
-
-    case {Path.extname(path), lines} do
-      {".json", ["{", second | _]} ->
-        String.starts_with?(second, ~s(  "$description": "#{@marker}))
-
-      {_, [first | _]} ->
-        String.contains?(first, @marker)
-    end
-  end
-
   @doc """
   Whether the file at `path` starts with exactly the header `put/3` writes for
-  its type, naming any design file, so `mix prism.gen` may remove it when no
-  target writes it any more. A line that only mentions the header's words, or a
-  file of a type without a header, is no header here.
+  its type, naming any design file, so `mix prism.gen` may replace it, or remove
+  it when no target writes it any more. A line that only mentions the header's
+  words, or a file of a type without a header, is no header here.
   """
   def exact?(path) do
     ext = Path.extname(path)

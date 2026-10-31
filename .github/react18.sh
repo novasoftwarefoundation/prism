@@ -6,8 +6,8 @@
 #
 # With --update, it writes that lockfile instead, from the package's own package.json
 # and lockfile as they are now, committed or not, and puts both back as they were,
-# also when it fails. Run it after a change to the package's version or
-# dependencies:
+# also when it fails or is interrupted. Run it after a change to the package's
+# version or dependencies:
 #
 #   cd targets/react && npm install --package-lock-only && ../../.github/react18.sh --update
 set -eu
@@ -16,6 +16,10 @@ if [ "${1-}" = --update ]; then
   saved=$(mktemp -d)
   cp package.json package-lock.json "$saved/"
   trap 'cp "$saved/package.json" "$saved/package-lock.json" . && rm -rf "$saved"' EXIT
+  # dash, /bin/sh on Debian and Ubuntu, runs no EXIT trap when a signal ends it:
+  # exiting on Ctrl-C or SIGTERM runs it.
+  trap 'exit 130' INT
+  trap 'exit 143' TERM
 fi
 
 npm pkg set \

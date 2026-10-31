@@ -310,6 +310,14 @@ defmodule Prism.Generator.Schema.Components do
 
       with {:error, message} <- Prism.Generator.Web.Components.check_part(component, other),
            do: fail(file, p.line, "#{path_label(p)}: #{message}")
+
+      # The part's own states, in or outside a variant.
+      for %{kind: :state, parent: [{:component, name} | _] = parent} = s <- nodes,
+          name == c.name and List.last(parent) == {:part, p.name} do
+        with {:error, message} <-
+               Prism.Generator.Web.Components.check_part_state(c.name, p.name, ref, s.name),
+             do: fail(file, s.line, "#{path_label(s)}: #{message}")
+      end
     end
 
     built
