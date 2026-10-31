@@ -46,7 +46,7 @@ defmodule Prism.Design.TokensTest do
     end
   end
 
-  test "mix.exs, both npm packages and the React package's lockfile have the same version" do
+  test "mix.exs, both npm packages and the React package's lockfiles have the same version" do
     version = Mix.Project.config()[:version]
     web = JSON.decode!(File.read!("../targets/web/package.json"))
     react = JSON.decode!(File.read!("../targets/react/package.json"))
@@ -56,11 +56,14 @@ defmodule Prism.Design.TokensTest do
     # The React package's CSS is the web package's, at the same version.
     assert react["peerDependencies"][web["name"]] == version
 
-    # Its lockfile records the version, the peer and the linked web package too.
-    lock = JSON.decode!(File.read!("../targets/react/package-lock.json"))
-    assert lock["version"] == version
-    assert lock["packages"][""]["version"] == version
-    assert lock["packages"][""]["peerDependencies"][web["name"]] == version
-    assert lock["packages"]["../web"]["version"] == version
+    # Its lockfiles (React 19's, and CI's for React 18) record the version, the peer
+    # and the linked web package too.
+    for path <- ["package-lock.json", "test/react18/package-lock.json"] do
+      lock = JSON.decode!(File.read!("../targets/react/#{path}"))
+      assert lock["version"] == version, path
+      assert lock["packages"][""]["version"] == version, path
+      assert lock["packages"][""]["peerDependencies"][web["name"]] == version, path
+      assert lock["packages"]["../web"]["version"] == version, path
+    end
   end
 end

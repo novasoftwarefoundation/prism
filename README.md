@@ -166,7 +166,7 @@ Install Prism from npm. The repository root is no longer the package (it lives i
 
 Publishing is manual for now: the npm packages from `targets/web/` and `targets/react/`, with the same version for both, and the design-tool files as release assets:
 
-1. Bump the version in `design/mix.exs`, `targets/web/package.json`, and in `targets/react/package.json` both its version and its peer dependency on `@novasoftwarefoundation/prism`. Then update the React package's lockfile: `cd targets/react && npm install --package-lock-only`. A test checks that all of them are equal. Merge it.
+1. Bump the version in `design/mix.exs`, `targets/web/package.json`, and in `targets/react/package.json` both its version and its peer dependency on `@novasoftwarefoundation/prism`. Then update the React package's lockfiles: `cd targets/react && npm install --package-lock-only && ../../.github/react18.sh --update` (the second is CI's React 18 lockfile). A test checks that all of them are equal. Merge it.
 2. Check the packages: `cd targets/web && npm pack --dry-run` lists the files in `.github/npm-files.txt`, and `cd targets/react && npm ci && npm pack --dry-run` (which builds `dist/`) those in `.github/npm-files-react.txt`.
 3. Publish the CSS first, since the components depend on it: `cd targets/web && npm publish --access public`.
 4. Then the components: `cd targets/react && npm publish --access public`.
