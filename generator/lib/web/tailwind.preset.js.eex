@@ -1,0 +1,62 @@
+<%= doc_block(web.preset_doc) %>const plugin = require("tailwindcss/plugin");
+
+module.exports = {
+  theme: {
+    colors: {
+<%= preset_colors(design) %>
+    },
+    extend: {
+      boxShadow: {
+<%= preset_shadows(design) %>
+      },
+      spacing: {
+<%= preset_spacing(design) %>
+      },
+      height: {
+<%= preset_heights(design) %>
+      },
+      fontFamily: {
+<%= preset_font_families(design) %>
+      },
+      fontSize: {
+<%= preset_text_sizes(design) %>
+      },
+      maxHeight: {
+<%= preset_max_heights(design) %>
+      },
+    },
+  },
+  plugins: [
+    plugin(function ({ addUtilities, addComponents }) {
+      // Utility classes
+      addUtilities({
+        ".h-viewport": {
+          height: "calc(var(--vh, 1vh) * 100)",
+        },
+        ".safe-top": {
+          paddingTop: "env(safe-area-inset-top)",
+        },
+        ".safe-left": {
+          paddingLeft: "env(safe-area-inset-left)",
+        },
+        ".safe-right": {
+          paddingRight: "env(safe-area-inset-right)",
+        },
+        ".safe-bottom": {
+          paddingBottom: "env(safe-area-inset-bottom)",
+        },
+        ".scrollbar-hidden": {
+          "-ms-overflow-style": "none",
+          "scrollbar-width": "none",
+        },
+        ".scrollbar-hidden::-webkit-scrollbar": {
+          display: "none",
+        },
+      });
+
+<%= line_comment(web.font_classes_doc, 6) %>      addComponents({
+<%= preset_font_classes(design) %>
+      });
+    }),
+  ],
+};

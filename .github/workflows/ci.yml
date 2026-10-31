@@ -1,0 +1,82 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop, spec]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  generator:
+    name: Generator on its own
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: generator
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
+        with:
+          version-file: .tool-versions
+          version-type: strict
+      - name: The generator mentions none of Prism's values
+        run: |
+          if grep -rniE 'nunito|novasoftwarefoundation|0\.1\.7|Prism\.Design|4272EF' .; then
+            echo "::error::generator/ mentions Prism's design or package. Keep Prism-specific values in design/."
+            exit 1
+          fi
+      - run: mix format --check-formatted
+      # Compiled without design/, so a reference to Prism's design fails here.
+      - run: mix compile --warnings-as-errors
+      # The test env also compiles test/support/; mix test's flag covers the test files.
+      - run: mix compile --warnings-as-errors
+        env:
+          MIX_ENV: test
+      - run: mix test --warnings-as-errors
+
+  design:
+    name: Prism's design and generated files
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: design
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
+        with:
+          version-file: .tool-versions
+          version-type: strict
+      - run: mix deps.get
+      - run: mix compile --warnings-as-errors
+      - run: mix format --check-formatted
+      # Fails when a committed file in targets/ differs from what the design generates.
+      - run: mix prism.gen --check
+      # The 0.1.7 golden test, the version check and the font roles.
+      - run: mix test --warnings-as-errors
+
+  npm-package:
+    name: npm file list
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .tool-versions
+      - name: The package ships exactly the reviewed files
+        working-directory: targets/web
+        run: |
+          npm pack --dry-run --json | jq -r '.[0].files[].path' | LC_ALL=C sort > "$RUNNER_TEMP/npm-files.txt"
+          diff -u ../../.github/npm-files.txt "$RUNNER_TEMP/npm-files.txt" || {
+            echo "::error::npm would publish a different file list. Update targets/web/package.json 'files' or .github/npm-files.txt."
+            exit 1
+          }
+      - name: The package's LICENSE is the repository's
+        run: cmp LICENSE targets/web/LICENSE
