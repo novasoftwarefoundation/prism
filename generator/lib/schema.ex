@@ -1,7 +1,11 @@
 defmodule Prism.Generator.Schema do
   @moduledoc """
   The schema of a design, written as a DSL. A module that `use`s it is a
-  design: it declares design tokens and how the web files are named.
+  design: it declares design tokens, components (`Prism.Generator.Schema.Components`)
+  and how the web files are named. `use Prism.Generator.Schema, tokens: Other`
+  takes the tokens and the web declaration of the design `Other`, so the
+  components can live in a file of their own; such a design declares no tokens,
+  and its `web` declaration only adds `components_doc:`.
 
       web prefix: "acme", fonts_url: "../fonts"
       group "Brand colors" do
@@ -31,14 +35,16 @@ defmodule Prism.Generator.Schema do
 
   Every mistake fails at compile time and points at its line: an unknown
   option, a name that isn't a snake_case atom, a duplicate name, a value of the
-  wrong type, or a reference to a token that doesn't exist or has another kind.
+  wrong type, a reference to a token that doesn't exist or has another kind, a
+  node in the wrong place, or a binding key its target doesn't know.
 
   ## The design as data
 
   Generators read `__schema__/0`, never the source or this module's internals.
   It returns
 
-      %{tokens: [token], web: web | nil, file: file}
+      %{tokens: [token], components: [component], web: web | nil,
+        file: file, tokens_file: file}
 
   - Every token is a map with `kind`, `name` (an atom) and `group` (its
     group's text or `nil`), in the order of the design, plus per kind:
@@ -54,11 +60,37 @@ defmodule Prism.Generator.Schema do
     - `:font`: `family`, `weight`, and `italic` when given;
     - `:text`: `size` and `line_height` (px);
     - `:typography`: `font` and `text` (the names of a font and a text size).
+  - Every component is a map, in the order of the design:
+    - `name`; `style`, its own look: a keyword list of properties in the
+      design's order (`Prism.Generator.Schema.Components.properties/0`), each
+      value as the design writes it (a token's name, `{color, alpha}`,
+      `"#RRGGBB"`, `:transparent`, a length, insets such as `[y: 15, x: 16]`
+      where `x` is left and right and `y` top and bottom, …);
+    - `parts`: `[%{name, component, style, states}]` in the design's order,
+      `component` being the name of the component the part is, or `nil`;
+    - `variants`: `[%{name, axis, aliases, style, parts, states}]` in the
+      design's order; `axis` is `:variant`, or the name of the `variants`
+      block it is in; `parts` are the changes it makes to the component's
+      parts, `[%{name, style, states}]`;
+    - `axes`: `[%{name}]`, the `variants` blocks;
+    - `states`: `[%{name, style, parts}]`, `name` one of
+      `Prism.Generator.Schema.Components.states/0`; a part's states have the
+      same shape. A state's `parts` are its changes to the component's parts,
+      `[%{name, style, states}]`, with `states` always `[]`; a variant's part
+      changes have the same shape, and their `states` are the part's states
+      within that variant;
+    - and on every component, part, variant, axis and state, `web`, `ios` and
+      `android`: its binding for that target, a keyword list (`[]` without
+      one). A property in a binding replaces the shared one on that target;
+      the other keys are the target's own (`Prism.Generator.Web.Components`).
+      A target reads only its own binding.
   - `file` is the design's source file relative to the project
-    (`"lib/my_design.ex"`), which generated files name in their header.
+    (`"lib/my_design.ex"`), and `tokens_file` the file of its tokens (the same
+    file, or the other design's). Generated files name the one they are made
+    from in their header.
   - `web` is the `web` declaration as a map with every key (`prefix`,
-    `fonts_url`, `line_clamps`, `preset_doc`, `base_doc`, `font_classes_doc`),
-    or `nil` without one.
+    `fonts_url`, `line_clamps`, `preset_doc`, `base_doc`, `font_classes_doc`,
+    `components_doc`), or `nil` without one.
   """
 
   @platforms [:web, :ios, :android]
@@ -85,19 +117,37 @@ defmodule Prism.Generator.Schema do
   @family_name_rule "must be a CSS family name: letters, digits, spaces, _ and -"
   @weight_rule "weights: {from, to} with 1 <= from <= to <= 1000"
 
-  @web_keys [:prefix, :fonts_url, :line_clamps, :preset_doc, :base_doc, :font_classes_doc]
+  @web_keys [
+    :prefix,
+    :fonts_url,
+    :line_clamps,
+    :preset_doc,
+    :base_doc,
+    :font_classes_doc,
+    :components_doc
+  ]
 
   @shadow_keys %{
     shadow: [:inset, :x, :y, :blur, :spread, :color],
     text_shadow: [:x, :y, :blur, :color]
   }
 
-  defmacro __using__(_opts) do
+  defmacro __using__(opts) do
     quote do
       import Prism.Generator.Schema
+      import Prism.Generator.Schema.Components
       Module.register_attribute(__MODULE__, :prism_tokens, accumulate: true)
       Module.register_attribute(__MODULE__, :prism_web, accumulate: true)
+      Module.register_attribute(__MODULE__, :prism_nodes, accumulate: true)
       Module.put_attribute(__MODULE__, :prism_group, nil)
+      Module.put_attribute(__MODULE__, :prism_stack, [])
+
+      Module.put_attribute(
+        __MODULE__,
+        :prism_import,
+        {unquote(Keyword.get(opts, :tokens)), unquote(__CALLER__.line)}
+      )
+
       @before_compile Prism.Generator.Schema
     end
   end
@@ -114,9 +164,17 @@ defmodule Prism.Generator.Schema do
   - `preset_doc:`, `base_doc:` the comment block at the top of
     `tailwind.preset.js` and `css/base.css` (several lines allowed).
   - `font_classes_doc:` the comment above the preset's font classes (one line).
+  - `components_doc:` the comment block at the top of `css/components.css`.
   """
   defmacro web(opts) do
     quote do
+      Prism.Generator.Schema.Components.__top_level__!(
+        __MODULE__,
+        __ENV__.file,
+        unquote(__CALLER__.line),
+        "web"
+      )
+
       @prism_web {unquote(opts), unquote(__CALLER__.line)}
     end
   end
@@ -215,6 +273,13 @@ defmodule Prism.Generator.Schema do
         )
 
     quote do
+      Prism.Generator.Schema.Components.__top_level__!(
+        __MODULE__,
+        __ENV__.file,
+        unquote(caller.line),
+        unquote("#{kind} #{inspect(name)}")
+      )
+
       @prism_tokens %{
         kind: unquote(kind),
         name: unquote(name),
@@ -228,6 +293,8 @@ defmodule Prism.Generator.Schema do
 
   @doc false
   def __group__(mod, file, line, doc) do
+    Prism.Generator.Schema.Components.__top_level__!(mod, file, line, "group #{inspect(doc)}")
+
     if outer = Module.get_attribute(mod, :prism_group),
       do:
         __fail__(
@@ -245,13 +312,29 @@ defmodule Prism.Generator.Schema do
     do: raise(CompileError, file: file, line: line, description: description)
 
   defmacro __before_compile__(env) do
-    tokens = env.module |> Module.get_attribute(:prism_tokens) |> Enum.reverse()
-    tokens = validate!(tokens, env.file)
+    own = env.module |> Module.get_attribute(:prism_tokens) |> Enum.reverse()
+    web = env.module |> Module.get_attribute(:prism_web) |> Enum.reverse()
 
-    web =
-      env.module |> Module.get_attribute(:prism_web) |> Enum.reverse() |> validate_web!(env.file)
+    {tokens, tokens_file, web} =
+      case Module.get_attribute(env.module, :prism_import) do
+        {nil, _} ->
+          tokens = own |> validate!(env.file) |> Enum.map(&Map.delete(&1, :line))
+          {tokens, file(env.file), validate_web!(web, env.file, nil)}
 
-    schema = %{tokens: Enum.map(tokens, &Map.delete(&1, :line)), web: web, file: file(env.file)}
+        {module, line} ->
+          imported = imported!(module, own, env.file, line)
+          {imported.tokens, imported.tokens_file, validate_web!(web, env.file, imported)}
+      end
+
+    nodes = env.module |> Module.get_attribute(:prism_nodes) |> Enum.reverse()
+
+    schema = %{
+      tokens: tokens,
+      components: Prism.Generator.Schema.Components.validate!(nodes, tokens, env.file),
+      web: web,
+      file: file(env.file),
+      tokens_file: tokens_file
+    }
 
     quote do
       @doc "The design as plain data, for generators."
@@ -265,6 +348,30 @@ defmodule Prism.Generator.Schema do
     case Path.relative_to(path, File.cwd!()) do
       "/" <> _ -> Path.basename(path)
       relative -> relative
+    end
+  end
+
+  # The design whose tokens and web declaration a design takes (`tokens: Module`).
+  defp imported!(module, own, file, line) do
+    fail = &__fail__(file, line, "tokens: #{inspect(module)}#{&1}")
+
+    unless is_atom(module) and match?({:module, _}, Code.ensure_compiled(module)) and
+             function_exported?(module, :__schema__, 0),
+           do: fail.(" is not a design (a module that uses Prism.Generator.Schema)")
+
+    schema = module.__schema__()
+    if schema.components != [], do: fail.(" has components; take tokens from a design without")
+
+    case own do
+      [] ->
+        schema
+
+      [t | _] ->
+        __fail__(
+          file,
+          t.line,
+          "#{t.kind} #{inspect(t.name)}: this design takes its tokens from #{inspect(module)}; declare them there"
+        )
     end
   end
 
@@ -307,6 +414,9 @@ defmodule Prism.Generator.Schema do
 
     t |> Map.drop([:args, :opts]) |> Map.merge(args) |> Map.merge(Map.new(opts))
   end
+
+  defp check(%{kind: :color, name: :transparent}, _),
+    do: {:error, "the name is taken: components write :transparent for no color"}
 
   defp check(%{kind: :color, value: "#" <> hex}, _) do
     if Regex.match?(~r/\A[0-9A-F]{6}\z/, hex),
@@ -472,9 +582,11 @@ defmodule Prism.Generator.Schema do
       not Regex.match?(~r/[\x{0}-\x{9}\x{B}-\x{1F}\x{7F}\x{2028}\x{2029}]/u, text)
   end
 
-  defp validate_web!([], _), do: nil
+  # A design that takes its tokens from another takes that design's web declaration
+  # too; its own may only add the comment at the top of the component CSS.
+  defp validate_web!([], _, imported), do: imported && imported.web
 
-  defp validate_web!([{opts, line} | rest], file) do
+  defp validate_web!([{opts, line} | rest], file, imported) do
     fail = &__fail__(file, line, "web#{&1}")
     if rest != [], do: fail.(" is declared more than once")
     unless Keyword.keyword?(opts), do: fail.(": options must be a keyword list")
@@ -484,11 +596,28 @@ defmodule Prism.Generator.Schema do
       extra -> fail.(": unknown option #{Enum.map_join(extra, ", ", &inspect/1)}")
     end
 
-    web =
-      Map.merge(
-        %{line_clamps: 0, preset_doc: nil, base_doc: nil, font_classes_doc: nil},
-        Map.new(opts)
-      )
+    base =
+      if imported do
+        case Keyword.keys(opts) -- [:components_doc] do
+          [] ->
+            :ok
+
+          [key | _] ->
+            fail.(": #{key} comes with the tokens; this design may only add components_doc:")
+        end
+
+        imported.web || fail.(": the design the tokens come from has no web declaration")
+      else
+        %{
+          line_clamps: 0,
+          preset_doc: nil,
+          base_doc: nil,
+          font_classes_doc: nil,
+          components_doc: nil
+        }
+      end
+
+    web = Map.merge(base, Map.new(opts))
 
     checks = [
       prefix:
@@ -500,7 +629,8 @@ defmodule Prism.Generator.Schema do
       line_clamps: {&(is_integer(&1) and &1 >= 0), "a number >= 0"},
       preset_doc: {&(is_nil(&1) or block_text?(&1)), "text without */"},
       base_doc: {&(is_nil(&1) or block_text?(&1)), "text without */"},
-      font_classes_doc: {&(is_nil(&1) or text?(&1)), "one line " <> @text_rule}
+      font_classes_doc: {&(is_nil(&1) or text?(&1)), "one line " <> @text_rule},
+      components_doc: {&(is_nil(&1) or block_text?(&1)), "text without */"}
     ]
 
     for {key, {ok?, rule}} <- checks, not ok?.(web[key]) do

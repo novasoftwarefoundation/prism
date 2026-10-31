@@ -1,7 +1,9 @@
 defmodule Prism.Generator.Web do
   @moduledoc """
-  Generates a web package from a design: a Tailwind preset (`tailwind.preset.js`)
-  and base CSS (`css/base.css`: font faces and utilities).
+  Generates a web package from a design: a Tailwind preset (`tailwind.preset.js`),
+  base CSS (`css/base.css`: font faces and utilities) and, for a design with
+  components, component CSS (`css/components.css`; the web mechanics of each
+  component are in `Prism.Generator.Web.Components`).
 
   The templates in `web/` hold the web mechanics (the Tailwind plugin, the
   viewport, safe-area and scrollbar utilities, line clamps); every design value
@@ -14,6 +16,8 @@ defmodule Prism.Generator.Web do
   """
 
   require EEx
+
+  alias Prism.Generator.Web.Components
 
   @dir Path.join(__DIR__, "web")
   @external_resource Path.join(@dir, "tailwind.preset.js.eex")
@@ -28,16 +32,24 @@ defmodule Prism.Generator.Web do
 
   @doc """
   The files of the web target for a design's `__schema__/0`, as
-  `[{path, body}]` with paths relative to the target's folder. `mix prism.gen`
-  puts a `Prism.Generator.Header` line above each body.
+  `[{path, body, design_file}]`: paths relative to the target's folder, and the
+  design file each body is made from (the tokens' file for the preset and base
+  CSS, the design's own file for the component CSS). `mix prism.gen` puts a
+  `Prism.Generator.Header` line naming that file above each body.
   """
-  def files(%{tokens: tokens, web: web}) do
+  def files(%{tokens: tokens, web: web} = design) do
     unless web, do: raise(ArgumentError, "the design has no `web` declaration")
 
+    components =
+      case design.components do
+        [] -> []
+        _ -> [{"css/components.css", Components.css(design), design.file}]
+      end
+
     [
-      {"tailwind.preset.js", preset_js(tokens, web)},
-      {"css/base.css", base_css(tokens, web)}
-    ]
+      {"tailwind.preset.js", preset_js(tokens, web), design.tokens_file},
+      {"css/base.css", base_css(tokens, web), design.tokens_file}
+    ] ++ components
   end
 
   # ------------------------------------------------------------- tokens
@@ -211,7 +223,8 @@ defmodule Prism.Generator.Web do
 
   # A shadow: [inset:, x:, y:, blur:, spread:, color: {color, alpha}]. `zero` is how 0 is
   # written; `alpha: 2` writes the alpha with two decimals (the preset's style).
-  defp shadow_css(design, shadow, opts) do
+  @doc false
+  def shadow_css(design, shadow, opts) do
     zero = Keyword.fetch!(opts, :zero)
     length = fn n -> if n == 0, do: zero, else: "#{n}px" end
     {color, alpha} = shadow[:color]
@@ -246,7 +259,8 @@ defmodule Prism.Generator.Web do
     ~s("#{escaped}")
   end
 
-  defp css_str(text) do
+  @doc false
+  def css_str(text) do
     escaped =
       for <<c::utf8 <- text>>, into: "" do
         case c do
@@ -263,9 +277,10 @@ defmodule Prism.Generator.Web do
   defp hex4(c), do: c |> Integer.to_string(16) |> String.pad_leading(4, "0")
 
   # A `/** … */` block, then an empty line; nothing without a doc.
-  defp doc_block(nil), do: ""
+  @doc false
+  def doc_block(nil), do: ""
 
-  defp doc_block(doc) do
+  def doc_block(doc) do
     if String.contains?(doc, "*/"), do: raise(ArgumentError, "#{inspect(doc)} contains */")
 
     lines =
@@ -292,12 +307,14 @@ defmodule Prism.Generator.Web do
     text
   end
 
-  defp rgb("#" <> hex) do
+  @doc false
+  def rgb("#" <> hex) do
     <<r::8, g::8, b::8>> = Base.decode16!(hex, case: :mixed)
     {r, g, b}
   end
 
-  defp number(n) when is_integer(n), do: Integer.to_string(n)
-  defp number(n) when n == trunc(n), do: Integer.to_string(trunc(n))
-  defp number(n), do: Float.to_string(n)
+  @doc false
+  def number(n) when is_integer(n), do: Integer.to_string(n)
+  def number(n) when n == trunc(n), do: Integer.to_string(trunc(n))
+  def number(n), do: Float.to_string(n)
 end

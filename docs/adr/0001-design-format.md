@@ -22,11 +22,11 @@ The format has these parts:
 |---|---|---|
 | Schema | The DSL and its rules: what a valid design is | the generator: `Prism.Generator.Schema` |
 | Tokens | Colors, shadows, text shadows, spacing, sizes, radii, font families and faces, font styles, text sizes, and type styles (`typography`) built from a font style and a text size | the design: a module that uses `Prism.Generator.Schema` (`__schema__/0` returns it as data) |
-| Components | Components with a base style, parts, variants and states, built from tokens | the design (later) |
+| Components | Components with a base style, parts, variants and states, built from tokens, with per-target bindings | the design: the tokens' module, or a module that takes its tokens from it (`use Prism.Generator.Schema, tokens: Tokens`) |
 | Generators | Web (Tailwind preset and CSS), Swift, later Kotlin | the generator: `Prism.Generator.*` and `mix prism.gen.<target>` |
 | Targets | What the generators produce | `targets/<target>/`, where each one is published or imported from |
 
-Today the generator has the schema's token part (type styles included) and the web generator for `tailwind.preset.js` and `css/base.css`.
+Today the generator has the schema (tokens, type styles and components) and the web generator for `tailwind.preset.js`, `css/base.css` and `css/components.css`.
 
 1. **Tokens are declared, not computed.**
 
@@ -67,23 +67,44 @@ Today the generator has the schema's token part (type styles included) and the w
    - Weights, italic, sizes and line heights are shared by all platforms. Sizes are px on the web, pt on iOS and sp on Android.
    - Each generator reads only its own platform's binding. The web target reads `web:`; the family names don't appear in it.
 
-3. **Components hold design values only** (later).
+3. **Components: a shared look, mechanics per target, and bindings only where a value really differs** (`Prism.Generator.Schema.Components`).
 
    ```elixir
-   defcomponent :button do
-     style font: :button, text: :button, radius: :default, transition: {150, :ease_in_out}
+   component :btn, web: [section: "Buttons"] do
+     style typography: :button, radius: :default, transition: {150, :ease_in_out}
+     part :content
+     part :spinner, component: :spinner
+
      variant :primary, background: :accent, foreground: :white, padding: [y: 15, x: 16] do
        state :pressed, padding: [top: 16, bottom: 14], shadow: :pressed
        state :disabled, opacity: 0.5
      end
+
+     state :loading do
+       part :content, opacity: 0
+     end
+
+     variants :color do
+       variant :danger, background: :error, foreground: :white, aliases: [:delete]
+     end
    end
    ```
 
-   - The properties are a fixed, typed list: colors, lengths, insets, radius, font, text, weight, shadow, opacity, motion, decoration.
-   - A value is a token reference or a literal. Colors are `:token`, `{:token, alpha}` or `"#RRGGBB"`. Lengths are px (points on iOS, dp on Android), `{n, :rem}` or `{n, :percent}`.
-   - CSS mechanics are not in the design: `display`, `cursor`, `appearance`, focus outlines, keyframes. They live in the web generator's templates, just as native views live in native code.
+   A component is one concept (a button, an input, a checkbox): its look, and how a state changes it. What it does is never part of a design. A component has four layers:
 
-4. **The design names its web files.** A `web` declaration gives the class prefix (`prefix: "acme"` gives `.acme-text-shadow`), where the CSS finds the font files, how many line-clamp classes to write, and the comments at the top of each file. The templates hold no names of their own, so the same generator serves any design.
+   1. **The shared look**, which every target reads. `style` is the component's own look. A `variant` is a look to choose: variants outside a `variants` block are the `:variant` axis, a `variants :color` block is a second axis that combines with the first, and `aliases:` gives a variant more names. A `part` is a named piece, in the design's order; `component:` makes it another component. A `state` changes the look while it holds. A variant or a state changes a part by naming it again.
+      - States have a fixed meaning that every target knows: `:pressed`, `:hovered`, `:focused`, `:disabled`, `:checked`, `:selected`, `:loading`, `:error`.
+      - Properties are a fixed, typed list: `background`, `foreground` and `placeholder` (colors); `border` and `outline` (`[width:, color:]`, plus `offset:` for the outline; a state may give only some); `radius`; `padding`, `margin` and `inset` (sides: `top`, `right`, `bottom`, `left`, `x` for left and right, `y` for top and bottom); `gap`, `size`, `height`, `min_height` and `max_height`; `typography`; `weight`; `decoration`; `shadow`; `opacity`; `transition` and `rotation` (`{milliseconds, easing}`).
+      - A value is a token reference or a literal of the property's type. Colors are a color's name, `{color, alpha}`, `"#RRGGBB"` or `:transparent` (so no color token may be named `:transparent`). Lengths are px (points on iOS, dp on Android), `{n, :rem}` or `{n, :percent}`; a radius or a maximum height may also name its token. A `typography` is a typography token, or `[font: font, text: text | {size, line_height}]` for a pairing no type style has. A shadow is always a token. Durations, opacities, weights and the other lengths are literals, because the format has no tokens for them.
+   2. **Platform mechanics are not design.** Display and layout, cursors, focus rings, appearance resets, keyframes, the spinner's tint filter and the checkbox's check mark image on the web (later ripple on Android, haptics on iOS) live in the target's module in `generator/`. For the web that is `Prism.Generator.Web.Components`. Its mechanics are keyed on component and part names, as a platform library's are: it knows the components by name (`:btn`, `:radio`, …) and their parts by name (the radio's `:group`, `:label` and `:text`, the tag's `:inner`, …), and writes every variant and state the design gives them. A design component or part that a target doesn't know fails that target's generation. So for components and parts the names are the generator's vocabulary as well as the design's.
+   3. **A value that really differs per platform** gets a namespaced binding in the design, `web:`, `ios:` or `android:`, the way `family` binds a font per platform. A binding holds properties, whose values replace the shared ones on that target only, and keys of the target's own: the web's are `section:` and `doc:` (the comments of its file) and `filter:` (a spinner variant's tint filter, made for one color). A target reads only its own binding and falls back to the shared value. The schema refuses a key a target doesn't know, at compile time on the line, and a value a target can't write (on the web: a color with alpha for the checkbox's check mark or a tinted spinner, which are drawn into an image or a filter, and a spinner size in percent, which a loading button can't halve). A target fails when a value or key of the design is written nowhere, so nothing is silently ignored. The web's `filter:` is CSS filter functions with numeric arguments only. The native targets don't exist yet, so `ios:` and `android:` take only properties for now.
+   4. **Apps adjust a component through its own API**: an extra class or attributes in Elixir (`Prism.Generator.Phoenix`, later), modifiers in Swift. Never by editing generated files.
+
+   This is the split of Material 3's component tokens (one set of values for every platform, the mechanics in each platform's library), of Style Dictionary (a platform-neutral source, with a transform and a format per platform) and of the Design Tokens Community Group format's `$extensions` (tool-specific data under its own namespace).
+
+   On the web a class is made of the design's names: `.<prefix>-<component>`, then `-<variant>`, `-<part>` or `-<state>`, with `-` for `_`. Renaming a design name renames its class; there is no binding for class names.
+
+4. **The design names its web files.** A `web` declaration gives the class prefix (`prefix: "acme"` gives `.acme-text-shadow`), where the CSS finds the font files, how many line-clamp classes to write, and the comments at the top of each file (`components_doc:` for `css/components.css`). The templates hold no names of their own, so the same generator serves any design.
 
 5. **Mistakes fail at compile time and point at their line:**
    - an unknown option, property or token kind;
@@ -94,16 +115,18 @@ Today the generator has the schema's token part (type styles included) and the w
    - a nested `group`;
    - a family that doesn't bind `web`, `ios` and `android`, or binds one to something other than `:system` or a named font with faces;
    - a reference to a missing token, or one of the wrong kind;
-   - a `state` outside a component, or a node in the wrong place (with components).
+   - a node in the wrong place: a `state` outside a component, a part inside a part, a token or a `group` inside a component, a component inside a `group`;
+   - an unknown property, state or binding key; an option named like a node's own fields (`name:`, `kind:`, `group:`, `line:`) is refused as an unknown option;
+   - two variants, aliases, parts or states of a component with one name, a change to a part the component doesn't declare, or a `component:` that isn't another component.
 
 6. **Naming:**
    - Design names are snake_case atoms.
    - Web keys replace `_` with `-` (`btn_pressed` → `btn-pressed`).
    - Swift uses camelCase (`Shadows.btnPressed`) and escapes keywords.
 
-7. **Targets read `__schema__/0`, never the source or the schema's internals.** The data it returns is documented in `Prism.Generator.Schema`. Each target is a module with `files/1`, from that data to `[{path, body}]`, plus its templates. One task, `mix prism.gen [--check]`, generates every target named in the design project's config (`config :prism_generator, design: MyApp.Design, targets: [web: "../targets/web"]`); it never names a design itself. It writes each file with `Mix.Generator.create_file/3`, starting with a `Prism.Generator.Header` line: `Generated by prism (mix prism.gen). Do not edit: change <design file> and regenerate.`, where the design file is named from the folder that holds both it and the target (`__schema__/0` includes it). It never overwrites a file without that line, and `--check` writes nothing and fails when any file would change. A new target adds a module and templates, not a task.
-   - Web (`Prism.Generator.Web`): EEx templates named after the files they produce (`generator/lib/web/tailwind.preset.js.eex`, `base.css.eex`) that splice in the design's values. Its spelling is fixed, so regenerating gives the same bytes: upper-case hex and two-decimal alphas in the preset, `0` in box shadows, `0px` in text shadows, `@font-face` sources wrapped at 80 columns.
-   - Swift (later): one file with value types, the tokens, and one resolved style per component, part, variant and state. Type comes from the `typography` tokens only. Values only; views stay hand-written.
+7. **Targets read `__schema__/0`, never the source or the schema's internals.** The data it returns is documented in `Prism.Generator.Schema`. Each target is a module with `files/1`, from that data to `[{path, body, design_file}]`, plus its templates; `design_file` is the design file the body is made from. One task, `mix prism.gen [--check]`, generates every target named in the design project's config (`config :prism_generator, design: MyApp.Design, targets: [web: "../targets/web"]`); it never names a design itself. It writes each file with `Mix.Generator.create_file/3`, starting with a `Prism.Generator.Header` line: `Generated by prism (mix prism.gen). Do not edit: change <design file> and regenerate.`, where the design file is the one the file is made from (the tokens' file for the preset and the base CSS, the components' file for the component CSS), named from the folder that holds both it and the target. It never overwrites a file without that line, and `--check` writes nothing and fails when any file would change. A new target adds a module and templates, not a task.
+   - Web (`Prism.Generator.Web`): EEx templates named after the files they produce (`generator/lib/web/tailwind.preset.js.eex`, `base.css.eex`) that splice in the design's values, and `Prism.Generator.Web.Components` for `css/components.css`, with each component's mechanics. Its spelling is fixed, so regenerating gives the same bytes: upper-case hex and two-decimal alphas in the preset, lower-case hex and `rgba()` in the component CSS, `0` in box shadows (`0px` in the dropdown's list), `0px` in text shadows, and `@font-face` sources and a spinner's filter wrapped at 80 columns.
+   - Swift (later): one file with value types, the tokens, and one resolved style per component, part, variant and state, with the `ios:` bindings applied. Type comes from the `typography` tokens and the components' typography pairs, never from the font and text lists alone. Values only; views stay hand-written.
    - Kotlin (later): the same values for Compose.
 
 8. **The generated files are committed** in `targets/<target>/`. CI regenerates them and fails when they differ from what is committed, so reviewers see every change to them. The generator compiles and tests on its own, without the design, so the compiler refuses any reference from the generator to a design; CI also checks that it mentions none of the design's values.
@@ -123,5 +146,6 @@ Today the generator has the schema's token part (type styles included) and the w
 
 - One language and one review for every platform's styling. Native apps get the same numbers as the web by construction.
 - Editing the look means editing Elixir and running the generators. A docs generator can later turn a design into token tables.
-- The web templates still look like CSS and JavaScript. Reviewers see web mechanics there and design values in the design.
+- The web templates still look like CSS and JavaScript, and the component mechanics read as CSS declarations in `Prism.Generator.Web.Components`. Reviewers see web mechanics there and design values in the design.
+- A target knows its components by name, as a platform library does. A new kind of component needs its mechanics in each target; a new variant, part or state of a known component needs only the design.
 - The generator can move to its own repository without changes to its code: move `generator/` and change the design's one dependency line from `path:` to git or Hex.

@@ -12,7 +12,8 @@ defmodule Prism.Generator.ExampleDesign do
       A fixture for the DSL's tests.
       """,
       base_doc: "Acme - Base styles",
-      font_classes_doc: "Font styles"
+      font_classes_doc: "Font styles",
+      components_doc: "Acme - Components"
 
   group "Brand" do
     color :accent, "#1A73E8"
@@ -79,4 +80,27 @@ defmodule Prism.Generator.ExampleDesign do
   typography(:heading, font: :heading, text: :heading)
   typography(:body, font: :body, text: :body)
   typography(:note, font: :hint, text: :body)
+
+  # A shared look, a web binding that replaces the radius on the web only, and an
+  # iOS binding the web never reads.
+  component :tag, web: [section: "Tags", radius: 2], ios: [radius: 6] do
+    style radius: :default, background: :paper
+    part :inner, padding: [y: 2, x: 8], typography: :body
+
+    variant :accent, web: [doc: "An accent tag"] do
+      part :inner, background: {:accent, 0.2}, foreground: :link
+    end
+
+    variant :muted, aliases: [:quiet] do
+      part :inner, foreground: {:ink, 0.6}
+    end
+
+    variants :size, web: [doc: "Sizes"] do
+      variant :large, padding: [x: 4]
+    end
+
+    state :disabled, opacity: 0.4 do
+      part :inner, decoration: :none
+    end
+  end
 end
