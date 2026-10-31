@@ -12,14 +12,14 @@ defmodule Prism.Design.TokensTest do
 
   # Native targets read type only from the typography tokens, so every role in either
   # list has one, and every font and text size is used by one.
-  test "every font and text size role has a type style" do
+  test "every font and text size role has a typography token" do
     tokens = Prism.Design.Tokens.__schema__().tokens
     names = fn kind -> for %{kind: ^kind, name: name} <- tokens, into: MapSet.new(), do: name end
-    styles = for %{kind: :typography} = t <- tokens, do: t
+    typographies = for %{kind: :typography} = t <- tokens, do: t
 
-    assert MapSet.new(styles, & &1.name) == MapSet.union(names.(:font), names.(:text))
-    assert MapSet.new(styles, & &1.font) == names.(:font)
-    assert MapSet.new(styles, & &1.text) == names.(:text)
+    assert MapSet.new(typographies, & &1.name) == MapSet.union(names.(:font), names.(:text))
+    assert MapSet.new(typographies, & &1.font) == names.(:font)
+    assert MapSet.new(typographies, & &1.text) == names.(:text)
   end
 
   test "mix prism.gen generates Prism's whole design into targets/web, react and design-tools" do

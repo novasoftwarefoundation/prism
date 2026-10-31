@@ -111,7 +111,7 @@ defmodule Prism.Design.Tokens do
     ios: :system,
     android: :system
 
-  # Font styles: family and weight (`font-…`). Sizes are separate (`text-…`).
+  # Fonts: family and weight (`font-…`). Sizes are separate (`text-…`).
   font :title0, :display, 800
   font :title1, :display, 800
   font :title2, :display, 800
@@ -168,7 +168,7 @@ defmodule Prism.Design.Tokens do
   text :mono, 20, 24
   text :quote, 24, 30
 
-  # Type styles: one font and one text size. Native targets read type only from
+  # Typography: one font and one text size. Native targets read type only from
   # these; the web keeps the two lists above. See ADR 0002 for the pairings.
   # A role in both lists pairs with itself.
   typography(:title0, font: :title0, text: :title0)

@@ -50,8 +50,8 @@ defmodule Prism.Generator.WebTest do
     end
   end
 
-  # The preset and base CSS keep their font and text classes; type styles reach the
-  # web only through the components that use them.
+  # The preset and base CSS keep their font and text classes; typography tokens reach
+  # the web only through the components that use them.
   test "typography tokens don't change the preset or the base CSS" do
     %{tokens: tokens} = design = %{ExampleDesign.__schema__() | components: []}
     assert Enum.any?(tokens, &(&1.kind == :typography))

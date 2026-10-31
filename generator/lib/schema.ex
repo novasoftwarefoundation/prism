@@ -25,8 +25,8 @@ defmodule Prism.Generator.Schema do
       radius :default, {0.25, :rem}
 
   Fonts and text sizes are two low-level lists, named as the web names its
-  `font-…` and `text-…` classes. A `typography` token is a type style: one font
-  and one text size, so no target pairs them on its own. Native targets read
+  `font-…` and `text-…` classes. A `typography` token is one font and
+  one text size, so no target pairs them on its own. Native targets read
   type only from the `typography` tokens.
 
   Values are platform-neutral: colors are `"#RRGGBB"` or the name of another
@@ -240,7 +240,7 @@ defmodule Prism.Generator.Schema do
   """
   defmacro family(name, opts), do: token(:family, name, [], opts, __CALLER__)
 
-  @doc "A font style: a family and a weight, optionally `italic: true`."
+  @doc "A font: a family and a weight, optionally `italic: true`."
   defmacro font(name, family, weight, opts \\ []),
     do: token(:font, name, [family: family, weight: weight], opts, __CALLER__)
 
@@ -249,7 +249,7 @@ defmodule Prism.Generator.Schema do
     do: token(:text, name, [size: size, line_height: line_height], [], __CALLER__)
 
   @doc """
-  A type style: one font and one text size, both required and declared before
+  A typography token: one font and one text size, both required and declared before
   it, e.g. `typography :body, font: :body, text: :body_medium`. Native targets
   read type only from these, never from the two lists.
   """

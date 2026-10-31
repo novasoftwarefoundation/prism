@@ -12,7 +12,7 @@ defmodule Prism.Generator.ExampleDesign do
       A fixture for the DSL's tests.
       """,
       base_doc: "Acme - Base styles",
-      font_classes_doc: "Font styles",
+      font_classes_doc: "Fonts",
       components_doc: "Acme - Components"
 
   group "Brand" do

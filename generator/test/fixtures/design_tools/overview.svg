@@ -111,7 +111,7 @@
 </g>
 </g>
 <g id="typography">
-<text x="48" y="986" font-family="Acme Text" font-size="24" font-weight="700" fill="#222222">Type styles</text>
+<text x="48" y="986" font-family="Acme Text" font-size="24" font-weight="700" fill="#222222">Typography</text>
 <g id="typography/heading">
 <text x="48" y="1035.2" font-family="Acme Display" font-size="32" font-weight="800" fill="#222222">heading</text>
 <text x="608" y="1028.9" font-family="Acme Text" font-size="14" font-weight="400" fill="#6B6B6B">Acme Display 800 · 32/40 · font heading, text heading</text>
