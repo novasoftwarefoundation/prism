@@ -18,7 +18,7 @@ defmodule Prism.Generator.DesignTools do
   | `font-family` | `fontFamily` | families: the web font's name | the name and its fallback |
   | `font-weight` | `fontWeight` | fonts: their weight, with the family | the weight |
   | `font-size`, `line-height` | `dimension` | text sizes | px |
-  | `typography` | `typography` | type styles, referring to the four groups above | the `font` shorthand, of `var(…)`s |
+  | `typography` | `typography` | typography tokens, referring to the four groups above | the `font` shorthand, of `var(…)`s |
   | `spacing`, `height` | `dimension` | spacing and height steps, under their web key (`2px`, `15`) | px |
   | `max-height`, `radius` | `dimension` | maximum heights and radii | px or rem, or % for a radius |
   | `shadow` | `shadow` | shadows; an alias is a reference | the `box-shadow` value |
@@ -360,7 +360,7 @@ defmodule Prism.Generator.DesignTools do
     "font-weight" => "Font weights",
     "font-size" => "Font sizes",
     "line-height" => "Line heights",
-    "typography" => "Type styles",
+    "typography" => "Typography",
     "spacing" => "Spacing",
     "height" => "Heights",
     "max-height" => "Maximum heights",

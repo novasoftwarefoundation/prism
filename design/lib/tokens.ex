@@ -168,7 +168,7 @@ defmodule Prism.Design.Tokens do
   text :mono, 20, 24
   text :quote, 24, 30
 
-  # Type styles: one font and one text size. Native targets read type only from
+  # Typography: one font and one text size. Native targets read type only from
   # these; the web keeps the two lists above. See ADR 0002 for the pairings.
   # A role in both lists pairs with itself.
   typography(:title0, font: :title0, text: :title0)

@@ -118,7 +118,7 @@
   --prism-line-height-mono: 24px;
   --prism-line-height-quote: 30px;
 
-  /* Type styles */
+  /* Typography */
   --prism-typography-title0: var(--prism-font-weight-title0) var(--prism-font-size-title0)/var(--prism-line-height-title0) var(--prism-font-family-display);
   --prism-typography-title1: var(--prism-font-weight-title1) var(--prism-font-size-title1)/var(--prism-line-height-title1) var(--prism-font-family-display);
   --prism-typography-title2: var(--prism-font-weight-title2) var(--prism-font-size-title2)/var(--prism-line-height-title2) var(--prism-font-family-display);

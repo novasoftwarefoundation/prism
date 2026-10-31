@@ -12,7 +12,7 @@ Prism's look is written once, as a design in Elixir, and generated into code for
 
 | Folder | What |
 |---|---|
-| `design/` | Prism's design, a Mix project (`:prism_design`): `lib/tokens.ex` (`Prism.Design.Tokens`), `lib/components.ex` (`Prism.Design.Components`, which takes the tokens and is the whole design), `config/config.exs` (the design module and the folder of each target), and its checks: the 0.1.7 golden test, the version check, the font roles, the type styles, the components. |
+| `design/` | Prism's design, a Mix project (`:prism_design`): `lib/tokens.ex` (`Prism.Design.Tokens`), `lib/components.ex` (`Prism.Design.Components`, which takes the tokens and is the whole design), `config/config.exs` (the design module and the folder of each target), and its checks: the 0.1.7 golden test, the version check, the font roles, the typography, the components. |
 | `generator/` | The generic part, a Mix project of its own (`:prism_generator`): the design format (`lib/schema.ex`, with components in `lib/schema/components.ex`), the header of generated files (`lib/header.ex`), the web target (`lib/web.ex`, its templates in `lib/web/`, the component mechanics in `lib/web/components.ex`, the class names in `lib/web/classes.ex`, and the components' markup in `lib/web/elements.ex`), the Phoenix components (`lib/phoenix.ex`, `Prism.Generator.Phoenix`), the React target (`lib/react.ex`, `Prism.Generator.React`), the design-tool target (`lib/design_tools.ex`, `Prism.Generator.DesignTools`, with the overview in `lib/design_tools/overview.ex`), and `mix prism.gen` (`lib/mix/tasks/prism.gen.ex`). It knows nothing about Prism's values. |
 | `targets/web/` | The npm package `@novasoftwarefoundation/prism`: `package.json`, the generated `tailwind.preset.js`, `css/base.css` and `css/components.css`, and `fonts/`. |
 | `targets/react/` | The npm package `@novasoftwarefoundation/prism-react`: `package.json`, `tsconfig.json`, the generated components in `src/`, and their tests in `test/`. Later `targets/swift/`. |
@@ -114,11 +114,11 @@ The props follow the same rules as the Phoenix components: axes are props typed 
 
 | File | What |
 |---|---|
-| `tokens.json` | Every token in the [W3C Design Tokens (DTCG) format 2025.10](https://www.designtokens.org/tr/2025.10/format/), with no tool-specific fields: colors, font families and weights, font sizes and line heights, type styles (`typography`), spacing, heights, radii, shadows and text shadows, each with its DTCG `$type`. A family is the web font (`Nunito`, `Nunito Sans`); its fallback and its iOS and Android binding (the system font) are under `$extensions.prism`. |
-| `tokens.css` | The same tokens as CSS custom properties on `:root`, named by the same rule: the DTCG path `color.primary` is `--prism-color-primary`. A type style is the `font` shorthand, a shadow the `box-shadow` (or `text-shadow`) value. The 50% radius is only here: DTCG has no percent unit. |
-| `overview.svg` | Every token drawn (swatches, the fonts and type styles in their own fonts, spacing, radii, shadows) and every component's variants and states, as shapes and `<text>`. It opens in a browser as it is, and has no external references. |
+| `tokens.json` | Every token in the [W3C Design Tokens (DTCG) format 2025.10](https://www.designtokens.org/tr/2025.10/format/), with no tool-specific fields: colors, font families and weights, font sizes and line heights, typography, spacing, heights, radii, shadows and text shadows, each with its DTCG `$type`. A family is the web font (`Nunito`, `Nunito Sans`); its fallback and its iOS and Android binding (the system font) are under `$extensions.prism`. |
+| `tokens.css` | The same tokens as CSS custom properties on `:root`, named by the same rule: the DTCG path `color.primary` is `--prism-color-primary`. A typography token is the `font` shorthand, a shadow the `box-shadow` (or `text-shadow`) value. The 50% radius is only here: DTCG has no percent unit. |
+| `overview.svg` | Every token drawn (swatches, the fonts and typography in their own fonts, spacing, radii, shadows) and every component's variants and states, as shapes and `<text>`. It opens in a browser as it is, and has no external references. |
 
-[ADR 0005](docs/adr/0005-design-tools.md) records the names and how type styles, shadows and font roles are written. `npm test` in `targets/design-tools/` checks the files: `tokens.json` against the DTCG 2025.10 JSON Schema and through [Terrazzo](https://terrazzo.app)'s and [Style Dictionary](https://styledictionary.com)'s parsers, `tokens.css` against the same names, and `overview.svg` as standalone SVG. CI runs it.
+[ADR 0005](docs/adr/0005-design-tools.md) records the names and how typography, shadows and font roles are written. `npm test` in `targets/design-tools/` checks the files: `tokens.json` against the DTCG 2025.10 JSON Schema and through [Terrazzo](https://terrazzo.app)'s and [Style Dictionary](https://styledictionary.com)'s parsers, `tokens.css` against the same names, and `overview.svg` as standalone SVG. CI runs it.
 
 The overview names Nunito and Nunito Sans: install them (from `targets/web/fonts/`, or [Google Fonts](https://fonts.google.com/?query=nunito)) before you import it, or its text falls back to another font.
 
@@ -129,23 +129,23 @@ Each step is checked against the tool's documentation (October 2026), not tried 
 **Figma** ([variables import](https://help.figma.com/hc/en-us/articles/15343816063383-Modes-for-variables), on the Professional plan or higher):
 
 1. In the Variables view, create a collection, then drag `tokens.json` onto it. Figma makes a variable for each token it supports: colors, `px` dimensions (as numbers) and font families. It names them by path with `/` (`color/primary`).
-2. Figma's import leaves out the rest: font weights, the `rem` radius, type styles and shadows. For type styles and shadows as Figma styles, use a plugin that reads DTCG, such as [Tokens Studio](https://docs.tokens.studio/manage-settings/token-format) in its W3C DTCG format, and check that it reads 2025.10 values (colors and dimensions as objects).
+2. Figma's import leaves out the rest: font weights, the `rem` radius, typography and shadows. For typography and shadows as Figma styles, use a plugin that reads DTCG, such as [Tokens Studio](https://docs.tokens.studio/manage-settings/token-format) in its W3C DTCG format, and check that it reads 2025.10 values (colors and dimensions as objects).
 3. Drag `overview.svg` onto the canvas. Figma [turns an SVG into editable layers](https://help.figma.com/hc/en-us/articles/360040028034-Import-files-to-the-file-browser).
 
 **Penpot** ([design tokens](https://help.penpot.app/user-guide/design-systems/design-tokens/)):
 
 1. In the tokens panel, choose Tools, then Import, and pick `tokens.json`. A single file becomes one token set named after the file; the tokens keep their paths (`color.primary`). Colors, dimensions, font families and weights, typography and shadows are all token types Penpot has.
-2. Penpot has read DTCG with values as text so far (`"#4272EF"`, `"16px"`). Its current resolver reads the 2025.10 color objects but not the dimension objects (`{"value": 16, "unit": "px"}`), so sizes, type styles and shadows may show as errors; a newer resolver on Penpot's main branch reads them. Check after importing.
+2. Penpot has read DTCG with values as text so far (`"#4272EF"`, `"16px"`). Its current resolver reads the 2025.10 color objects but not the dimension objects (`{"value": 16, "unit": "px"}`), so sizes, typography and shadows may show as errors; a newer resolver on Penpot's main branch reads them. Check after importing.
 3. [Insert](https://help.penpot.app/user-guide/designing/layers/#images) `overview.svg` with the image tool (K), or drag it onto the viewport.
 
 **pen.dev** ([variables](https://docs.pen.dev/core-concepts/variables)):
 
-1. Attach `tokens.css` in the AI agent and ask it to create variables from it. pen.dev has color, number and string variables, so it takes the colors, sizes and font families; type styles and shadows have no variable type there.
+1. Attach `tokens.css` in the AI agent and ask it to create variables from it. pen.dev has color, number and string variables, so it takes the colors, sizes and font families; typography and shadows have no variable type there.
 2. Import `overview.svg` with [Import Image or SVG](https://docs.pen.dev/core-concepts/import-and-export) (below the Rectangle tool, or File > Import); an SVG becomes editable layers.
 
 **Paper** ([tokens](https://paper.design/docs/tokens)):
 
-1. Connect your agent to Paper through its [MCP server](https://paper.design/docs/mcp), point it at `tokens.css`, and ask it to create Paper tokens from the CSS variables. Paper has tokens for colors, radii, spacing, font families, weights, sizes and line heights; it has none for type styles or shadows yet.
+1. Connect your agent to Paper through its [MCP server](https://paper.design/docs/mcp), point it at `tokens.css`, and ask it to create Paper tokens from the CSS variables. Paper has tokens for colors, radii, spacing, font families, weights, sizes and line heights; it has none for typography or shadows yet.
 2. Copy the source of `overview.svg` and [paste it](https://paper.design/docs/svg) into the file (⌘V).
 
 **Webflow** comes later: a Designer Extension will write `tokens.json` into a site's Variables. A color, a size and a font family each have one flat value, so each maps to one Webflow variable.

@@ -25,7 +25,7 @@
   --acme-line-height-heading: 40px;
   --acme-line-height-body: 24px;
 
-  /* Type styles */
+  /* Typography */
   --acme-typography-heading: var(--acme-font-weight-heading) var(--acme-font-size-heading)/var(--acme-line-height-heading) var(--acme-font-family-display);
   --acme-typography-body: var(--acme-font-weight-body) var(--acme-font-size-body)/var(--acme-line-height-body) var(--acme-font-family-text);
   --acme-typography-note: italic var(--acme-font-weight-hint) var(--acme-font-size-body)/var(--acme-line-height-body) var(--acme-font-family-text);
