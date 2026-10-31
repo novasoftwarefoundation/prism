@@ -208,6 +208,25 @@ Font classes: `font-title0` through `font-title7`, `font-body`, `font-button`, `
 | `prism-number-icon-active`   | Primary/current step state     |
 | `prism-number-icon-completed`| Green/completed state          |
 
+## Spec and generators
+
+The design values live in an Elixir spec; the web files are generated from it.
+
+- `lib/prism/tokens.ex`: the design tokens (colors, shadows, spacing, fonts, text sizes, radii)
+- `lib/prism/schema.ex`: the DSL the tokens are written in, and its rules
+- `docs/adr/`: decisions, starting with [0001: spec format](docs/adr/0001-spec-format.md)
+
+`tailwind.preset.js` and `css/base.css` are generated: don't edit them by hand. Change the spec, then regenerate and commit the result:
+
+```sh
+mix prism.gen.web
+mix test
+```
+
+`mix test` includes a golden test: the output must equal prism 0.1.7 apart from each file's header line and the reviewed diff in `test/golden/0.1.7.diff`. CI fails when the committed files differ from what the spec generates. `css/components.css` is still hand-written.
+
+The Elixir and test files are not part of the npm package; it ships the same files as before (`.github/npm-files.txt`).
+
 ## License
 
 MIT - See LICENSE file for details.

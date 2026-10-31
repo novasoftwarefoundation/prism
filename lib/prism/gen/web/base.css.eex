@@ -1,0 +1,42 @@
+/**
+ * Prism UI - Base Styles
+ *
+ * This file contains:
+ * - @font-face declarations for Nunito variable fonts
+ * - Base reset/normalization
+ * - Utility classes
+ */
+
+/* ==========================================================================
+   Font Faces
+   ========================================================================== */
+<%= for face <- font_faces(spec) do %>
+<%= if face.first do %>/* <%= face.family %> - Variable font for sizes <%= sizes(face.doc) %> */
+<% end %>@font-face {
+  font-family: "<%= face.family %>";
+<%= font_src(face) %>
+  font-weight: <%= face.weights %>;
+  font-style: <%= face.style %>;
+  font-display: swap;
+}
+<% end %>
+/* ==========================================================================
+   Utility Classes
+   ========================================================================== */
+
+/* Text line clamping */<%= for n <- 1..3 do %>
+.prism-max-lines-<%= n %> {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: <%= n %>;
+  -webkit-box-orient: vertical;
+}
+<% end %>
+/* Text shadows */<%= for {class, css} <- text_shadows(spec) do %>
+.<%= class %> {
+  text-shadow: <%= css %>;
+}
+<% end %>
+.prism-text-shadow-none {
+  text-shadow: none;
+}

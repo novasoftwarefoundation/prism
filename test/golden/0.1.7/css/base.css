@@ -1,0 +1,83 @@
+/**
+ * Prism UI - Base Styles
+ *
+ * This file contains:
+ * - @font-face declarations for Nunito variable fonts
+ * - Base reset/normalization
+ * - Utility classes
+ */
+
+/* ==========================================================================
+   Font Faces
+   ========================================================================== */
+
+/* Nunito - Variable font for sizes > 20px */
+@font-face {
+  font-family: "Nunito";
+  src: url("../fonts/Nunito-VariableFont_wght.woff2") format("woff2-variations");
+  font-weight: 200 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Nunito Sans - Variable font for sizes ≤ 20px */
+@font-face {
+  font-family: "Nunito Sans";
+  src: url("../fonts/NunitoSans-VariableFont_wght.woff2")
+    format("woff2-variations");
+  font-weight: 200 1000;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Nunito Sans";
+  src: url("../fonts/NunitoSans-Italic-VariableFont_wght.woff2")
+    format("woff2-variations");
+  font-weight: 200 1000;
+  font-style: italic;
+  font-display: swap;
+}
+
+/* ==========================================================================
+   Utility Classes
+   ========================================================================== */
+
+/* Text line clamping */
+.prism-max-lines-1 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+}
+
+.prism-max-lines-2 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.prism-max-lines-3 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
+
+/* Text shadows */
+.prism-text-shadow {
+  text-shadow: 0px 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.prism-text-shadow-md {
+  text-shadow: 0px 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.prism-text-shadow-lg {
+  text-shadow: 0px 8px 16px rgba(0, 0, 0, 0.3);
+}
+
+.prism-text-shadow-none {
+  text-shadow: none;
+}

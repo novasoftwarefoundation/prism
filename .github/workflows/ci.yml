@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  spec:
+    name: Spec and generated files
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: erlef/setup-beam@v1
+        with:
+          version-file: .tool-versions
+          version-type: strict
+      - run: mix compile --warnings-as-errors
+      - run: mix format --check-formatted
+      - run: mix test
+      - run: mix prism.gen.web
+      - name: Committed files match the spec
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            git status --short
+            git diff
+            echo "::error::Generated files differ from the spec. Run 'mix prism.gen.web' and commit the result."
+            exit 1
+          fi
+
+  npm-package:
+    name: npm file list
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .tool-versions
+      - name: The package ships exactly the reviewed files
+        run: |
+          npm pack --dry-run --json | jq -r '.[0].files[].path' | LC_ALL=C sort > "$RUNNER_TEMP/npm-files.txt"
+          diff -u .github/npm-files.txt "$RUNNER_TEMP/npm-files.txt" || {
+            echo "::error::npm would publish a different file list. Update package.json 'files' or .github/npm-files.txt."
+            exit 1
+          }
