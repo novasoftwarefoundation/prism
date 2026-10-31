@@ -33,6 +33,14 @@ defmodule Prism.Generator.WebTest do
     end
   end
 
+  # Type styles are for the native targets; the web keeps its font and text classes.
+  test "typography tokens don't change the web files" do
+    %{tokens: tokens} = design = ExampleDesign.__schema__()
+    assert Enum.any?(tokens, &(&1.kind == :typography))
+    without = Enum.reject(tokens, &(&1.kind == :typography))
+    assert Web.files(design) == Web.files(%{design | tokens: without})
+  end
+
   test "a new token reaches the files" do
     %{tokens: tokens} = design = ExampleDesign.__schema__()
 

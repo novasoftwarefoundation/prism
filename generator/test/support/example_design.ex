@@ -75,4 +75,8 @@ defmodule Prism.Generator.ExampleDesign do
 
   text :heading, 32, 40
   text :body, 16, 24
+
+  typography(:heading, font: :heading, text: :heading)
+  typography(:body, font: :body, text: :body)
+  typography(:note, font: :hint, text: :body)
 end
