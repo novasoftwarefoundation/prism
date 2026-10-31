@@ -240,7 +240,7 @@ defmodule Prism.Generator.Schema do
   """
   defmacro family(name, opts), do: token(:family, name, [], opts, __CALLER__)
 
-  @doc "A font style: a family and a weight, optionally `italic: true`."
+  @doc "A font: a family and a weight, optionally `italic: true`."
   defmacro font(name, family, weight, opts \\ []),
     do: token(:font, name, [family: family, weight: weight], opts, __CALLER__)
 

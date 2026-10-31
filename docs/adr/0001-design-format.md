@@ -21,7 +21,7 @@ The format has these parts:
 | Layer | What | Where |
 |---|---|---|
 | Schema | The DSL and its rules: what a valid design is | the generator: `Prism.Generator.Schema` |
-| Tokens | Colors, shadows, text shadows, spacing, sizes, radii, font families and faces, font styles, text sizes, and typography tokens (`typography`) built from a font style and a text size | the design: a module that uses `Prism.Generator.Schema` (`__schema__/0` returns it as data) |
+| Tokens | Colors, shadows, text shadows, spacing, sizes, radii, font families and faces, fonts, text sizes, and typography tokens (`typography`) built from a font and a text size | the design: a module that uses `Prism.Generator.Schema` (`__schema__/0` returns it as data) |
 | Components | Components with a base style, parts, variants and states, built from tokens, with per-target bindings | the design: the tokens' module, or a module that takes its tokens from it (`use Prism.Generator.Schema, tokens: Tokens`) |
 | Generators | Web (Tailwind preset and CSS), React components ([ADR 0004](0004-react-components.md)), design tools ([ADR 0005](0005-design-tools.md)), Swift, later Kotlin; Phoenix components at compile time, without files ([ADR 0003](0003-phoenix-components.md)) | the generator: `Prism.Generator.*` and `mix prism.gen` |
 | Targets | What the generators produce | `targets/<target>/`, where each one is published or imported from |
@@ -42,7 +42,7 @@ Today the generator has the schema (tokens, typography and components), the web 
    radius :default, {0.25, :rem}
    ```
 
-   Font styles (family and weight) and text sizes (size and line height) are two lists of primitives, because a Tailwind preset has two key sets for `font-…` and `text-…`, and a design system may name them differently.
+   Fonts (family and weight) and text sizes (size and line height) are two lists of primitives, because a Tailwind preset has two key sets for `font-…` and `text-…`, and a design system may name them differently.
 
    Typography is therefore an explicit composite token, `typography`, that references one `font` and one `text` entry:
 

@@ -111,7 +111,7 @@ defmodule Prism.Design.Tokens do
     ios: :system,
     android: :system
 
-  # Font styles: family and weight (`font-…`). Sizes are separate (`text-…`).
+  # Fonts: family and weight (`font-…`). Sizes are separate (`text-…`).
   font :title0, :display, 800
   font :title1, :display, 800
   font :title2, :display, 800
