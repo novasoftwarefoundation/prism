@@ -4,7 +4,7 @@ defmodule Prism.Generator.MixProject do
   def project do
     [
       app: :prism_generator,
-      version: "0.1.0",
+      version: "0.2.0",
       description:
         "A design format for tokens, and generators that turn a design into code per target",
       elixir: "~> 1.19",

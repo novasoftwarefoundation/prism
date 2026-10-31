@@ -29,7 +29,7 @@ mix prism.gen   # writes every target: ../targets/web/tailwind.preset.js, css/ba
 mix test
 ```
 
-`mix test` includes a golden test: the generated files must equal prism 0.1.7 apart from each file's header line and the reviewed diff in `design/test/golden/0.1.7.diff`. CI runs `mix prism.gen --check`, which fails when a committed file differs from what the design generates.
+`mix test` includes a golden test (`design/test/golden_test.exs`): the generated files must equal prism 0.1.7, with the component classes renamed by the test's table of 0.1.7 → 0.2.0 classes, apart from each file's header line and the reviewed diff in `design/test/golden/0.1.7.diff`. CI runs `mix prism.gen --check`, which fails when a committed file differs from what the design generates.
 
 ## The generator
 

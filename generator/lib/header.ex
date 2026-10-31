@@ -14,8 +14,9 @@ defmodule Prism.Generator.Header do
   def line(path, design_file) do
     text = "#{@marker} (mix prism.gen). Do not edit: change #{design_file} and regenerate."
 
-    if String.contains?(text, "*/") or Regex.match?(~r/[\x{0}-\x{1F}\x{2028}\x{2029}]/u, text),
-      do: raise(ArgumentError, "#{inspect(design_file)} can't be written in a comment")
+    if String.contains?(text, "*/") or
+         Regex.match?(~r/[\x{0}-\x{1F}\x{2028}\x{2029}]/u, text),
+       do: raise(ArgumentError, "#{inspect(design_file)} can't be written in a comment")
 
     case Path.extname(path) do
       ".js" -> "// #{text}"

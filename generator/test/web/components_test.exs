@@ -49,7 +49,8 @@ defmodule Prism.Generator.Web.ComponentsTest do
       axis: :variant,
       aliases: [],
       style: [],
-      parts: [%{name: :inner, style: [weight: 700], states: [], web: [], ios: [], android: []}],
+      parts: [%{name: :label, style: [weight: 700], states: [], web: [], ios: [], android: []}],
+      with_parts: [],
       states: [],
       web: [doc: "A bold tag"],
       ios: [],
@@ -57,7 +58,7 @@ defmodule Prism.Generator.Web.ComponentsTest do
     }
 
     css = css(with_tag(&%{&1 | variants: &1.variants ++ [extra]}))
-    assert css =~ "/* A bold tag */\n.acme-tag-bold .acme-tag-inner {\n  font-weight: 700;\n}\n"
+    assert css =~ "/* A bold tag */\n.acme-tag--bold .acme-tag__label {\n  font-weight: 700;\n}\n"
   end
 
   test "a value the web doesn't write fails, so nothing in the design is ignored" do
@@ -72,11 +73,11 @@ defmodule Prism.Generator.Web.ComponentsTest do
     design =
       with_tag(fn tag ->
         [accent | rest] = tag.variants
-        [inner] = accent.parts
-        %{tag | variants: [%{accent | parts: [%{inner | web: [doc: "Lost"]}]} | rest]}
+        [label] = accent.parts
+        %{tag | variants: [%{accent | parts: [%{label | web: [doc: "Lost"]}]} | rest]}
       end)
 
-    assert_raise ArgumentError, ~r/writes nothing for tag.accent.inner web: doc/, fn ->
+    assert_raise ArgumentError, ~r/writes nothing for tag.accent.label web: doc/, fn ->
       css(design)
     end
   end
@@ -92,67 +93,94 @@ defmodule Prism.Generator.Web.ComponentsTest do
       android: []
     }
 
-    assert_raise ArgumentError, ~r/writes nothing for tag.icon, tag.icon gap/, fn ->
-      css(with_tag(&%{&1 | parts: &1.parts ++ [part]}))
-    end
+    assert_raise ArgumentError,
+                 ~r/the web target has no part :icon of :tag; it knows :label/,
+                 fn ->
+                   css(with_tag(&%{&1 | parts: &1.parts ++ [part]}))
+                 end
+  end
+
+  # A misspelled part without a look of its own, which only a variant changes, is
+  # written nowhere as itself, so it fails too.
+  test "a part the web doesn't know fails, also when only a variant changes it" do
+    design =
+      compile("""
+        component :tag do
+          part :lable
+          variant :accent do
+            part :lable, foreground: :ink
+          end
+        end
+      """)
+
+    assert_raise ArgumentError,
+                 ~r/the web target has no part :lable of :tag; it knows :label/,
+                 fn ->
+                   css(design)
+                 end
+
+    design = compile("  component :message_bar do\n    part :icon\n  end")
+
+    assert_raise ArgumentError,
+                 ~r/no part :icon of :message_bar; it writes only parts that are other components/,
+                 fn -> css(design) end
   end
 
   test "a component the web doesn't know fails" do
     design = with_tag(&%{&1 | name: :badge})
 
-    assert_raise ArgumentError, ~r/the web target has no component :badge; it knows :btn/, fn ->
-      css(design)
-    end
+    assert_raise ArgumentError,
+                 ~r/the web target has no component :badge; it knows :button/,
+                 fn ->
+                   css(design)
+                 end
   end
 
-  describe "the spinner's color" do
-    test "white and black are written as filters; another color needs a web filter" do
+  describe "the spinner" do
+    test "is the spinner image as a mask over its color, any color" do
       design =
         compile("""
           component :spinner do
             style size: 24, rotation: {1000, :linear}
-            variant :light, foreground: "#FFFFFF"
-            variant :dark, foreground: "#000000"
+            variant :ink, foreground: {:ink, 0.5}
           end
         """)
 
-      assert css(design) =~ ".only-spinner-light {\n  filter: brightness(0) invert(1);\n}"
-      assert css(design) =~ ".only-spinner-dark {\n  filter: brightness(0);\n}"
+      [_, mask] =
+        Regex.run(
+          ~r/\n  mask: (url\("data:image\/svg\+xml,[^"]+"\)) center \/ contain no-repeat;\n/,
+          css(design)
+        )
 
-      design = compile("  component :spinner do\n    variant :ink, foreground: :ink\n  end")
+      assert css(design) =~
+               ".only-spinner {\n  display: inline-block;\n  width: 24px;\n  height: 24px;\n" <>
+                 "  background-color: currentColor;\n" <>
+                 "  -webkit-mask: #{mask} center / contain no-repeat;\n" <>
+                 "  mask: #{mask} center / contain no-repeat;\n" <>
+                 "  animation: only-spin 1s linear infinite;\n}\n"
 
-      assert_raise ArgumentError, ~r/give it web: \[filter: \[color: "#101010"/, fn ->
-        css(design)
-      end
+      assert mask =~ "%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'"
+      assert css(design) =~ ".only-spinner--ink {\n  color: rgba(16, 16, 16, 0.5);\n}\n"
+      refute css(design) =~ "filter"
     end
 
-    test "a web filter is used only for the color it was made for, and wrapped at 80 columns" do
-      filter = String.duplicate("sepia(10%) ", 10) |> String.trim()
-
+    # An app imports the CSS into its own stylesheet, where a relative URL would
+    # resolve against the app; the web target ships no image files.
+    test "its image is inline: no URL in the CSS is relative" do
       design =
         compile("""
-          component :spinner do
-            variant :ink, foreground: :ink, web: [filter: [color: "#101010", value: "#{filter}"]]
+          component :spinner
+          component :checkbox do
+            state :checked, foreground: "#FFFFFF"
           end
         """)
 
-      [first, second] = css(design) |> String.split("\n") |> Enum.filter(&(&1 =~ "sepia"))
-      assert String.length(first) <= 80
-      assert first =~ ~r/\A  filter: sepia/
-      assert second =~ ~r/\A    sepia\(10%\).*;\z/
+      urls = Regex.scan(~r/url\(([^)]*)\)/, css(design), capture: :all_but_first)
+      assert length(urls) == 3
+      assert Enum.all?(urls, fn [url] -> String.starts_with?(url, ~s("data:)) end)
 
-      design =
-        compile("""
-          component :spinner do
-            variant :ink, foreground: :ink, web: [filter: [color: "#202020", value: "sepia(10%)"]]
-          end
-        """)
-
-      assert_raise ArgumentError,
-                   ~r/its web filter was made for #202020, but its color is #101010/,
-                   fn ->
-                     css(design)
-                   end
+      assert Enum.map(Web.files(design), &elem(&1, 0)) ==
+               ["tailwind.preset.js", "css/base.css", "css/components.css"]
     end
   end
 
@@ -163,39 +191,31 @@ defmodule Prism.Generator.Web.ComponentsTest do
     assert error.line == line
   end
 
-  test "a spinner's filter is CSS filter functions with numeric arguments only" do
-    for value <- [
-          "brightness(0);} body { color: red",
-          "url(x)",
-          "blur(2px)",
-          "sepia(10%)  invert(1)",
-          ""
-        ] do
-      assert_compile_error(
-        "  component :spinner do\n    variant :ink, foreground: :ink, web: [filter: [color: \"#101010\", value: #{inspect(value)}]]\n  end",
-        "web: filter: must be [color: \"#RRGGBB\", value: \"a CSS filter\"], the filter one or more of brightness",
-        4
-      )
-    end
+  test "a spinner has no tint filter: its color is its foreground" do
+    assert_compile_error(
+      "  component :spinner do\n    variant :ink, foreground: :ink, web: [filter: [color: \"#101010\", value: \"sepia(10%)\"]]\n  end",
+      "variant :ink: web: unknown key :filter; the web target knows :doc and the properties here",
+      4
+    )
   end
 
-  test "a color the web draws into an image or a filter can't have alpha" do
+  test "the check mark's color can't have alpha, and a spinner has no background" do
     assert_compile_error(
       "  component :checkbox do\n    state :checked, foreground: {:ink, 0.5}\n  end",
       "component :checkbox, state :checked: foreground: the check mark is an image in this color, so it has no alpha",
       4
     )
 
+    # Also when the web binding gives the color.
     assert_compile_error(
-      "  component :spinner do\n    variant :ink, foreground: :transparent\n  end",
-      "variant :ink: foreground: the spinner is tinted to this color with a CSS filter, so it has no alpha",
+      "  component :checkbox do\n    state :checked, foreground: :ink, web: [foreground: {:ink, 0.2}]\n  end",
+      "web: foreground: the check mark is an image",
       4
     )
 
-    # Also when the web binding gives the color.
     assert_compile_error(
-      "  component :spinner do\n    variant :ink, foreground: :ink, web: [foreground: {:ink, 0.2}]\n  end",
-      "web: foreground: the spinner is tinted",
+      "  component :spinner do\n    variant :ink, background: :ink\n  end",
+      "variant :ink: background: a spinner is drawn in its foreground color",
       4
     )
   end
@@ -209,7 +229,7 @@ defmodule Prism.Generator.Web.ComponentsTest do
 
     design =
       compile("""
-        component :btn do
+        component :button do
           part :spinner, component: :spinner
           state :loading
         end
@@ -225,30 +245,30 @@ defmodule Prism.Generator.Web.ComponentsTest do
     design =
       compile("""
         component :tag do
-          part :inner do
-            state :error, background: :ink
+          part :label do
+            state :invalid, background: :ink
           end
 
           variant :primary, radius: :default do
-            state :error, opacity: 0.5
+            state :invalid, opacity: 0.5
           end
         end
       """)
 
     css = css(design)
-    assert css =~ "\n.only-tag-inner.only-tag-error {\n  background-color: #101010;\n}\n"
-    assert css =~ "\n.only-tag-primary.only-tag-error {\n  opacity: 0.5;\n}\n"
-    refute css =~ "\n.only-tag-error {"
+    assert css =~ "\n.only-tag__label--invalid {\n  background-color: #101010;\n}\n"
+    assert css =~ "\n.only-tag--primary.only-tag--invalid {\n  opacity: 0.5;\n}\n"
+    refute css =~ "\n.only-tag--invalid {"
   end
 
   test "a state's part change follows every name of a variant, without empty rules" do
     design =
       compile("""
         component :tag do
-          part :inner
-          variant :error, aliases: [:danger], radius: :default do
+          part :label
+          variant :red, aliases: [:danger], radius: :default do
             state :hovered do
-              part :inner, background: :ink
+              part :label, background: :ink
             end
           end
         end
@@ -257,16 +277,16 @@ defmodule Prism.Generator.Web.ComponentsTest do
     css = css(design)
 
     assert css =~
-             "\n.only-tag-error:hover .only-tag-inner,\n.only-tag-danger:hover .only-tag-inner {\n  background-color: #101010;\n}\n"
+             "\n.only-tag--red:hover .only-tag__label,\n.only-tag--danger:hover .only-tag__label {\n  background-color: #101010;\n}\n"
 
     refute css =~ ~r/\{\n\}/
-    refute css =~ ".only-tag-danger:hover {"
+    refute css =~ ".only-tag--danger:hover {"
   end
 
   test "a variant's change to a part that is another component has that component's class" do
     design =
       compile("""
-        component :btn do
+        component :button do
           part :spinner, component: :spinner
           variant :primary, radius: :default do
             part :spinner, opacity: 0.5
@@ -275,8 +295,8 @@ defmodule Prism.Generator.Web.ComponentsTest do
         component :spinner
       """)
 
-    assert css(design) =~ "\n.only-btn-primary .only-spinner {\n  opacity: 0.5;\n}\n"
-    refute css(design) =~ "only-btn-spinner"
+    assert css(design) =~ "\n.only-button--primary .only-spinner {\n  opacity: 0.5;\n}\n"
+    refute css(design) =~ "only-button__spinner"
   end
 
   test "the check mark takes the checked state's foreground" do
@@ -294,7 +314,7 @@ defmodule Prism.Generator.Web.ComponentsTest do
   test "a loading state hides its parts and centers a spinner part by half its size" do
     design =
       compile("""
-        component :btn do
+        component :button do
           part :label
           part :spinner, component: :spinner
           state :loading do
@@ -307,9 +327,80 @@ defmodule Prism.Generator.Web.ComponentsTest do
       """)
 
     css = css(design)
-    assert css =~ ".only-btn-loading {\n  position: relative;\n}"
-    assert css =~ ".only-btn-loading .only-btn-label {\n  opacity: 0;\n}"
-    assert css =~ ".only-btn-loading .only-spinner {\n"
+    assert css =~ ".only-button--loading {\n  position: relative;\n}"
+    assert css =~ ".only-button--loading .only-button__label {\n  opacity: 0;\n}"
+    assert css =~ ".only-button--loading .only-spinner {\n"
     assert css =~ "  margin-top: -10px;\n  margin-left: -10px;\n"
+    # While not loading, the spinner is hidden.
+    assert css =~ ".only-button:not(.only-button--loading) .only-spinner {\n  display: none;\n}"
+  end
+
+  test "classes: a part is __part, a variant and a state --name, so they never read alike" do
+    design =
+      compile("""
+        component :select do
+          part :field do
+            state :focused, background: :ink
+          end
+          part :option do
+            state :hovered, background: :ink
+            state :selected, foreground: :ink
+          end
+        end
+        component :radio do
+          state :disabled, opacity: 0.5
+          part :control do
+            state :checked, background: :ink
+          end
+        end
+      """)
+
+    css = css(design)
+    # The select's field and the radio's control are form controls: the browser's states.
+    assert css =~ "\n.only-select__field:focus {\n  background-color: #101010;\n}\n"
+    assert css =~ "\n.only-radio__control:checked {\n  background-color: #101010;\n}\n"
+    assert css =~ "\n.only-radio__control:disabled {\n  cursor: not-allowed;\n}\n"
+    # Any other part is an element: a state is a modifier of the part's class.
+    assert css =~ "\n.only-select__option:hover {\n  background-color: #101010;\n}\n"
+    assert css =~ "\n.only-select__option--selected {\n  color: #101010;\n}\n"
+    assert css =~ "\n.only-radio--disabled {\n  opacity: 0.5;\n  cursor: not-allowed;\n}\n"
+  end
+
+  # The icon part being there changes the padding: `--with-icon`, which the app (or
+  # a component library, given an icon) sets with the part.
+  test "a look with a part is --with-<part>, on its own or on a variant" do
+    design =
+      compile("""
+        component :button do
+          part :label
+          part :icon
+          with_part :icon, gap: 4
+
+          variant :primary, padding: [y: 15, x: 16] do
+            state :pressed, padding: [top: 16, bottom: 14]
+
+            with_part :icon, padding: [y: 4, x: 16], gap: 12 do
+              state :pressed, padding: [top: 5, bottom: 3]
+            end
+          end
+        end
+      """)
+
+    css = css(design)
+    assert css =~ "\n.only-button--with-icon {\n  gap: 4px;\n}\n"
+
+    assert css =~
+             "\n.only-button--primary:active {\n  padding-top: 16px;\n  padding-bottom: 14px;\n}\n"
+
+    assert css =~
+             "\n.only-button--primary.only-button--with-icon {\n  padding: 4px 16px;\n  gap: 12px;\n}\n"
+
+    assert css =~
+             "\n.only-button--primary.only-button--with-icon:active {\n  padding-top: 5px;\n  padding-bottom: 3px;\n}\n"
+
+    # The variant's own rules come first, so the look with the icon wins.
+    [before, _] = String.split(css, ".only-button--primary.only-button--with-icon {")
+    assert before =~ ".only-button--primary:active"
+    refute css =~ "only-button__icon"
   end
 end

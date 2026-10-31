@@ -1,25 +1,30 @@
 defmodule Prism.Generator.Schema.Components do
   @moduledoc """
   The component part of the schema: `component`, `style`, `variant`,
-  `variants`, `part` and `state`. A design that uses `Prism.Generator.Schema`
-  imports these macros.
+  `variants`, `part`, `with_part` and `state`. A design that uses
+  `Prism.Generator.Schema` imports these macros.
 
-      component :btn, web: [section: "Buttons"] do
+      component :button, web: [section: "Buttons"] do
         style typography: :button, radius: :default, transition: {150, :ease_in_out}
-        part :content
+        part :label
+        part :icon
         part :spinner, component: :spinner
 
         variant :primary, background: :accent, foreground: :white, padding: [y: 15, x: 16] do
           state :pressed, padding: [top: 16, bottom: 14], shadow: :pressed
           state :disabled, opacity: 0.5
+
+          with_part :icon, padding: [y: 4, x: 16], gap: 12 do
+            state :pressed, padding: [top: 5, bottom: 3]
+          end
         end
 
         state :loading do
-          part :content, opacity: 0
+          part :label, opacity: 0
         end
 
-        variants :color do
-          variant :danger, background: :error, aliases: [:delete]
+        variants :tone do
+          variant :danger, background: :error
         end
       end
 
@@ -34,6 +39,10 @@ defmodule Prism.Generator.Schema.Components do
   - A `part` is a named piece of the component (a label, an icon), in the
     order the design gives them. `component:` makes the part another component.
     A variant or a state may change a part's look by naming it again.
+  - `with_part` is the look while the component has one of its parts, such
+    as a button with an icon: in a component or a variant, it names a part
+    the component declares. It is not a variant: whether the part is there
+    decides it, not a choice of the app's.
   - A `state` changes the look while it holds. States have a fixed meaning that
     every target knows; see `states/0`.
 
@@ -57,7 +66,7 @@ defmodule Prism.Generator.Schema.Components do
     checked: "while a checkbox or radio is on",
     selected: "while it is the chosen one of several",
     loading: "while it is busy; the app sets it",
-    error: "while its value is invalid; the app sets it"
+    invalid: "while its value is invalid; the app sets it"
   ]
 
   @properties [
@@ -97,16 +106,18 @@ defmodule Prism.Generator.Schema.Components do
     style: [],
     variant: [:aliases | @targets],
     part: [:component | @targets],
+    with_part: @targets,
     state: @targets
   }
 
   # What may be declared directly inside what; `nil` is the top of the design.
   @children %{
     nil => [:component],
-    component: [:style, :variants, :variant, :part, :state],
+    component: [:style, :variants, :variant, :part, :with_part, :state],
     variants: [:variant],
-    variant: [:part, :state],
+    variant: [:part, :with_part, :state],
     part: [:state],
+    with_part: [:state],
     state: [:part]
   }
 
@@ -152,6 +163,13 @@ defmodule Prism.Generator.Schema.Components do
   @doc "A part: its look, and a block of its states."
   defmacro part(name, props \\ [], block \\ []),
     do: node(:part, name, props, block, __CALLER__)
+
+  @doc """
+  The look while the component has one of its parts: `with_part :icon, gap: 12`,
+  and a block of its states. `part` names a part the component declares.
+  """
+  defmacro with_part(part, props \\ [], block \\ []),
+    do: node(:with_part, part, props, block, __CALLER__)
 
   @doc "A state: the look while it holds, and a block of the parts it changes."
   defmacro state(name, props \\ [], block \\ []),
@@ -328,6 +346,7 @@ defmodule Prism.Generator.Schema.Components do
             aliases: aliases,
             style: props!(v, props, known, file),
             parts: overrides!(nodes, v, c, known, file),
+            with_parts: with_parts!(nodes, v, c, known, file),
             states: states!(nodes, v, c, known, file)
           },
           bindings!(v, opts, known, file)
@@ -349,14 +368,19 @@ defmodule Prism.Generator.Schema.Components do
         )
       end
 
+    with_parts = with_parts!(nodes, c, c, known, file)
     states = states!(nodes, c, c, known, file)
 
-    # Variants (with their aliases), parts and states share one set of names, as
-    # their CSS classes would.
+    # Variants (with their aliases), parts, states and the looks with a part share
+    # one set of names, as their CSS classes would.
+    withs =
+      Enum.uniq(for(w <- with_parts ++ Enum.flat_map(variants, & &1.with_parts), do: w.name))
+
     names =
       Enum.map(variants, &{&1.name, "variant"}) ++
         for(v <- variants, a <- v.aliases, do: {a, "variant alias"}) ++
-        Enum.map(parts, &{&1.name, "part"}) ++ Enum.map(states, &{&1.name, "state"})
+        Enum.map(parts, &{&1.name, "part"}) ++
+        Enum.map(states, &{&1.name, "state"}) ++ Enum.map(withs, &{&1, "look with a part"})
 
     unique!(names, c, file)
 
@@ -367,6 +391,7 @@ defmodule Prism.Generator.Schema.Components do
         parts: parts,
         variants: variants,
         axes: axes,
+        with_parts: with_parts,
         states: states
       },
       bindings!(c, opts, known, file)
@@ -403,6 +428,36 @@ defmodule Prism.Generator.Schema.Components do
           states: states!(nodes, p, component, known, file)
         },
         bindings!(p, opts, known, file)
+      )
+    end
+  end
+
+  # A component's or a variant's looks while the component has a part: each names a
+  # part the component declares, once. Its name is `with_<part>`.
+  defp with_parts!(nodes, node, component, known, file) do
+    declared = for p <- children(nodes, component, :part), do: p.name
+    withs = children(nodes, node, :with_part)
+    unique!(Enum.map(withs, &{&1.name, "look with a part"}), node, file)
+
+    for w <- withs do
+      unless w.name in declared,
+        do:
+          fail(
+            file,
+            w.line,
+            "#{path_label(w)}: #{path_label(component)} has no part #{inspect(w.name)}"
+          )
+
+      {opts, props} = split!(w, file)
+
+      Map.merge(
+        %{
+          name: :"with_#{w.name}",
+          part: w.name,
+          style: props!(w, props, known, file),
+          states: states!(nodes, w, component, known, file)
+        },
+        bindings!(w, opts, known, file)
       )
     end
   end

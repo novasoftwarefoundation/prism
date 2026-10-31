@@ -1,41 +1,6 @@
 defmodule Prism.Design.TokensTest do
   use ExUnit.Case, async: true
 
-  @moduletag :tmp_dir
-
-  # The generated web files (the preset, base.css and components.css) are prism 0.1.7,
-  # byte for byte, apart from the header line and the reviewed diff in
-  # test/golden/0.1.7.diff (a shadow written with `0` instead of `0px`: the same
-  # value). A change to the generated files fails here until the diff file is updated,
-  # so every change consumers get is reviewed.
-  test "the generated web files are 0.1.7 plus the reviewed diff", %{tmp_dir: dir} do
-    files = Prism.Generator.Web.files(Prism.Design.Components.__schema__())
-
-    assert Enum.map(files, &elem(&1, 0)) ==
-             ["tailwind.preset.js", "css/base.css", "css/components.css"]
-
-    diff =
-      for {path, body, _from} <- files do
-        generated = Path.join(dir, String.replace(path, "/", "_"))
-        File.write!(generated, body)
-
-        {out, _status} =
-          System.cmd("diff", [
-            "-u",
-            "--label",
-            "0.1.7/#{path}",
-            "--label",
-            "generated/#{path}",
-            "test/golden/0.1.7/#{path}",
-            generated
-          ])
-
-        out
-      end
-
-    assert Enum.join(diff) == File.read!("test/golden/0.1.7.diff")
-  end
-
   test "the families are roles: Nunito and Nunito Sans on the web, the system font natively" do
     families = for %{kind: :family} = f <- Prism.Design.Tokens.__schema__().tokens, do: f
 

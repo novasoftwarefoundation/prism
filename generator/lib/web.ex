@@ -34,8 +34,9 @@ defmodule Prism.Generator.Web do
   The files of the web target for a design's `__schema__/0`, as
   `[{path, body, design_file}]`: paths relative to the target's folder, and the
   design file each body is made from (the tokens' file for the preset and base
-  CSS, the design's own file for the component CSS). `mix prism.gen` puts a
-  `Prism.Generator.Header` line naming that file above each body.
+  CSS, the design's own file for the component CSS).
+  `mix prism.gen` puts a `Prism.Generator.Header` line naming that file above
+  each body.
   """
   def files(%{tokens: tokens, web: web} = design) do
     unless web, do: raise(ArgumentError, "the design has no `web` declaration")
