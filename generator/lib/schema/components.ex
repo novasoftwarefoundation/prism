@@ -23,7 +23,7 @@ defmodule Prism.Generator.Schema.Components do
           part :label, opacity: 0
         end
 
-        variants :tone do
+        variants :tone, default: :accent do
           variant :danger, background: :error
         end
       end
@@ -35,7 +35,10 @@ defmodule Prism.Generator.Schema.Components do
   - A `variant` is a look to choose. Variants outside a `variants` block form
     the `:variant` axis; `variants :color do … end` adds a second axis, whose
     variants combine with one of the first. `aliases:` gives a variant more
-    names.
+    names. `default:` on the component (for the `:variant` axis) or on a
+    `variants` block is the variant the axis has when the app picks none: one
+    of its variants, or a name without a look of its own, such as `:medium`
+    for a size axis whose medium is the component's own look.
   - A `part` is a named piece of the component (a label, an icon), in the
     order the design gives them. `component:` makes the part another component.
     A variant or a state may change a part's look by naming it again.
@@ -101,8 +104,8 @@ defmodule Prism.Generator.Schema.Components do
   @targets [:web, :ios, :android]
 
   @options %{
-    component: @targets,
-    variants: @targets,
+    component: [:default | @targets],
+    variants: [:default | @targets],
     style: [],
     variant: [:aliases | @targets],
     part: [:component | @targets],
@@ -129,7 +132,8 @@ defmodule Prism.Generator.Schema.Components do
 
   @doc """
   A component: `component :name, web: [section: "Buttons"] do … end`. Its
-  options are its bindings, `web:`, `ios:` and `android:`. Its CSS class is
+  options are `default:`, the default of its `:variant` axis, and its
+  bindings, `web:`, `ios:` and `android:`. Its CSS class is
   made of its name (`.<prefix>-<name>`, with `-` for `_`); there is no option
   for it.
   """
@@ -152,7 +156,11 @@ defmodule Prism.Generator.Schema.Components do
     end
   end
 
-  @doc "An axis of variants other than `:variant`: `variants :color do … end`."
+  @doc """
+  An axis of variants other than `:variant`: `variants :tone, default: :accent do … end`.
+  `default:` is the axis's variant when the app picks none: one of its variants,
+  or a name without a look of its own, which adds no class.
+  """
   defmacro variants(axis, opts \\ [], block \\ []),
     do: node(:variants, axis, opts, block, __CALLER__)
 
@@ -322,7 +330,7 @@ defmodule Prism.Generator.Schema.Components do
     axes =
       for a <- axes do
         {opts, []} = split!(a, file)
-        Map.merge(%{name: a.name}, bindings!(a, opts, known, file))
+        Map.merge(%{name: a.name, default: opts[:default]}, bindings!(a, opts, known, file))
       end
 
     variants =
@@ -370,6 +378,7 @@ defmodule Prism.Generator.Schema.Components do
 
     with_parts = with_parts!(nodes, c, c, known, file)
     states = states!(nodes, c, c, known, file)
+    defaults = defaults!(c, opts[:default], nodes, variants, file)
 
     # Variants (with their aliases), parts, states and the looks with a part share
     # one set of names, as their CSS classes would.
@@ -380,13 +389,15 @@ defmodule Prism.Generator.Schema.Components do
       Enum.map(variants, &{&1.name, "variant"}) ++
         for(v <- variants, a <- v.aliases, do: {a, "variant alias"}) ++
         Enum.map(parts, &{&1.name, "part"}) ++
-        Enum.map(states, &{&1.name, "state"}) ++ Enum.map(withs, &{&1, "look with a part"})
+        Enum.map(states, &{&1.name, "state"}) ++
+        Enum.map(withs, &{&1, "look with a part"}) ++ Enum.map(defaults, &{&1, "default"})
 
     unique!(names, c, file)
 
     Map.merge(
       %{
         name: c.name,
+        default: opts[:default],
         style: style,
         parts: parts,
         variants: variants,
@@ -396,6 +407,34 @@ defmodule Prism.Generator.Schema.Components do
       },
       bindings!(c, opts, known, file)
     )
+  end
+
+  # The default of each axis: one of its variants, or a name without a look of its
+  # own, which has no class. The names of the second kind are returned, as they
+  # share the component's names.
+  defp defaults!(c, default, nodes, variants, file) do
+    axes =
+      [{c, :variant, default}] ++
+        for(a <- children(nodes, c, :variants), do: {a, a.name, a.props[:default]})
+
+    for {node, axis, default} <- axes, default != nil, reduce: [] do
+      acc ->
+        fail = &fail(file, node.line, "#{path_label(node)}: default: #{inspect(default)} #{&1}")
+        unless snake_case?(default), do: fail.("must be a snake_case atom")
+        of_axis = for v <- variants, v.axis == axis, do: v
+        if of_axis == [], do: fail.("is the default of the :variant axis, which has no variants")
+
+        cond do
+          Enum.any?(of_axis, &(&1.name == default)) ->
+            acc
+
+          v = Enum.find(of_axis, &(default in &1.aliases)) ->
+            fail.("is an alias of #{inspect(v.name)}; name the variant")
+
+          true ->
+            acc ++ [default]
+        end
+    end
   end
 
   # A variant's or a state's changes to parts the component declares.

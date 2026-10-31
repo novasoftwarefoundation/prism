@@ -363,6 +363,63 @@ defmodule Prism.Generator.Schema.ComponentsTest do
     )
   end
 
+  describe "an axis's default" do
+    test "is one of its variants, a name without a look of its own, or none" do
+      %{components: [c]} =
+        compile("""
+          component :c, default: :plain do
+            variant :plain
+            variant :bold
+            variants :tone, default: :accent do
+              variant :danger
+            end
+            variants :size do
+              variant :small
+            end
+          end
+        """)
+
+      assert c.default == :plain
+
+      assert [%{name: :tone, default: :accent}, %{name: :size, default: nil}] = c.axes
+      assert [%{default: nil}] = compile("  component :d do\n    variant :v\n  end").components
+    end
+
+    test "is a snake_case name, not an alias, and not another name of the component" do
+      assert_compile_error(
+        "  component :c, default: \"plain\" do\n    variant :plain\n  end",
+        ~s(component :c: default: "plain" must be a snake_case atom),
+        12
+      )
+
+      assert_compile_error(
+        "  component :c, default: :quiet do\n    variant :muted, aliases: [:quiet]\n  end",
+        "component :c: default: :quiet is an alias of :muted; name the variant",
+        12
+      )
+
+      assert_compile_error(
+        "  component :c do\n    variant :danger\n    variants :tone, default: :danger do\n      variant :success\n    end\n  end",
+        ":danger is both a variant and a default",
+        12
+      )
+
+      assert_compile_error(
+        "  component :c do\n    part :label\n    variants :tone, default: :label do\n      variant :success\n    end\n  end",
+        ":label is both a part and a default",
+        12
+      )
+    end
+
+    test "of the :variant axis needs variants outside a block" do
+      assert_compile_error(
+        "  component :c, default: :plain do\n    variants :tone do\n      variant :plain\n    end\n  end",
+        "component :c: default: :plain is the default of the :variant axis, which has no variants",
+        12
+      )
+    end
+  end
+
   describe "bindings" do
     test "a binding may replace a property for its target" do
       [c] =

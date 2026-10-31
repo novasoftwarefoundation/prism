@@ -30,6 +30,10 @@ jobs:
             exit 1
           fi
       - run: mix format --check-formatted
+      # Phoenix is optional: before it is fetched, the generator compiles without it
+      # (and without Prism.Generator.Phoenix).
+      - run: mix compile --no-optional-deps --warnings-as-errors
+      - run: mix deps.get
       # Compiled without design/, so a reference to Prism's design fails here.
       - run: mix compile --warnings-as-errors
       # The test env also compiles test/support/; mix test's flag covers the test files.
@@ -57,7 +61,8 @@ jobs:
       - run: mix format --check-formatted
       # Fails when a committed file in targets/ differs from what the design generates.
       - run: mix prism.gen --check
-      # The 0.1.7 golden test, the version check, the font roles and the type styles.
+      # The 0.1.7 golden test, the version check, the font roles, the type styles, and
+      # Prism's components rendered through Prism.Generator.Phoenix.
       - run: mix test --warnings-as-errors
 
   npm-package:

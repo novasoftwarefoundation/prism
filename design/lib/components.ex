@@ -103,8 +103,8 @@ defmodule Prism.Design.Components do
     end
 
     # Combined with a variant above: `prism-button--primary prism-button--danger`.
-    # Without a tone, a button is accent.
-    variants :tone, web: [doc: "Tones"] do
+    # Without a tone, a button is accent, which has no class.
+    variants :tone, default: :accent, web: [doc: "Tones"] do
       variant :success, background: :success, foreground: :white
       variant :warning, background: :warning, foreground: :white
       variant :danger, background: :error, foreground: :white
@@ -187,7 +187,8 @@ defmodule Prism.Design.Components do
   component :spinner, web: [section: "Spinner"] do
     style size: 24, rotation: {1000, :linear}
 
-    variants :size do
+    # Medium has no class.
+    variants :size, default: :medium do
       variant :small, size: 16
       variant :large, size: 32
     end
@@ -218,7 +219,7 @@ defmodule Prism.Design.Components do
       padding: [y: 6, x: 12],
       typography: [font: :subhead, text: :tablehead]
 
-    variants :tone do
+    variants :tone, default: :accent do
       variant :accent, web: [doc: "Accent tag (default)"] do
         part :label, background: {:primary, 0.2}, foreground: :primary
       end
@@ -248,7 +249,7 @@ defmodule Prism.Design.Components do
           radius: :default,
           typography: [font: :subhead, text: :tablehead]
 
-    variants :tone do
+    variants :tone, default: :info do
       variant :info,
         background: {:primary, 0.15},
         foreground: :primary,
@@ -279,7 +280,7 @@ defmodule Prism.Design.Components do
     ] do
     style size: 24, radius: :full, typography: [font: :label, text: {12, 12}]
 
-    variants :status do
+    variants :status, default: :incomplete do
       variant :incomplete,
         background: :grey4,
         foreground: :grey2,
