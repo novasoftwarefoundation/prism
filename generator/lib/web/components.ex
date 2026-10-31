@@ -409,9 +409,11 @@ defmodule Prism.Generator.Web.Components do
     ]
   end
 
-  # The spinner image, as a mask over the spinner's color, turning.
+  # The spinner image, as a mask over the spinner's color, turning; the variants
+  # that give a color come after the keyframes.
   defp blocks(%{name: :spinner} = c) do
     n = [c.name]
+    colors = &Keyword.has_key?(web_style(&1), :foreground)
 
     [
       rule(n, ".#{class(n)}", [
@@ -423,7 +425,7 @@ defmodule Prism.Generator.Web.Components do
         placed(n, :rotation, &"animation: #{prefix()}-spin #{&1} infinite")
       ]),
       own(n, c, @element),
-      variants(c, fn _ -> true end, @element),
+      for(v <- c.variants, not colors.(v), do: prepend(axis_doc(c, v), variant(c, v, @element))),
       """
       @keyframes #{prefix()}-spin {
         from {
@@ -433,7 +435,8 @@ defmodule Prism.Generator.Web.Components do
           transform: rotate(360deg);
         }
       }
-      """
+      """,
+      for(v <- c.variants, colors.(v), do: prepend(axis_doc(c, v), variant(c, v, @element)))
     ]
   end
 

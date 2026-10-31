@@ -1,8 +1,6 @@
 defmodule Prism.Design.GoldenTest do
   use ExUnit.Case, async: true
 
-  @moduletag :tmp_dir
-
   # Every class of 0.1.7's css/components.css, as the selector it was written in
   # (a class, or a class with a modifier class), and the selector it is now. The
   # same table is in ADR 0002 and targets/web/README.md, for consumers.
@@ -110,37 +108,68 @@ defmodule Prism.Design.GoldenTest do
   # with `0` instead of `0px`, the button with an icon, the spinner's mask, …). A
   # change to the generated files fails here until the diff file is updated, so
   # every change consumers get is reviewed.
-  test "the generated web files are 0.1.7, renamed, plus the reviewed diff", %{tmp_dir: dir} do
+  test "the generated web files are 0.1.7, renamed, plus the reviewed diff" do
     assert Enum.map(files(), &elem(&1, 0)) ==
              ["tailwind.preset.js", "css/base.css", "css/components.css", "images/spinner.svg"]
 
     diff =
       for path <- ["tailwind.preset.js", "css/base.css", "css/components.css"] do
-        write = fn name, body ->
-          file = Path.join(dir, name <> "_" <> String.replace(path, "/", "_"))
-          File.write!(file, body)
-          file
-        end
-
-        {before, label} =
-          if path == "css/components.css",
-            do: {renamed(), "0.1.7-renamed/#{path}"},
-            else: {golden(path), "0.1.7/#{path}"}
-
-        {out, _status} =
-          System.cmd("diff", [
-            "-u",
-            "--label",
-            label,
-            "--label",
-            "generated/#{path}",
-            write.("before", before),
-            write.("generated", generated(path))
-          ])
-
-        out
+        if path == "css/components.css",
+          do: unified(renamed(), generated(path), "0.1.7-renamed/#{path}", "generated/#{path}"),
+          else: unified(golden(path), generated(path), "0.1.7/#{path}", "generated/#{path}")
       end
 
     assert Enum.join(diff) == File.read!("test/golden/0.1.7.diff")
   end
+
+  # A unified diff with three lines of context, computed here rather than by the
+  # system's diff, whose hunks differ between platforms.
+  defp unified(old, new, from, to) do
+    lines = &String.split(String.trim_trailing(&1, "\n"), "\n")
+
+    {numbered, _} =
+      List.myers_difference(lines.(old), lines.(new))
+      |> Enum.flat_map(fn {op, ls} -> Enum.map(ls, &{op, &1}) end)
+      |> Enum.map_reduce({1, 1}, fn {op, line}, {a, b} ->
+        next = %{eq: {a + 1, b + 1}, del: {a + 1, b}, ins: {a, b + 1}}[op]
+        {{op, line, a, b}, next}
+      end)
+
+    numbered = List.to_tuple(numbered)
+    last = tuple_size(numbered) - 1
+    changes = for i <- 0..last//1, elem(elem(numbered, i), 0) != :eq, do: i
+
+    case changes do
+      [] ->
+        ""
+
+      [first | rest] ->
+        # Changes at most six unchanged lines apart share a hunk.
+        hunks =
+          rest
+          |> Enum.reduce([{first, first}], fn i, [{s, e} | done] ->
+            if i - e <= 7, do: [{s, i} | done], else: [{i, i}, {s, e} | done]
+          end)
+          |> Enum.reverse()
+
+        body =
+          Enum.map_join(hunks, fn {s, e} ->
+            slice = for i <- max(s - 3, 0)..min(e + 3, last), do: elem(numbered, i)
+            {_, _, a, b} = hd(slice)
+            a_len = Enum.count(slice, &(elem(&1, 0) != :ins))
+            b_len = Enum.count(slice, &(elem(&1, 0) != :del))
+
+            "@@ -#{range(a, a_len)} +#{range(b, b_len)} @@\n" <>
+              Enum.map_join(slice, fn {op, line, _, _} ->
+                %{eq: " ", del: "-", ins: "+"}[op] <> line <> "\n"
+              end)
+          end)
+
+        "--- #{from}\n+++ #{to}\n" <> body
+    end
+  end
+
+  defp range(start, 1), do: "#{start}"
+  defp range(start, 0), do: "#{start - 1},0"
+  defp range(start, length), do: "#{start},#{length}"
 end

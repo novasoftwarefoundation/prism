@@ -160,41 +160,26 @@
    animation: prism-spin 1s linear infinite;
  }
  
-@@ -427,8 +413,17 @@
- .prism-spinner--large {
-   width: 32px;
-   height: 32px;
-+}
-+
-+/* Spinner colors */
-+.prism-spinner--accent {
-+  color: #4272ef;
- }
- 
-+.prism-spinner--inverse {
-+  color: #ffffff;
-+}
-+
- @keyframes prism-spin {
-   from {
-     transform: rotate(0deg);
-@@ -438,16 +433,6 @@
+@@ -438,14 +424,13 @@
    }
  }
  
 -/* Spinner colors - use with filter for different colors */
 -.prism-spinner--inverse {
 -  filter: brightness(0) invert(1);
--}
--
++/* Spinner colors */
++.prism-spinner--accent {
++  color: #4272ef;
+ }
+ 
 -.prism-spinner--accent {
 -  filter: brightness(0) saturate(100%) invert(39%) sepia(70%) saturate(2238%)
 -    hue-rotate(209deg) brightness(97%) contrast(91%);
--}
--
++.prism-spinner--inverse {
++  color: #ffffff;
+ }
+ 
  /* ==========================================================================
-    Checkbox (bonus component)
-    ========================================================================== */
 @@ -477,7 +462,7 @@
  }
  

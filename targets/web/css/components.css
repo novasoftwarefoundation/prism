@@ -416,15 +416,6 @@
   height: 32px;
 }
 
-/* Spinner colors */
-.prism-spinner--accent {
-  color: #4272ef;
-}
-
-.prism-spinner--inverse {
-  color: #ffffff;
-}
-
 @keyframes prism-spin {
   from {
     transform: rotate(0deg);
@@ -432,6 +423,15 @@
   to {
     transform: rotate(360deg);
   }
+}
+
+/* Spinner colors */
+.prism-spinner--accent {
+  color: #4272ef;
+}
+
+.prism-spinner--inverse {
+  color: #ffffff;
 }
 
 /* ==========================================================================
