@@ -7,7 +7,7 @@ defmodule Mix.Tasks.Prism.Gen.Web do
   MODULE, a module that uses `Prism.Generator.Schema`. Without the options,
   both come from the config (PATH defaults to the current directory):
 
-      config :prism, design: MyApp.Design, out: "clients/web"
+      config :prism, design: MyApp.Design, out: "targets/web"
 
   A hand-written file is never overwritten.
   """

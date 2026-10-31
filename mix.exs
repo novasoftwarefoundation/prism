@@ -4,9 +4,9 @@ defmodule Prism.MixProject do
   def project do
     [
       app: :prism,
-      # The same version as clients/web/package.json; a test checks it.
+      # The same version as targets/web/package.json; a test checks it.
       version: "0.1.7",
-      description: "Prism's design, and the generator that turns it into client code",
+      description: "Prism's design, and the generator that turns it into code for each target",
       elixir: "~> 1.19",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,

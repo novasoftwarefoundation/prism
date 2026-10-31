@@ -12,7 +12,7 @@ Prism is a look for scientific software: a Tailwind preset plus component CSS, p
 
 1. **The source of truth is prism 0.1.7's styling:** `tailwind.preset.js`, `css/base.css` and `css/components.css`. `Prism.Design.Tokens` (`lib/design/tokens.ex`) reproduces 0.1.7's tokens as they are, inconsistencies included, so nothing changes for existing consumers. Each later clean-up is its own pull request with a visible golden diff.
 
-2. **One project, three layers.** The repository is one Mix project: the generator in `lib/generator/`, Prism's design in `lib/design/`, and the client code per platform in `clients/`. `config/config.exs` names the design and the output folder (`design: Prism.Design.Tokens, out: "clients/web"`). The npm package is published from `clients/web/`, with the same name, version and files as before. `css/components.css` stays hand-written until the components are in the design.
+2. **One project, three layers.** The repository is one Mix project: the generator in `lib/generator/`, Prism's design in `lib/design/`, and the generated targets in `targets/`. `config/config.exs` names the design and the output folder (`design: Prism.Design.Tokens, out: "targets/web"`). The npm package is published from `targets/web/`, with the same name, version and files as before. `css/components.css` stays hand-written until the components are in the design.
 
 3. **Prism's web naming** comes from the `web` declaration in `Prism.Design.Tokens`: the class prefix `prism`, fonts in `../fonts`, three line-clamp classes, and 0.1.7's comments at the top of the files.
 
@@ -28,11 +28,11 @@ Prism is a look for scientific software: a Tailwind preset plus component CSS, p
 
 6. **Brand-neutrality and theming:** the design holds Prism's defaults. It keeps 0.1.7's behaviour: the preset is overridable, the component CSS is not. Emitting CSS custom properties for theming is a possible later change, not part of this decision.
 
-7. **One version.** `mix.exs` has the same version as `clients/web/package.json`, and a test checks it. A release tag `vX.Y.Z` will be the npm version and, later, the Swift package's version. 0.x rules apply: a removed token, class or variant is a minor bump.
+7. **One version.** `mix.exs` has the same version as `targets/web/package.json`, and a test checks it. A release tag `vX.Y.Z` will be the npm version and, later, the Swift package's version. 0.x rules apply: a removed token, class or variant is a minor bump.
 
 ## Consequences
 
 - Prism's look is edited in `lib/design/tokens.ex` and regenerated with `mix prism.gen.web`; CI fails when the committed files differ.
 - The generator can move to its own repository by moving `lib/generator/` and `test/generator/` out and adding one dependency line; nothing in Prism's design changes.
-- Swift client code comes later in `clients/swift/`, with its own `Package.swift`.
+- Swift comes later in `targets/swift/`, with its own `Package.swift`.
 - 0.1.7's inconsistencies stay until someone changes them on purpose.

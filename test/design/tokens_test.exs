@@ -42,14 +42,14 @@ defmodule Prism.Design.TokensTest do
     assert Enum.all?(families, &(&1.ios == :system and &1.android == :system))
   end
 
-  test "mix prism.gen.web generates Prism.Design.Tokens into clients/web" do
+  test "mix prism.gen.web generates Prism.Design.Tokens into targets/web" do
     assert Application.get_env(:prism, :design) == Prism.Design.Tokens
-    assert Application.get_env(:prism, :out) == "clients/web"
-    assert File.exists?("clients/web/package.json")
+    assert Application.get_env(:prism, :out) == "targets/web"
+    assert File.exists?("targets/web/package.json")
   end
 
-  test "mix.exs and clients/web/package.json have the same version" do
-    assert JSON.decode!(File.read!("clients/web/package.json"))["version"] ==
+  test "mix.exs and targets/web/package.json have the same version" do
+    assert JSON.decode!(File.read!("targets/web/package.json"))["version"] ==
              Mix.Project.config()[:version]
   end
 end

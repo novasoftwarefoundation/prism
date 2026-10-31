@@ -4,26 +4,26 @@ A Tailwind-based UI framework for scientific software, published on npm as `@nov
 
 Part of the [Nova Software Foundation](https://novasf.org) - open source software for science.
 
-To use Prism in an app, see the package's README: [clients/web/README.md](clients/web/README.md) (install, Tailwind preset, CSS, classes).
+To use Prism in an app, see the package's README: [targets/web/README.md](targets/web/README.md) (install, Tailwind preset, CSS, classes).
 
 ## Layout
 
-Prism's look is written once, as a design in Elixir, and generated into client code per platform. The repository is one Mix project with three layers:
+Prism's look is written once, as a design in Elixir, and generated into code for each target: an app platform, or later a design tool. The repository is one Mix project with three layers:
 
 | Layer | Where | What |
 |---|---|---|
 | Generator | `lib/generator/`, `test/generator/` | Generic: the schema a design is written in (`Prism.Generator.Schema`), the web generator and its templates, and `mix prism.gen.web`. It knows nothing about Prism's values. |
 | Design | `lib/design/`, `test/design/` | Prism's design: `Prism.Design.Tokens`, and its checks (the 0.1.7 golden test, the version check, the font roles). |
-| Client code | `clients/web/` | The npm package: `package.json`, the generated `tailwind.preset.js` and `css/base.css`, the hand-written `css/components.css`, and `fonts/`. Later `clients/swift/`. |
+| Targets | `targets/web/` | The npm package: `package.json`, the generated `tailwind.preset.js` and `css/base.css`, the hand-written `css/components.css`, and `fonts/`. Later `targets/swift/`. |
 
 `config/config.exs` names the design and where its output goes. Decisions are in `docs/adr/`: [0001: design format](docs/adr/0001-design-format.md) and [0002: Prism's design](docs/adr/0002-prism-design.md).
 
 ## Change the design
 
-`clients/web/tailwind.preset.js` and `clients/web/css/base.css` are generated: don't edit them by hand. Change `lib/design/tokens.ex`, then regenerate and commit the result:
+`targets/web/tailwind.preset.js` and `targets/web/css/base.css` are generated: don't edit them by hand. Change `lib/design/tokens.ex`, then regenerate and commit the result:
 
 ```sh
-mix prism.gen.web   # writes clients/web/tailwind.preset.js and clients/web/css/base.css
+mix prism.gen.web   # writes targets/web/tailwind.preset.js and targets/web/css/base.css
 mix test
 ```
 
@@ -38,11 +38,11 @@ mix test
 
 ## Publish
 
-Publishing to npm is manual for now, from `clients/web/`:
+Publishing to npm is manual for now, from `targets/web/`:
 
-1. Bump the version in `mix.exs` and `clients/web/package.json` (a test checks they are equal) and merge it.
-2. Check the package: `cd clients/web && npm pack --dry-run` lists the files in `.github/npm-files.txt`.
-3. Publish: `cd clients/web && npm publish --access public`.
+1. Bump the version in `mix.exs` and `targets/web/package.json` (a test checks they are equal) and merge it.
+2. Check the package: `cd targets/web && npm pack --dry-run` lists the files in `.github/npm-files.txt`.
+3. Publish: `cd targets/web && npm publish --access public`.
 
 ## License
 
