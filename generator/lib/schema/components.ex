@@ -41,7 +41,9 @@ defmodule Prism.Generator.Schema.Components do
     for a size axis whose medium is the component's own look.
   - A `part` is a named piece of the component (a label, an icon), in the
     order the design gives them. `component:` makes the part another component.
-    A variant or a state may change a part's look by naming it again.
+    A variant or a state may change a part's look by naming it again. A
+    part's own state changes only that part; a state of the component may
+    change any of its parts.
   - `with_part` is the look while the component has one of its parts, such
     as a button with an icon: in a component or a variant, it names a part
     the component declares. It is not a variant: whether the part is there
@@ -220,11 +222,23 @@ defmodule Prism.Generator.Schema.Components do
     parent = List.first(stack)
     parent_kind = parent && parent.kind
     # A part inside a state only changes the part's look; it has no states of its own.
-    allowed = if parent_kind == :part and in_state?(stack), do: [], else: @children[parent_kind]
+    # A part's state changes only that part.
+    part_state? = match?([%{kind: :state}, %{kind: :part} | _], stack)
+
+    allowed =
+      if (parent_kind == :part and in_state?(stack)) or part_state?,
+        do: [],
+        else: @children[parent_kind]
 
     unless kind in allowed do
       where = if parent, do: "inside #{label(parent)}", else: "outside a component"
-      fail(file, line, "#{label(%{kind: kind, name: name})} can't be declared #{where}")
+
+      why =
+        if part_state?,
+          do: ": a part's state changes only that part; a state of the component changes others",
+          else: ""
+
+      fail(file, line, "#{label(%{kind: kind, name: name})} can't be declared #{where}#{why}")
     end
 
     group = Module.get_attribute(mod, :prism_group)
@@ -289,6 +303,13 @@ defmodule Prism.Generator.Schema.Components do
             p.line,
             "#{path_label(p)}: component: #{inspect(ref)} is not another component"
           )
+
+      # The web places a part that is another component by that component's look.
+      component = Enum.find(built, &(&1.name == c.name))
+      other = Enum.find(built, &(&1.name == ref))
+
+      with {:error, message} <- Prism.Generator.Web.Components.check_part(component, other),
+           do: fail(file, p.line, "#{path_label(p)}: #{message}")
     end
 
     built
