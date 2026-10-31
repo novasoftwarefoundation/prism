@@ -25,7 +25,7 @@ jobs:
           version-type: strict
       - name: The generator mentions none of Prism's values
         run: |
-          if grep -rniE 'nunito|novasoftwarefoundation|0\.1\.7|Prism\.Design|4272EF' .; then
+          if grep -rniE 'nunito|novasoftwarefoundation|0\.1\.7|Prism\.Design|4272EF|\.\./design|design/lib' .; then
             echo "::error::generator/ mentions Prism's design or package. Keep Prism-specific values in design/."
             exit 1
           fi
