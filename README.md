@@ -166,13 +166,13 @@ Install Prism from npm. The repository root is no longer the package (it lives i
 
 Publishing is manual for now: the npm packages from `targets/web/` and `targets/react/`, with the same version for both, and the design-tool files as release assets:
 
-1. Bump the version in `design/mix.exs`, `targets/web/package.json`, and in `targets/react/package.json` both its version and its peer dependency on `@novasoftwarefoundation/prism`. Then update the React package's lockfiles: `cd targets/react && npm install --package-lock-only && ../../.github/react18.sh --update` (the second is CI's React 18 lockfile). A test checks that all of them are equal. Merge it.
+1. Bump the version in `design/mix.exs`, `targets/web/package.json`, and in `targets/react/package.json` both its version and its peer dependency on `@novasoftwarefoundation/prism`. Then update the React package's lockfiles: `cd targets/react && npm install --package-lock-only && ../../.github/react18.sh --update` (the second writes CI's React 18 lockfile from the bumped files, and leaves them as they are). A test checks that all of them are equal. Merge it.
 2. Check the packages: `cd targets/web && npm pack --dry-run` lists the files in `.github/npm-files.txt`, and `cd targets/react && npm ci && npm pack --dry-run` (which builds `dist/`) those in `.github/npm-files-react.txt`.
 3. Publish the CSS first, since the components depend on it: `cd targets/web && npm publish --access public`.
 4. Then the components: `cd targets/react && npm publish --access public`.
 5. Attach the design-tool files to the release, from the tag:
    1. Tag the merge `vX.Y.Z`, push the tag, and check it out: `git checkout vX.Y.Z`.
-   2. Check that the files are the design's: `(cd design && mix prism.gen --check)`. The commands here run from the repository root.
+   2. Check that the tree is the tag's, with no local changes or untracked files, and that the files are the design's: `test -z "$(git status --porcelain)" && (cd design && mix prism.gen --check)`. The commands here run from the repository root.
    3. Create a GitHub release for the tag with `targets/design-tools/tokens.json`, `tokens.css` and `overview.svg` as its assets: `gh release create vX.Y.Z targets/design-tools/tokens.json targets/design-tools/tokens.css targets/design-tools/overview.svg`. If the release exists already (a rerun), upload them again instead: `gh release upload vX.Y.Z targets/design-tools/tokens.json targets/design-tools/tokens.css targets/design-tools/overview.svg --clobber`.
 
    There is no release automation yet.

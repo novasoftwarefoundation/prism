@@ -4,12 +4,19 @@
 # package-lock.json the package's React 18 lockfile, test/react18/package-lock.json,
 # which pins their dependencies too. Then `npm ci` installs React 18.
 #
-# With --update, it writes that lockfile instead, from the package's own lockfile,
-# and leaves package.json and package-lock.json as they were. Run it after a change
-# to the package's dependencies:
+# With --update, it writes that lockfile instead, from the package's own package.json
+# and lockfile as they are now, committed or not, and puts both back as they were,
+# also when it fails. Run it after a change to the package's version or
+# dependencies:
 #
-#   cd targets/react && ../../.github/react18.sh --update
+#   cd targets/react && npm install --package-lock-only && ../../.github/react18.sh --update
 set -eu
+
+if [ "${1-}" = --update ]; then
+  saved=$(mktemp -d)
+  cp package.json package-lock.json "$saved/"
+  trap 'cp "$saved/package.json" "$saved/package-lock.json" . && rm -rf "$saved"' EXIT
+fi
 
 npm pkg set \
   devDependencies.react=18.3.1 \
@@ -21,7 +28,6 @@ if [ "${1-}" = --update ]; then
   npm install --package-lock-only --ignore-scripts --no-audit --no-fund
   mkdir -p test/react18
   cp package-lock.json test/react18/package-lock.json
-  git checkout -- package.json package-lock.json
 else
   cp test/react18/package-lock.json package-lock.json
 fi

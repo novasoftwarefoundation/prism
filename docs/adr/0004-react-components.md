@@ -54,5 +54,5 @@ Later, a website built in a visual site builder will use the same components as 
 - A new kind of component needs its element and parts in `Prism.Generator.Web.Elements`, and they reach the Phoenix and the React components together, besides its mechanics in the web target's CSS. A new variant, part or state of a known component needs only the design.
 - A release publishes two npm packages at one version, the CSS first.
 - The generated code is typed with the button's types where its element is the app's choice: `ButtonProps` checks the app's props per element (a button without `as` refuses a link's `href`), and the component renders them on the element the app picked.
-- A release also updates the React package's lockfiles (`npm install --package-lock-only`, then `.github/react18.sh --update` for React 18's), which record the version and the peer; the version test checks them.
+- A release also updates the React package's lockfiles (`npm install --package-lock-only`, then `.github/react18.sh --update` for React 18's, made from the bumped files, which it leaves as they are), which record the version and the peer; the version test checks them.
 - No app switches to the package in this change; each one adopts it in its own change.
