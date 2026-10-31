@@ -7,3 +7,4 @@ cover/
 tmp/
 erl_crash.dump
 *.tgz
+dist/

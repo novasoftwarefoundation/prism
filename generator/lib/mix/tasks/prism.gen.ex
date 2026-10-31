@@ -13,7 +13,9 @@ defmodule Mix.Tasks.Prism.Gen do
   target to its folder. The targets are:
 
   - `web`: `Prism.Generator.Web` (a Tailwind preset, base CSS and, for a design
-    with components, the component CSS).
+    with components, the component CSS);
+  - `react`: `Prism.Generator.React` (a TSX file per component, for a package
+    whose CSS is the web target's).
 
   Each file starts with a `Prism.Generator.Header` line. A file without one is
   hand-written and never overwritten.
@@ -29,7 +31,7 @@ defmodule Mix.Tasks.Prism.Gen do
 
   # Every target module has `files/1`: a design's `__schema__/0` to
   # `[{path, body, design_file}]`, the design file being the one the body is made from.
-  @targets %{web: Prism.Generator.Web}
+  @targets %{web: Prism.Generator.Web, react: Prism.Generator.React}
 
   @impl true
   def run(args) do
@@ -98,7 +100,9 @@ defmodule Mix.Tasks.Prism.Gen do
       do: Mix.raise("no targets: set config :prism_generator, targets: [web: PATH]")
 
     for {target, _dir} <- targets, not Map.has_key?(@targets, target) do
-      Mix.raise("unknown target #{inspect(target)}; known: #{inspect(Map.keys(@targets))}")
+      Mix.raise(
+        "unknown target #{inspect(target)}; known: #{inspect(Enum.sort(Map.keys(@targets)))}"
+      )
     end
 
     targets

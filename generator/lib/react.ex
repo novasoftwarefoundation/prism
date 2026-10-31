@@ -1,0 +1,651 @@
+defmodule Prism.Generator.React do
+  @moduledoc """
+  Generates React components from a design: one TSX file per component in
+  `src/`, a `src/index.ts` that exports them all, and `src/helpers.ts`.
+  A package built from them with `tsc` ships ES modules and type declarations;
+  the CSS comes from the web target, at the same version.
+
+  A component renders its look, never behaviour: the markup and classes of
+  `Prism.Generator.Web.Elements`, the same data the Phoenix components
+  (`Prism.Generator.Phoenix`) render from, with class names from
+  `Prism.Generator.Web.Classes`, as the CSS has. The classes are literals in
+  the generated code, so there is no class logic in TypeScript to drift from
+  the CSS.
+
+  ## Props
+
+  - **Each axis** (`variant`, and each `variants` block such as `tone` or
+    `size`) is a prop typed as a union of the design's values, its variants
+    and their aliases, and its default when that is a name without a look of
+    its own, so TypeScript rejects any other value. Its default is the
+    design's; a default that is one of the variants adds that variant's
+    class, one without a look adds none. An axis without a default adds no
+    class until the app picks a variant.
+  - **Each state the app sets** is a boolean prop: a state the CSS writes as a
+    modifier class adds that class (`loading`, `invalid`, a radio's
+    `disabled`); `disabled` and `checked` on a form control set the element's
+    own attribute, which the CSS's pseudo-class reads, also on a part that is
+    a form control. The browser's states need no prop.
+  - **Parts**, in the design's order: the part that holds the content gets
+    `children`; a part such as an icon is a prop of its own name (`icon`,
+    `errorMessage`), with `<part>Props` for its element's attributes, and
+    while it is there its look with a part adds `--with-<part>`; a part that
+    is another component (a button's spinner) is rendered while the component
+    is `loading`, when it has a loading state, and always otherwise; a list
+    part's items (a select's options) are an array prop (`options`) of the
+    items' attributes, each with a boolean per item state.
+  - A button's element is `as`, one of `Prism.Generator.Web.Elements.as/0`,
+    and its other props are that element's.
+  - `className` appends the app's classes to the component's own. The other
+    props (`onClick`, `id`, `aria-*`, the element's own attributes) go on the
+    element, or on the form control of a component that has one (a radio's
+    input), which also gets the ref.
+  """
+
+  alias Prism.Generator.Web.Elements
+
+  @width 100
+
+  # Names every component's props or code use.
+  @reserved ~w(className children as ref key rest element Element classNames present forwardRef)
+
+  @keywords ~w(await break case catch class const continue debugger default delete do else enum
+               export extends false finally for function if implements import in instanceof
+               interface let new null package private protected public return static super switch
+               this throw true try typeof var void while with yield)
+
+  @dom %{
+    "a" => "HTMLAnchorElement",
+    "button" => "HTMLButtonElement",
+    "div" => "HTMLDivElement",
+    "input" => "HTMLInputElement",
+    "label" => "HTMLLabelElement",
+    "li" => "HTMLLIElement",
+    "p" => "HTMLParagraphElement",
+    "span" => "HTMLSpanElement",
+    "textarea" => "HTMLTextAreaElement",
+    "ul" => "HTMLUListElement"
+  }
+
+  @doc """
+  The files of the React target for a design's `__schema__/0`, as
+  `[{path, body, design_file}]`, every body made from the design's own file.
+  `mix prism.gen` puts a `Prism.Generator.Header` line naming that file above
+  each body.
+  """
+  def files(design) do
+    specs = Elements.components(design, "the React target")
+    if specs == [], do: raise(ArgumentError, "the design has no components")
+    Enum.each(specs, &check!/1)
+
+    components = for spec <- specs, do: {"src/#{pascal(spec.name)}.tsx", component(spec)}
+
+    for {path, body} <-
+          components ++ [{"src/helpers.ts", helpers()}, {"src/index.ts", index(specs)}],
+        do: {path, body, design.file}
+  end
+
+  # ------------------------------------------------------------ props
+
+  # The component's own props, in order: `{name, type, doc, default}`.
+  defp props(spec) do
+    axes =
+      for a <- spec.axes do
+        {camel(a.name), type_name(spec, a.name), axis_doc(spec, a),
+         a.default && js_str(a.default)}
+      end
+
+    states = for s <- spec.states, do: {camel(s.name), "boolean", state_doc(spec, s), nil}
+
+    parts =
+      Enum.flat_map(spec.children, fn
+        %{as: :slot, name: name, element: element} ->
+          [
+            {camel(name), "ReactNode", slot_doc(spec, name), nil},
+            {camel(name) <> "Props", "ComponentPropsWithoutRef<#{js_str(element)}>",
+             "Attributes of the #{words(name)} part's `<#{element}>`.", nil}
+          ]
+
+        %{as: :list} = list ->
+          [{items(list), "#{item_type(spec, list)}[]", list_doc(list), "[]"}]
+
+        _ ->
+          []
+      end)
+
+    content =
+      case Enum.find(spec.children, &(&1.as in [:content, :inner_block])) do
+        %{as: :content, name: name} ->
+          [{"children", "ReactNode", "The #{words(name)} part's content.", nil}]
+
+        %{as: :inner_block} ->
+          [{"children", "ReactNode", "The content.", nil}]
+
+        nil ->
+          []
+      end
+
+    axes ++
+      states ++
+      parts ++ [{"className", "string", "Classes after the component's own.", nil}] ++ content
+  end
+
+  defp check!(spec) do
+    names = for {name, _, _, _} <- props(spec), do: name
+    fixed = ~w(className children)
+
+    for name <- names -- fixed, name in @reserved or name in @keywords do
+      raise ArgumentError,
+            "the React target can't name a prop of #{inspect(spec.name)} #{inspect(name)}"
+    end
+
+    case names -- Enum.uniq(names) do
+      [] ->
+        :ok
+
+      [name | _] ->
+        raise ArgumentError, "#{inspect(spec.name)} has two props named #{inspect(name)}"
+    end
+  end
+
+  defp axis_doc(_spec, %{default: nil}), do: "No default: without one, it adds no class."
+
+  defp axis_doc(_spec, a) do
+    if a.classes[a.default],
+      do: "Default #{js_str(a.default)}.",
+      else: "Default #{js_str(a.default)}, which has no class."
+  end
+
+  defp state_doc(spec, s) do
+    effects =
+      Enum.map(s.effects, fn
+        {:class, _part, class} -> "adds `#{class}`"
+        {:native, nil, name} -> "sets the element's `#{name}`"
+        {:native, part, name} -> "sets `#{name}` on the #{words(part)} part"
+      end)
+
+    shows =
+      for %{as: :component, while_loading: true, name: name} <- spec.children,
+          s.name == :loading,
+          do: "shows the #{words(name)} part"
+
+    sentence(effects ++ shows)
+  end
+
+  defp slot_doc(spec, name) do
+    case spec.withs[name] do
+      nil ->
+        "The #{words(name)} part."
+
+      class ->
+        "The #{words(name)} part; while it is there, the #{words(spec.name)} gets `#{class}`."
+    end
+  end
+
+  defp list_doc(list) do
+    states = for s <- list.item_states, do: "`#{camel(s.name)}`"
+
+    "The #{words(list.item)} parts, in the #{words(list.name)} part" <>
+      if(states == [], do: ".", else: "; each takes #{Enum.join(states, ", ")}.")
+  end
+
+  defp sentence(clauses) do
+    text = Enum.join(clauses, "; ")
+    String.upcase(String.first(text)) <> String.slice(text, 1..-1//1) <> "."
+  end
+
+  # ------------------------------------------------------------ a component
+
+  defp component(spec) do
+    name = pascal(spec.name)
+    own = "#{name}OwnProps"
+    rest_tag = rest_element(spec)
+
+    as? = match?({:as, _}, spec.element)
+    lists = for %{as: :list} = l <- spec.children, do: l
+    no_content = not Enum.any?(spec.children, &(&1.as in [:content, :inner_block]))
+
+    body =
+      IO.iodata_to_binary([
+        Enum.map(spec.axes, &axis_type(spec, &1)),
+        if(as?, do: elements_type(spec), else: []),
+        Enum.map(lists, &item_type_decl(spec, &1)),
+        Enum.map(spec.axes, &axis_classes(spec, &1)),
+        own_interface(spec, own),
+        props_type(spec, name, own, rest_tag, no_content),
+        function(spec, name, rest_tag)
+      ])
+
+    types =
+      for type <- ~w(ComponentPropsWithoutRef ReactNode Ref),
+          body =~ ~r/\b#{type}\b/,
+          do: "type #{type}"
+
+    helpers = for helper <- ~w(classNames present), body =~ "#{helper}(", do: helper
+
+    import_line(["forwardRef" | types], "react") <>
+      import_line(helpers, "./helpers.js") <> body
+  end
+
+  defp import_line(names, from) do
+    flat = ~s(import { #{Enum.join(names, ", ")} } from "#{from}";)
+
+    if String.length(flat) <= @width,
+      do: flat <> "\n",
+      else: "import {\n" <> Enum.map_join(names, "", &"  #{&1},\n") <> ~s(} from "#{from}";\n)
+  end
+
+  defp axis_type(spec, a) do
+    values = Enum.map_join(a.values, " | ", &js_str/1)
+
+    "\n/** The #{words(spec.name)}'s #{words(a.name)}. */\nexport type #{type_name(spec, a.name)} = #{values};\n"
+  end
+
+  defp elements_type(spec) do
+    const = camel(spec.name) <> "Elements"
+    values = Enum.map_join(Elements.as(), ", ", &js_str/1)
+
+    """
+
+    /** The elements a #{words(spec.name)} can be: \`as\`. */
+    export const #{const} = [#{values}] as const;
+    export type #{pascal(spec.name)}Element = (typeof #{const})[number];
+    """
+  end
+
+  defp item_type_decl(spec, list) do
+    states = for s <- list.item_states, do: "#{camel(s.name)}?: boolean"
+    fields = Enum.uniq(["selected?: boolean" | states])
+
+    """
+
+    /** One of the #{words(list.item)} parts: its attributes, and its states. */
+    export type #{item_type(spec, list)} = { #{Enum.join(fields, "; ")} } & ComponentPropsWithoutRef<#{js_str(list.item_element)}>;
+    """
+  end
+
+  defp axis_classes(spec, a) do
+    type = type_name(spec, a.name)
+    value = if Enum.all?(a.values, &a.classes[&1]), do: "string", else: "string | undefined"
+
+    entries =
+      Enum.map(a.values, fn v ->
+        "  #{v}: #{if class = a.classes[v], do: js_str(class), else: "undefined"},\n"
+      end)
+
+    ["\nconst #{classes_const(a)}: Record<#{type}, #{value}> = {\n", entries, "};\n"]
+  end
+
+  defp own_interface(spec, own) do
+    fields =
+      for {name, type, doc, _default} <- props(spec) do
+        "  /** #{doc} */\n  #{name}?: #{type};\n"
+      end
+
+    ["\nexport interface #{own} {\n", fields, "}\n"]
+  end
+
+  defp props_type(spec, name, own, rest_tag, no_content) do
+    omit = if no_content, do: "keyof #{own} | \"children\"", else: "keyof #{own}"
+
+    case spec.element do
+      {:as, default} ->
+        members =
+          for tag <- Elements.as() do
+            as = if tag == default, do: "as?: #{js_str(tag)}", else: "as: #{js_str(tag)}"
+
+            "    | ({ #{as} } & Omit<ComponentPropsWithoutRef<#{js_str(tag)}>, #{omit} | \"as\">)\n"
+          end
+
+        ["\nexport type #{name}Props = #{own} &\n  (\n", members, "  );\n"]
+
+      _ ->
+        head = "export type #{name}Props = #{own} &"
+        omitted = "Omit<ComponentPropsWithoutRef<#{js_str(rest_tag)}>, #{omit}>;"
+
+        if String.length("#{head} #{omitted}") <= @width,
+          do: "\n#{head} #{omitted}\n",
+          else: "\n#{head}\n  #{omitted}\n"
+    end
+  end
+
+  defp function(spec, name, rest_tag) do
+    ref_type =
+      case spec.element do
+        {:as, _} when spec.rest == :root -> "HTMLElement"
+        _ -> Map.fetch!(@dom, rest_tag)
+      end
+
+    bindings =
+      case spec.element do
+        {:as, default} -> ["as: element = #{js_str(default)}"]
+        _ -> []
+      end ++
+        for(
+          {prop, _, _, default} <- props(spec),
+          do: if(default, do: "#{prop} = #{default}", else: prop)
+        ) ++
+        ["...rest"]
+
+    pattern = bindings_pattern(bindings, 2)
+
+    guard =
+      case spec.element do
+        {:as, default} ->
+          const = camel(spec.name) <> "Elements"
+          list = Enum.map_join(Elements.as(), ", ", &js_str/1)
+
+          """
+            if (!#{const}.includes(element)) {
+              throw new Error(`as: ${JSON.stringify(element)} is not one of #{list}`);
+            }
+            // Typed as a #{default}: #{name}Props has checked the props for the element the app picked.
+            const Element = element as #{js_str(default)};
+          """
+
+        _ ->
+          ""
+      end
+
+    root = root(spec)
+
+    [
+      "\n/** The design's `#{spec.name}` component. */\n",
+      "export const #{name} = forwardRef<#{ref_type}, #{name}Props>(function #{name}(\n",
+      pattern,
+      ",\n  ref,\n) {\n",
+      guard,
+      "  return (\n",
+      render(root, 4),
+      "\n  );\n});\n"
+    ]
+  end
+
+  defp bindings_pattern(bindings, indent) do
+    pad = String.duplicate(" ", indent)
+    flat = "#{pad}{ #{Enum.join(bindings, ", ")} }"
+
+    if String.length(flat) <= @width,
+      do: flat,
+      else: "#{pad}{\n" <> Enum.map_join(bindings, ",\n", &"#{pad}  #{&1}") <> "\n#{pad}}"
+  end
+
+  # ------------------------------------------------------------ the markup
+
+  # The root element as a JSX node.
+  defp root(spec) do
+    tag =
+      case spec.element do
+        {:as, _} -> "Element"
+        tag -> tag
+      end
+
+    on_root = spec.rest == :root
+
+    axes =
+      for a <- spec.axes do
+        lookup = "#{classes_const(a)}[#{camel(a.name)}]"
+        if a.default, do: lookup, else: "#{camel(a.name)} && #{lookup}"
+      end
+
+    states =
+      for {name, {:class, nil, class}} <- effects(spec), do: "#{camel(name)} && #{js_str(class)}"
+
+    withs =
+      for {part, class} <- spec.withs, test = present_test(spec, part), test != "false" do
+        if test == "true", do: js_str(class), else: "#{test} && #{js_str(class)}"
+      end
+
+    classes = [js_str(spec.class)] ++ axes ++ states ++ withs ++ ["className"]
+
+    # An element the app picks is typed as its default (`function/3`).
+    {ref, rest} =
+      case spec.element do
+        {:as, default} ->
+          {"ref={ref as Ref<#{Map.fetch!(@dom, default)}>}",
+           "{...(rest as ComponentPropsWithoutRef<#{js_str(default)}>)}"}
+
+        _ ->
+          {"ref={ref}", "{...rest}"}
+      end
+
+    attrs =
+      if(on_root, do: [ref], else: []) ++
+        fixed_attrs(spec.attrs) ++
+        natives(spec, nil) ++
+        if(on_root, do: [rest], else: []) ++ [class_attr(classes)]
+
+    children = Enum.flat_map(spec.children, &child(&1, spec))
+
+    {:el, tag, attrs, children}
+  end
+
+  defp child(%{as: :inner_block}, _spec), do: [{:expr, "{children}"}]
+  defp child(%{as: :value}, _spec), do: []
+
+  defp child(%{as: :content} = p, spec) do
+    attrs =
+      fixed_attrs(p.attrs) ++
+        natives(spec, p.name) ++ [class_attr([js_str(p.class) | part_classes(spec, p.name)])]
+
+    [{:cond, "present(children)", {:el, p.element, attrs, [{:expr, "{children}"}]}}]
+  end
+
+  defp child(%{as: :slot} = p, spec) do
+    prop = camel(p.name)
+    props = prop <> "Props"
+
+    attrs =
+      fixed_attrs(p.attrs) ++
+        [
+          "{...#{props}}",
+          class_attr([js_str(p.class) | part_classes(spec, p.name)] ++ ["#{props}?.className"])
+        ]
+
+    [{:cond, "present(#{prop})", {:el, p.element, attrs, [{:expr, "{#{prop}}"}]}}]
+  end
+
+  defp child(%{as: :control} = p, spec) do
+    attrs =
+      ["type=#{js_str(p.type)}", "ref={ref}"] ++
+        natives(spec, p.name) ++
+        ["{...rest}", class_attr([js_str(p.class) | part_classes(spec, p.name)])]
+
+    [{:el, p.element, attrs, []}]
+  end
+
+  defp child(%{as: :component} = p, _spec) do
+    el = {:el, p.element, ["className=#{js_str(Enum.join(p.class, " "))}"], []}
+    if p.while_loading, do: [{:cond, "loading", el}], else: [el]
+  end
+
+  defp child(%{as: :list} = p, _spec) do
+    items = items(p)
+    states = for s <- p.item_states, do: camel(s.name)
+    bindings = Enum.uniq(["key", "selected" | states]) ++ ["className: itemClassName", "...item"]
+
+    classes =
+      [js_str(p.item_class)] ++
+        for(s <- p.item_states, do: "#{camel(s.name)} && #{js_str(s.class)}") ++ ["itemClassName"]
+
+    item =
+      {:el, p.item_element,
+       [
+         "key={key ?? index}",
+         ~s(role="option"),
+         "aria-selected={selected}",
+         "{...item}",
+         class_attr(classes)
+       ], []}
+
+    list =
+      {:el, p.element, [~s(role="listbox"), "className=#{js_str(p.class)}"],
+       [{:map, "#{items}.map(({ #{Enum.join(bindings, ", ")} }, index) =>", item}]}
+
+    [{:cond, "#{items}.length > 0", list}]
+  end
+
+  defp effects(spec), do: for(s <- spec.states, e <- s.effects, do: {s.name, e})
+
+  defp natives(spec, part),
+    do: for({name, {:native, ^part, _}} <- effects(spec), do: "#{camel(name)}={#{camel(name)}}")
+
+  defp part_classes(spec, part),
+    do:
+      for(
+        {name, {:class, ^part, class}} <- effects(spec),
+        do: "#{camel(name)} && #{js_str(class)}"
+      )
+
+  defp fixed_attrs(attrs), do: for({name, value} <- attrs, do: "#{name}=#{js_str(value)}")
+
+  # Whether a part is there, as a TypeScript test, `"true"` or `"false"`.
+  defp present_test(spec, part) do
+    case Enum.find(spec.children, &(&1[:name] == part)) do
+      %{as: :content} -> "present(children)"
+      %{as: :slot} -> "present(#{camel(part)})"
+      %{as: :list} = list -> "#{items(list)}.length > 0"
+      %{as: :component, while_loading: true} -> "loading"
+      %{as: :component} -> "true"
+      _ -> "false"
+    end
+  end
+
+  # `className=…`: a literal when no class depends on a prop.
+  defp class_attr(classes) do
+    if Enum.all?(classes, &String.starts_with?(&1, "\"")),
+      do: "className=#{js_str(Enum.map_join(classes, " ", &JSON.decode!/1))}",
+      else: {:call, "className={classNames(", classes, ")}"}
+  end
+
+  # Renders a JSX node at `indent`, as lines without a trailing newline.
+  defp render(node, indent) do
+    pad = String.duplicate(" ", indent)
+    flat = flat(node)
+
+    if flat && String.length(pad <> flat) <= @width,
+      do: pad <> flat,
+      else: broken(node, indent)
+  end
+
+  defp broken({:el, tag, attrs, children}, indent) do
+    pad = String.duplicate(" ", indent)
+    flat_open = "<#{tag}" <> Enum.map_join(attrs, "", &(" " <> flat_attr(&1)))
+
+    open =
+      if Enum.all?(attrs, &flat_attr/1) and
+           String.length(pad <> flat_open <> if(children == [], do: " />", else: ">")) <= @width,
+         do: pad <> flat_open,
+         else:
+           pad <>
+             "<#{tag}\n" <>
+             Enum.map_join(attrs, "\n", &attr(&1, indent + 2)) <> "\n" <> pad
+
+    broke? = String.contains?(open, "\n")
+
+    case children do
+      [] ->
+        open <> if(broke?, do: "/>", else: " />")
+
+      _ ->
+        open <>
+          ">\n" <>
+          Enum.map_join(children, "\n", &render(&1, indent + 2)) <> "\n#{pad}</#{tag}>"
+    end
+  end
+
+  defp broken({:cond, test, el}, indent) do
+    pad = String.duplicate(" ", indent)
+    "#{pad}{#{test} && (\n" <> render(el, indent + 2) <> "\n#{pad})}"
+  end
+
+  defp broken({:map, head, el}, indent) do
+    pad = String.duplicate(" ", indent)
+    "#{pad}{#{head} (\n" <> render(el, indent + 2) <> "\n#{pad}))}"
+  end
+
+  defp broken({:expr, code}, indent), do: String.duplicate(" ", indent) <> code
+
+  # A node on one line, or nil when it has more than one line.
+  defp flat({:expr, code}), do: code
+  defp flat({:map, _, _}), do: nil
+
+  defp flat({:cond, test, el}) do
+    if flat = flat(el), do: "{#{test} && #{flat}}"
+  end
+
+  defp flat({:el, tag, attrs, children}) do
+    open = "<#{tag}" <> Enum.map_join(attrs, "", &(" " <> flat_attr(&1)))
+
+    case children do
+      [] -> open <> " />"
+      [{:expr, code}] -> "#{open}>#{code}</#{tag}>"
+      _ -> nil
+    end
+  end
+
+  defp flat_attr({:call, head, args, tail}), do: head <> Enum.join(args, ", ") <> tail
+  defp flat_attr(text), do: text
+
+  defp attr(attr, indent) do
+    pad = String.duplicate(" ", indent)
+    flat = pad <> flat_attr(attr)
+
+    case attr do
+      {:call, head, args, tail} when byte_size(flat) > @width ->
+        pad <> head <> "\n" <> Enum.map_join(args, "", &"#{pad}  #{&1},\n") <> pad <> tail
+
+      _ ->
+        flat
+    end
+  end
+
+  # ------------------------------------------------------------ the other files
+
+  defp helpers do
+    """
+    import type { ReactNode } from "react";
+
+    /** A class name, or nothing when a prop doesn't add one. */
+    export type ClassName = string | false | null | undefined;
+
+    /** The class names that are there, separated by spaces. */
+    export function classNames(...names: ClassName[]): string {
+      return names.filter((name) => typeof name === "string" && name !== "").join(" ");
+    }
+
+    /** Whether the app gave content: anything but nothing, `null` or a boolean. */
+    export function present(node: ReactNode): boolean {
+      return node !== undefined && node !== null && typeof node !== "boolean";
+    }
+    """
+  end
+
+  defp index(specs) do
+    Enum.map_join(specs, "", &~s(export * from "./#{pascal(&1.name)}.js";\n))
+  end
+
+  # ------------------------------------------------------------ names
+
+  defp rest_element(%{rest: :control, children: children}),
+    do: Enum.find_value(children, &(&1.as == :control && &1.element))
+
+  defp rest_element(%{element: {:as, default}}), do: default
+  defp rest_element(%{element: element}), do: element
+
+  defp items(list), do: camel(list.item) <> "s"
+  defp item_type(spec, list), do: pascal(spec.name) <> pascal(list.item)
+  defp type_name(spec, axis), do: pascal(spec.name) <> pascal(axis)
+  defp classes_const(a), do: camel(a.name) <> "Classes"
+
+  defp pascal(name), do: name |> Atom.to_string() |> Macro.camelize()
+
+  defp camel(name) do
+    [first | rest] = name |> Atom.to_string() |> String.split("_")
+    Enum.join([first | Enum.map(rest, &String.capitalize/1)])
+  end
+
+  defp words(name), do: name |> Atom.to_string() |> String.replace("_", " ")
+
+  defp js_str(value), do: JSON.encode!(to_string(value))
+end
