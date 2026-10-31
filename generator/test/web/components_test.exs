@@ -419,6 +419,35 @@ defmodule Prism.Generator.Web.ComponentsTest do
     refute css(design) =~ "only-button__spinner"
   end
 
+  test "a part that is another component needs no rule of its own, on any component" do
+    design =
+      compile("""
+        component :tag do
+          part :label
+          part :badge, component: :spinner
+          with_part :badge, gap: 4
+        end
+        component :spinner do
+          style size: 16
+        end
+      """)
+
+    css = css(design)
+    assert css =~ "\n.only-tag--with-badge {\n  gap: 4px;\n}\n"
+    refute css =~ ".only-tag .only-spinner"
+
+    # Without a loading state, a button writes nothing for its spinner either.
+    design =
+      compile("""
+        component :button do
+          part :spinner, component: :spinner
+        end
+        component :spinner
+      """)
+
+    refute css(design) =~ "only-spinner {\n  position"
+  end
+
   test "the check mark takes the checked state's foreground" do
     design =
       compile("""

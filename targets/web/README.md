@@ -190,7 +190,7 @@ Font classes: `font-title0` through `font-title7`, `font-body`, `font-button`, `
 | `prism-button--link` | Looks like a text link |
 | `prism-button--text` | Brand-colored text, minimal styling; fits its text without `--padded` |
 | `prism-button--soft` | The tone's light color behind its color, laid out as a primary button |
-| `prism-button--icon` | An icon only, 24×24; give it an `aria-label` |
+| `prism-button--icon` | An icon only, 24×24, no padding or background; give it an `aria-label` |
 | `prism-button--padded` | With `--plain` or `--text`: as tall as a primary button beside it (15px 16px) |
 | `prism-button--with-icon` | Spacing for a button with an icon (with `--primary`, `--secondary`, `--plain` or `--soft`) |
 | `prism-button--success`, `--warning`, `--danger`, `--neutral`, `--highlight` | Tones, with a variant: the background of `--primary`, the text (and border) of `--secondary`, `--plain`, `--link` and `--text`, the light background of `--soft` (no light color for `--neutral` and `--highlight`, so no soft look) |
@@ -341,7 +341,10 @@ Also:
 - **Tones color by variant.** A tone colors a primary button's background, and the text and border of the other variants: `.prism-button--primary.prism-button--danger`, `.prism-button--secondary.prism-button--danger`. A tone class without a variant class no longer colors anything. `--neutral` (dark grey) and `--highlight` (yellow) are new tones, and `--soft` and `--icon` new variants.
 - **Plain and text buttons fit their text** unless they have `prism-button--padded` (15px top and bottom, 16px at the sides, as tall as a primary button). Without it, a plain button is as in 0.1.7 (4px top and bottom, none at the sides); a text button keeps 0.1.7's label button's 1px top and bottom but has no padding at the sides (it had 16px). The Phoenix and React components add `--padded` by default (`padded={false}` leaves it off).
 - **The icon's side.** The Phoenix and React components put the icon before the label by default now (at its start), and after it with `icon_position={:end}` / `iconPosition="end"`; they used to put it after the label. In plain HTML, the order of the elements is the side.
-- **Buttons with an icon** are styled by two classes together (`.prism-button--primary.prism-button--with-icon`), which is more specific than one Tailwind utility. A padding or gap utility on such a button no longer wins as it did on 0.1.7's `prism-btn-primary-icon`; use Tailwind's important modifier (`!px-4`) or your own CSS for it.
+- **Two classes beat one utility.** These rules are two classes together, which is more specific than one Tailwind utility, so a utility on such a button no longer wins as it did on 0.1.7's single classes; use Tailwind's important modifier (`!px-4`, `!text-grey1`) or your own CSS for it:
+  - a button with an icon (`.prism-button--primary.prism-button--with-icon`): its padding and gap, where 0.1.7's `prism-btn-primary-icon` was one class;
+  - a tone (`.prism-button--secondary.prism-button--danger`): its text, border and background colors, where 0.1.7's `prism-btn-danger` was one class;
+  - `--padded` with a variant (`.prism-button--text.prism-button--padded`): its padding, so a padding utility on a padded plain or text button doesn't win either.
 - `prism-max-lines-*` and `prism-text-shadow*` (in `css/base.css`) keep their names.
 
 ## License

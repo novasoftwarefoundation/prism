@@ -246,6 +246,15 @@ describe("parts", () => {
     );
   });
 
+  test("a side that is neither start nor end fails when it renders, not drops the part", () => {
+    for (const side of [null, "End", "left"]) {
+      assert.throws(
+        () => html(h(Kit.Button, { icon: "*", iconPosition: side }, "Save")),
+        { message: `iconPosition: ${JSON.stringify(side)} is not one of "start", "end"` },
+      );
+    }
+  });
+
   test("the spinner, a part that is another component, is there only while loading", () => {
     assert.doesNotMatch(html(h(Kit.Button, null, "Save")), /kit-spinner/);
     assert.match(

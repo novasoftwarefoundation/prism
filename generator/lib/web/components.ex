@@ -74,6 +74,9 @@ defmodule Prism.Generator.Web.Components do
   its size, as it does any part that is another component, whose size must be
   px or rem too. A part that is another component has no modifier class of its
   own, so a state of it, in or outside a variant, can only be a pseudo-class.
+  Outside a variant, such a part is written only by its component's own rules,
+  so it has no look, web key or state of its own there; a variant or a state of
+  the component changes it.
 
   Generation fails when a value or a `web:` key of the design is written
   nowhere, so nothing in the design is ignored.
@@ -228,6 +231,23 @@ defmodule Prism.Generator.Web.Components do
          "the web shows #{inspect(state)} with a modifier class, which a part that is another component doesn't get; give the state to #{inspect(other)} or #{inspect(component)}"}
   end
 
+  @doc false
+  # Checks, for the schema, `part` of `component` outside a variant, a part that is
+  # the component `other`: the web writes it by `other`'s own rules and by the
+  # changes a variant or a state of `component` makes to it, so a look, a web key or
+  # a state of its own would be written nowhere. The error says where it has one:
+  # `:part` (a property or a web key) or `{:state, name}`.
+  def check_part_look(component, part, other) do
+    message =
+      "outside a variant, the web writes a part that is another component only by #{inspect(other)}'s own rules, so it has no look or state of its own; give it to #{inspect(other)}, or change the part in a variant or a state of #{inspect(component)}"
+
+    case part do
+      %{style: style, web: web} when style != [] or web != [] -> {:error, message, :part}
+      %{states: [s | _]} -> {:error, message, {:state, s.name}}
+      _ -> :ok
+    end
+  end
+
   defp solid(color, why) when is_tuple(color) or color == :transparent,
     do:
       {:error, "#{why}, so it has no alpha: give a color without {color, alpha} or :transparent"}
@@ -261,6 +281,10 @@ defmodule Prism.Generator.Web.Components do
 
     Process.put(@design, design)
     Process.put(@read, MapSet.new())
+
+    # A part that is another component is written by that component's own rules; the
+    # schema refuses a look of its own outside a variant (`check_part_look/3`).
+    for c <- components, p <- c.parts, p.component, do: read({:node, [c.name, p.name]})
 
     try do
       body =
