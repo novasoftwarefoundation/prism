@@ -66,7 +66,7 @@ defmodule Mix.Tasks.Prism.Gen do
   end
 
   # The design's file as seen from the folder that holds both it and the target:
-  # `design/lib/tokens.ex` for a design in `design/` and a target in `targets/web`.
+  # `theme/lib/tokens.ex` for a design in `theme/` and a target in `targets/web`.
   defp design_file(file, dir) do
     file = Path.expand(file)
     root = common_root(Path.split(file), Path.split(Path.expand(dir)))
