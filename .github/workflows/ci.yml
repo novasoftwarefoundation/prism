@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, develop, spec]
   pull_request:
 
 permissions:
@@ -13,13 +13,16 @@ jobs:
     name: Spec and generated files
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: erlef/setup-beam@v1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
         with:
           version-file: .tool-versions
           version-type: strict
       - run: mix compile --warnings-as-errors
       - run: mix format --check-formatted
+      # Includes the 0.1.7 golden test and the mix.exs / package.json version check.
       - run: mix test
       - run: mix prism.gen.web
       - name: Committed files match the spec
@@ -35,8 +38,10 @@ jobs:
     name: npm file list
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .tool-versions
       - name: The package ships exactly the reviewed files

@@ -48,4 +48,35 @@ defmodule Prism.Gen.WebTest do
     assert files["css/base.css"] =~
              ".prism-text-shadow-xl {\n  text-shadow: 0px 12px 24px rgba(0, 0, 0, 0.3);\n}"
   end
+
+  test "strings are escaped in JS and CSS, and text that can't be a comment fails" do
+    %{tokens: tokens} = Prism.Tokens.__schema__()
+
+    family = fn css_name ->
+      %{
+        kind: :family,
+        name: :nunito,
+        css_name: css_name,
+        doc: "Nunito (> 20px sizes)",
+        fallback: "sans-serif",
+        faces: [[file: "Nunito-VariableFont_wght", weights: {200, 900}, style: :normal]],
+        group: nil
+      }
+    end
+
+    replace = fn new ->
+      Enum.map(tokens, &if(&1.name == new.name and &1.kind == new.kind, do: new, else: &1))
+    end
+
+    files = Map.new(Prism.Gen.Web.generate(%{tokens: replace.(family.(~S(Nu"ni\to)))}))
+
+    assert files["tailwind.preset.js"] =~ ~S(title0: ["Nu\"ni\\to", "sans-serif"],)
+    assert files["css/base.css"] =~ ~S(font-family: "Nu\"ni\\to";)
+
+    group = %{hd(tokens) | group: "Brand colors\n      pwn: 1,"}
+
+    assert_raise ArgumentError, ~r/can't be written in a comment/, fn ->
+      Prism.Gen.Web.generate(%{tokens: [group | tl(tokens)]})
+    end
+  end
 end

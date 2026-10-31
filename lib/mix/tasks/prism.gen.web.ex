@@ -13,7 +13,11 @@ defmodule Mix.Tasks.Prism.Gen.Web do
 
   @impl true
   def run(args) do
-    {opts, _} = OptionParser.parse!(args, strict: [out: :string])
+    {opts, rest} = OptionParser.parse!(args, strict: [out: :string])
+
+    if rest != [],
+      do: Mix.raise("unexpected argument #{Enum.join(rest, " ")}; use --out PATH")
+
     out = opts[:out] || "."
 
     for {path, source} <- Prism.Gen.Web.generate(Prism.Tokens.__schema__()) do

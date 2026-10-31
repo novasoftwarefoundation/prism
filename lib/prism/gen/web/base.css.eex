@@ -11,9 +11,9 @@
    Font Faces
    ========================================================================== */
 <%= for face <- font_faces(spec) do %>
-<%= if face.first do %>/* <%= face.family %> - Variable font for sizes <%= sizes(face.doc) %> */
+<%= if face.first do %>/* <%= comment!(face.family) %> - Variable font for sizes <%= comment!(sizes(face.doc)) %> */
 <% end %>@font-face {
-  font-family: "<%= face.family %>";
+  font-family: <%= css_str(face.family) %>;
 <%= font_src(face) %>
   font-weight: <%= face.weights %>;
   font-style: <%= face.style %>;

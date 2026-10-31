@@ -29,4 +29,18 @@ defmodule Prism.GenTest do
 
     assert File.read!(path) == "hand-written\n"
   end
+
+  test "prism.gen.web refuses a positional argument", %{tmp_dir: dir} do
+    File.cd!(dir, fn ->
+      assert_raise Mix.Error, ~r/unexpected argument out; use --out PATH/, fn ->
+        Mix.Tasks.Prism.Gen.Web.run(["out"])
+      end
+
+      assert File.ls!(".") == []
+    end)
+  end
+
+  test "mix.exs and package.json have the same version" do
+    assert JSON.decode!(File.read!("package.json"))["version"] == Mix.Project.config()[:version]
+  end
 end

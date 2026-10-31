@@ -38,6 +38,9 @@ defmodule Prism.Schema do
     text: [:size, :line_height]
   }
 
+  @text_rule ~s(must be a one-line string without ", \\ or */)
+  @face_rule "a face is [file:, weights: {from, to}, style: :normal | :italic], file in A-Z a-z 0-9 . _ -"
+
   @shadow_keys %{
     shadow: [:inset, :x, :y, :blur, :spread, :color],
     text_shadow: [:x, :y, :blur, :color]
@@ -52,55 +55,70 @@ defmodule Prism.Schema do
     end
   end
 
-  @doc "Puts a comment above the tokens in `body`, e.g. `// Brand colors` in the preset."
+  @doc """
+  Puts a comment above the tokens in `body`, e.g. `// Brand colors` in the
+  preset. Groups don't nest.
+  """
   defmacro group(doc, do: body) do
     quote do
-      @prism_group unquote(doc)
+      Prism.Schema.__group__(__MODULE__, __ENV__.file, unquote(__CALLER__.line), unquote(doc))
       unquote(body)
       @prism_group nil
     end
   end
 
   @doc "A color: `\"#RRGGBB\"`, or the name of another color (an alias)."
-  defmacro color(name, value), do: token(:color, name, [value: value], __CALLER__)
+  defmacro color(name, value), do: token(:color, name, [value: value], [], __CALLER__)
 
-  @doc "A box shadow: `[inset:, x:, y:, blur:, spread:, color: {color, alpha}]`, or the name of another shadow."
+  @doc """
+  A box shadow: `[inset:, x:, y:, blur:, spread:, color: {color, alpha}]`, or
+  the name of another shadow. Option: `deprecated: true`.
+  """
   defmacro shadow(name, value, opts \\ []),
-    do: token(:shadow, name, [value: value] ++ opts, __CALLER__)
+    do: token(:shadow, name, [value: value], opts, __CALLER__)
 
   @doc "A text shadow: `[x:, y:, blur:, color: {color, alpha}]`."
-  defmacro text_shadow(name, value), do: token(:text_shadow, name, [value: value], __CALLER__)
+  defmacro text_shadow(name, value),
+    do: token(:text_shadow, name, [value: value], [], __CALLER__)
 
   @doc "A corner radius: a length."
-  defmacro radius(name, value), do: token(:radius, name, [value: value], __CALLER__)
+  defmacro radius(name, value), do: token(:radius, name, [value: value], [], __CALLER__)
 
   @doc "A named maximum height in px (`max-h-dropdown`)."
-  defmacro max_height(name, value), do: token(:max_height, name, [value: value], __CALLER__)
+  defmacro max_height(name, value),
+    do: token(:max_height, name, [value: value], [], __CALLER__)
 
-  @doc "A font family and its font faces (one file per style)."
+  @doc """
+  A font family and its font faces (one file per style). Options, all
+  required: `doc:` (the comment above its fonts), `fallback:` (a generic CSS
+  family) and `faces: [[file:, weights: {from, to}, style:]]`.
+  """
   defmacro family(name, css_name, opts),
-    do: token(:family, name, [css_name: css_name] ++ opts, __CALLER__)
+    do: token(:family, name, [css_name: css_name], opts, __CALLER__)
 
   @doc "A font style: a family and a weight, optionally `italic: true`."
   defmacro font(name, family, weight, opts \\ []),
-    do: token(:font, name, [family: family, weight: weight] ++ opts, __CALLER__)
+    do: token(:font, name, [family: family, weight: weight], opts, __CALLER__)
 
   @doc "A text size: size and line height in px."
   defmacro text(name, size, line_height),
-    do: token(:text, name, [size: size, line_height: line_height], __CALLER__)
+    do: token(:text, name, [size: size, line_height: line_height], [], __CALLER__)
 
-  @doc "Pixel steps: `space [1, 2]` gives `p-1px` and `p-2px`; `space 15, 60` gives `p-15` = 60px."
   defmacro space(values) when is_list(values) do
-    for px <- values, do: token(:space, :"px_#{px}", [key: "#{px}px", value: px], __CALLER__)
+    for px <- values,
+        do: token(:space, :"px_#{px}", [key: "#{px}px", value: px], [], __CALLER__)
   end
 
-  defmacro space(step, px), do: token(:space, :"step_#{step}", [key: step, value: px], __CALLER__)
+  defmacro space(step, px),
+    do: token(:space, :"step_#{step}", [key: step, value: px], [], __CALLER__)
 
   @doc "A pixel height step: `height_step 44` gives `h-44px`."
   defmacro height_step(px),
-    do: token(:height, :"px_#{px}", [key: "#{px}px", value: px], __CALLER__)
+    do: token(:height, :"px_#{px}", [key: "#{px}px", value: px], [], __CALLER__)
 
-  defp token(kind, name, attrs, caller) do
+  # The macro's arguments go in `args`, its keyword options in `opts`; they are
+  # checked and merged in `__before_compile__`, so options may use attributes.
+  defp token(kind, name, args, opts, caller) do
     unless is_atom(name) and Regex.match?(~r/^[a-z][a-z0-9_]*$/, Atom.to_string(name)),
       do:
         __fail__(
@@ -110,13 +128,29 @@ defmodule Prism.Schema do
         )
 
     quote do
-      @prism_tokens Map.merge(Map.new(unquote(attrs)), %{
-                      kind: unquote(kind),
-                      name: unquote(name),
-                      group: @prism_group,
-                      line: unquote(caller.line)
-                    })
+      @prism_tokens %{
+        kind: unquote(kind),
+        name: unquote(name),
+        group: @prism_group,
+        line: unquote(caller.line),
+        args: Map.new(unquote(args)),
+        opts: unquote(opts)
+      }
     end
+  end
+
+  @doc false
+  def __group__(mod, file, line, doc) do
+    if outer = Module.get_attribute(mod, :prism_group),
+      do:
+        __fail__(
+          file,
+          line,
+          "group #{inspect(doc)} inside group #{inspect(outer)}: groups don't nest"
+        )
+
+    unless text?(doc), do: __fail__(file, line, "group #{inspect(doc)}: #{@text_rule}")
+    Module.put_attribute(mod, :prism_group, doc)
   end
 
   @doc false
@@ -125,7 +159,7 @@ defmodule Prism.Schema do
 
   defmacro __before_compile__(env) do
     tokens = env.module |> Module.get_attribute(:prism_tokens) |> Enum.reverse()
-    validate!(tokens, env.file)
+    tokens = validate!(tokens, env.file)
     schema = %{tokens: Enum.map(tokens, &Map.delete(&1, :line))}
 
     quote do
@@ -136,9 +170,10 @@ defmodule Prism.Schema do
 
   # Tokens are checked in order, so an alias or reference must come after what it names.
   defp validate!(tokens, file) do
-    Enum.reduce(tokens, MapSet.new(), fn t, seen ->
+    Enum.map_reduce(tokens, MapSet.new(), fn t, seen ->
       fail = &__fail__(file, t.line, "#{t.kind} #{inspect(t.name)}#{&1}")
       if {t.kind, t.name} in seen, do: fail.(" is defined twice")
+      t = merge_opts!(t, fail)
 
       case Map.keys(t) -- [:kind, :name, :group, :line | @keys[t.kind]] do
         [] -> :ok
@@ -150,8 +185,26 @@ defmodule Prism.Schema do
         {:error, message} -> fail.(": " <> message)
       end
 
-      MapSet.put(seen, {t.kind, t.name})
+      {t, MapSet.put(seen, {t.kind, t.name})}
     end)
+    |> elem(0)
+  end
+
+  defp merge_opts!(%{args: args, opts: opts} = t, fail) do
+    unless Keyword.keyword?(opts), do: fail.(": options must be a keyword list")
+    keys = Keyword.keys(opts)
+
+    case keys -- Enum.uniq(keys) do
+      [] -> :ok
+      [key | _] -> fail.(": option #{inspect(key)} is given twice")
+    end
+
+    case Enum.filter(keys, &Map.has_key?(args, &1)) do
+      [] -> :ok
+      [key | _] -> fail.(": #{inspect(key)} is an argument, not an option")
+    end
+
+    t |> Map.drop([:args, :opts]) |> Map.merge(args) |> Map.merge(Map.new(opts))
   end
 
   defp check(%{kind: :color, value: "#" <> hex}, _) do
@@ -159,6 +212,9 @@ defmodule Prism.Schema do
       do: :ok,
       else: {:error, "write colors as #RRGGBB (upper case)"}
   end
+
+  defp check(%{kind: :shadow, deprecated: deprecated}, _) when not is_boolean(deprecated),
+    do: {:error, "deprecated is a boolean"}
 
   defp check(%{kind: kind, value: ref}, seen) when kind in [:color, :shadow] and is_atom(ref),
     do: known(seen, kind, ref, "alias of unknown #{kind} #{inspect(ref)}")
@@ -172,7 +228,8 @@ defmodule Prism.Schema do
         {:error, "unknown shadow key #{Enum.map_join(extra, ", ", &inspect/1)}"}
 
       not Enum.all?(Keyword.delete(shadow, :color), &shadow_value?/1) ->
-        {:error, "shadow lengths are numbers in px and inset is a boolean"}
+        {:error,
+         "shadow offsets and spread are numbers in px, blur is not negative, inset is a boolean"}
 
       true ->
         case shadow[:color] do
@@ -193,9 +250,14 @@ defmodule Prism.Schema do
 
   defp check(%{kind: :radius, value: value}, _) do
     case value do
-      n when is_number(n) -> :ok
-      {n, unit} when is_number(n) and unit in [:rem, :percent] -> :ok
-      _ -> {:error, "#{inspect(value)} is not a length"}
+      n when is_number(n) and n >= 0 ->
+        :ok
+
+      {n, unit} when is_number(n) and n >= 0 and unit in [:rem, :percent] ->
+        :ok
+
+      _ ->
+        {:error, "#{inspect(value)} is not a length (a number >= 0, {n, :rem} or {n, :percent})"}
     end
   end
 
@@ -203,10 +265,23 @@ defmodule Prism.Schema do
     faces = Map.get(family, :faces)
 
     cond do
-      not is_binary(family.css_name) -> {:error, "the CSS name must be a string"}
-      not (is_list(faces) and faces != []) -> {:error, "a family needs faces: [...]"}
-      not Enum.all?(faces, &face?/1) -> {:error, "a face is [file:, weights: {from, to}, style:]"}
-      true -> :ok
+      not text?(family.css_name) or family.css_name == "" ->
+        {:error, "the CSS name: " <> @text_rule}
+
+      not text?(Map.get(family, :doc)) ->
+        {:error, "doc: " <> @text_rule}
+
+      not text?(Map.get(family, :fallback)) ->
+        {:error, "fallback: " <> @text_rule}
+
+      not (is_list(faces) and faces != []) ->
+        {:error, "a family needs faces: [...]"}
+
+      not Enum.all?(faces, &face?/1) ->
+        {:error, @face_rule}
+
+      true ->
+        :ok
     end
   end
 
@@ -224,20 +299,29 @@ defmodule Prism.Schema do
   end
 
   defp check(%{kind: :text, size: size, line_height: line_height}, _) do
-    if is_number(size) and is_number(line_height),
+    if is_number(size) and size > 0 and is_number(line_height) and line_height > 0,
       do: :ok,
-      else: {:error, "size and line height are numbers in px"}
+      else: {:error, "size and line height are numbers in px, greater than 0"}
   end
 
   defp known(seen, kind, ref, message),
     do: if({kind, ref} in seen, do: :ok, else: {:error, message})
 
   defp shadow_value?({:inset, value}), do: is_boolean(value)
+  defp shadow_value?({:blur, value}), do: is_number(value) and value >= 0
   defp shadow_value?({_, value}), do: is_number(value)
 
   defp face?(face) do
     Keyword.keyword?(face) and Enum.sort(Keyword.keys(face)) == [:file, :style, :weights] and
-      is_binary(face[:file]) and face[:style] in [:normal, :italic] and
+      is_binary(face[:file]) and Regex.match?(~r/^[A-Za-z0-9._-]+$/, face[:file]) and
+      face[:style] in [:normal, :italic] and
       match?({from, to} when is_integer(from) and is_integer(to) and from <= to, face[:weights])
+  end
+
+  # Spec text ends up in JS strings and comments and in CSS strings and comments,
+  # so it is one line without quotes, backslashes or a comment end.
+  defp text?(text) do
+    is_binary(text) and String.valid?(text) and not String.contains?(text, "*/") and
+      not Regex.match?(~r/["\\\x{0}-\x{1F}\x{7F}\x{2028}\x{2029}]/u, text)
   end
 end

@@ -59,7 +59,7 @@ defmodule Prism.Gen.Web do
 
   defp key(name) do
     key = name |> to_string() |> String.replace("_", "-")
-    if key =~ ~r/^[A-Za-z_$][A-Za-z0-9_$]*$/, do: key, else: ~s("#{key}")
+    if key =~ ~r/^[A-Za-z_$][A-Za-z0-9_$]*$/, do: key, else: js_str(key)
   end
 
   # Groups as `// comment` blocks; `blank` puts an empty line between groups.
@@ -69,7 +69,7 @@ defmodule Prism.Gen.Web do
     tokens(spec, kind)
     |> Enum.chunk_by(& &1.group)
     |> Enum.map(fn [first | _] = group ->
-      comment = if first.group, do: ["#{pad}// #{first.group}\n"], else: []
+      comment = if first.group, do: ["#{pad}// #{comment!(first.group)}\n"], else: []
       [comment | Enum.map(group, &"#{pad}#{line_fun.(&1)}\n")]
     end)
     |> Enum.intersperse(if(blank, do: "\n", else: []))
@@ -79,18 +79,28 @@ defmodule Prism.Gen.Web do
 
   defp preset_colors(spec),
     do:
-      js_groups(spec, :color, 6, true, &~s(#{key(&1.name)}: "#{resolve(spec, :color, &1.name)}",))
+      js_groups(
+        spec,
+        :color,
+        6,
+        true,
+        &"#{key(&1.name)}: #{js_str(resolve(spec, :color, &1.name))},"
+      )
 
   defp preset_shadows(spec) do
     js_groups(spec, :shadow, 8, false, fn t ->
       css = shadow_css(spec, resolve(spec, :shadow, t.name), zero: "0", alpha: 2)
-      ~s(#{key(t.name)}: "#{css}",)
+      "#{key(t.name)}: #{js_str(css)},"
     end)
   end
 
   defp px_lines(spec, kind, key_fun),
     do:
-      Enum.map_join(tokens(spec, kind), "\n", &~s(        #{key(key_fun.(&1))}: "#{&1.value}px",))
+      Enum.map_join(
+        tokens(spec, kind),
+        "\n",
+        &"        #{key(key_fun.(&1))}: #{js_str("#{&1.value}px")},"
+      )
 
   defp preset_spacing(spec), do: px_lines(spec, :space, & &1.key)
   defp preset_heights(spec), do: px_lines(spec, :height, & &1.key)
@@ -100,7 +110,7 @@ defmodule Prism.Gen.Web do
     Enum.map_join(
       tokens(spec, :text),
       "\n",
-      &~s(        #{key(&1.name)}: ["#{&1.size}px", "#{&1.line_height}px"],)
+      &"        #{key(&1.name)}: [#{js_str("#{&1.size}px")}, #{js_str("#{&1.line_height}px")}],"
     )
   end
 
@@ -110,13 +120,13 @@ defmodule Prism.Gen.Web do
     |> Enum.chunk_by(& &1.family)
     |> Enum.map_join("\n", fn [first | _] = fonts ->
       family = token(spec, :family, first.family)
-      "        // #{family.doc}\n" <> Enum.map_join(fonts, "\n", &fun.(&1, family))
+      "        // #{comment!(family.doc)}\n" <> Enum.map_join(fonts, "\n", &fun.(&1, family))
     end)
   end
 
   defp preset_font_families(spec) do
     by_family(spec, fn font, family ->
-      ~s(        #{key(font.name)}: ["#{family.css_name}", "#{family.fallback}"],)
+      "        #{key(font.name)}: [#{js_str(family.css_name)}, #{js_str(family.fallback)}],"
     end)
   end
 
@@ -125,9 +135,9 @@ defmodule Prism.Gen.Web do
       italic = if font[:italic], do: ~s(\n          "font-style": "italic",), else: ""
 
       """
-              ".font-#{key_name(font.name)}": {
-                "font-family": "#{family.css_name}, #{family.fallback}",
-                "font-weight": "#{font.weight}",#{italic}
+              #{js_str(".font-#{key_name(font.name)}")}: {
+                "font-family": #{js_str("#{family.css_name}, #{family.fallback}")},
+                "font-weight": #{js_str("#{font.weight}")},#{italic}
               },\
       """
     end)
@@ -155,7 +165,7 @@ defmodule Prism.Gen.Web do
 
   # Wrapped like prettier does at 80 columns, as in 0.1.7.
   defp font_src(face) do
-    url = ~s{url("../fonts/#{face.file}.woff2")}
+    url = "url(#{css_str("../fonts/#{face.file}.woff2")})"
     line = ~s{  src: #{url} format("woff2-variations");}
 
     if String.length(line) > 81,
@@ -196,6 +206,46 @@ defmodule Prism.Gen.Web do
 
     inset = if shadow[:inset], do: "inset ", else: ""
     "#{inset}#{Enum.map_join(lengths, " ", length)} rgba(#{r}, #{g}, #{b}, #{alpha})"
+  end
+
+  # Spec text is checked by the schema; these keep the output well-formed for
+  # any data a generator is given.
+  defp js_str(text) do
+    escaped =
+      for <<c::utf8 <- text>>, into: "" do
+        case c do
+          ?" -> ~S(\")
+          ?\\ -> ~S(\\)
+          c when c < 0x20 or c in [0x7F, 0x2028, 0x2029] -> "\\u" <> hex4(c)
+          c -> <<c::utf8>>
+        end
+      end
+
+    ~s("#{escaped}")
+  end
+
+  defp css_str(text) do
+    escaped =
+      for <<c::utf8 <- text>>, into: "" do
+        case c do
+          ?" -> ~S(\")
+          ?\\ -> ~S(\\)
+          c when c < 0x20 or c == 0x7F -> "\\" <> Integer.to_string(c, 16) <> " "
+          c -> <<c::utf8>>
+        end
+      end
+
+    ~s("#{escaped}")
+  end
+
+  defp hex4(c), do: c |> Integer.to_string(16) |> String.pad_leading(4, "0")
+
+  # Text in a `//` or `/* */` comment: it can't be escaped, so it must be one line.
+  defp comment!(text) do
+    if String.contains?(text, "*/") or Regex.match?(~r/[\x{0}-\x{1F}\x{2028}\x{2029}]/u, text),
+      do: raise(ArgumentError, "#{inspect(text)} can't be written in a comment")
+
+    text
   end
 
   defp rgb("#" <> hex) do
