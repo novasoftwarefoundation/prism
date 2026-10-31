@@ -14,18 +14,18 @@ Prism's look is written once, as a design in Elixir, and generated into code for
 |---|---|
 | `design/` | Prism's design, a Mix project (`:prism_design`): `lib/tokens.ex` (`Prism.Design.Tokens`), `lib/components.ex` (`Prism.Design.Components`, which takes the tokens and is the whole design), `config/config.exs` (the design module and the folder of each target), and its checks: the 0.1.7 golden test, the version check, the font roles, the type styles, the components. |
 | `generator/` | The generic part, a Mix project of its own (`:prism_generator`): the design format (`lib/schema.ex`, with components in `lib/schema/components.ex`), the header of generated files (`lib/header.ex`), the web target (`lib/web.ex`, its templates in `lib/web/`, and the component mechanics in `lib/web/components.ex`), and `mix prism.gen` (`lib/mix/tasks/prism.gen.ex`). It knows nothing about Prism's values. |
-| `targets/web/` | The npm package: `package.json`, the generated `tailwind.preset.js`, `css/base.css`, `css/components.css` and `images/spinner.svg`, and `fonts/`. Later `targets/swift/`. |
+| `targets/web/` | The npm package: `package.json`, the generated `tailwind.preset.js`, `css/base.css` and `css/components.css`, and `fonts/`. Later `targets/swift/`. |
 
 `design/` depends on `generator/` with `{:prism_generator, path: "../generator"}`; there is no Mix project at the root. Decisions are in `docs/adr/`: [0001: design format](docs/adr/0001-design-format.md) and [0002: Prism's design](docs/adr/0002-prism-design.md).
 
 ## Change the design
 
-`targets/web/tailwind.preset.js`, `targets/web/css/base.css`, `targets/web/css/components.css` and `targets/web/images/spinner.svg` are generated: don't edit them by hand. Change `design/lib/tokens.ex` (tokens) or `design/lib/components.ex` (components), then regenerate and commit the result. An app adjusts a component through the component's own API, never by editing a generated file.
+`targets/web/tailwind.preset.js`, `targets/web/css/base.css` and `targets/web/css/components.css` are generated: don't edit them by hand. Change `design/lib/tokens.ex` (tokens) or `design/lib/components.ex` (components), then regenerate and commit the result. An app adjusts a component through the component's own API, never by editing a generated file.
 
 ```sh
 cd design
 mix deps.get
-mix prism.gen   # writes every target: ../targets/web/tailwind.preset.js, css/base.css, css/components.css and images/spinner.svg
+mix prism.gen   # writes every target: ../targets/web/tailwind.preset.js, css/base.css and css/components.css
 mix test
 ```
 

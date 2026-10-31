@@ -79,4 +79,15 @@ defmodule Prism.Design.ComponentsTest do
              inverse: {[foreground: :white], []}
            ]
   end
+
+  # Apps import components.css into their own stylesheet, so a relative URL would
+  # point into the app: every image is inline.
+  test "the component CSS has no relative URL" do
+    {_, css, _} =
+      @design |> Prism.Generator.Web.files() |> List.keyfind("css/components.css", 0)
+
+    urls = Regex.scan(~r/url\(([^)]*)\)/, css, capture: :all_but_first)
+    assert urls != []
+    assert Enum.all?(urls, fn [url] -> String.starts_with?(url, ~s("data:)) end)
+  end
 end

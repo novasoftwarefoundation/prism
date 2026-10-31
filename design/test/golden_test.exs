@@ -110,7 +110,7 @@ defmodule Prism.Design.GoldenTest do
   # every change consumers get is reviewed.
   test "the generated web files are 0.1.7, renamed, plus the reviewed diff" do
     assert Enum.map(files(), &elem(&1, 0)) ==
-             ["tailwind.preset.js", "css/base.css", "css/components.css", "images/spinner.svg"]
+             ["tailwind.preset.js", "css/base.css", "css/components.css"]
 
     diff =
       for path <- ["tailwind.preset.js", "css/base.css", "css/components.css"] do

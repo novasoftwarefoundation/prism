@@ -3,8 +3,7 @@ defmodule Prism.Generator.Web do
   Generates a web package from a design: a Tailwind preset (`tailwind.preset.js`),
   base CSS (`css/base.css`: font faces and utilities) and, for a design with
   components, component CSS (`css/components.css`; the web mechanics of each
-  component are in `Prism.Generator.Web.Components`), with the spinner's image
-  (`images/spinner.svg`) for a design with a spinner.
+  component are in `Prism.Generator.Web.Components`).
 
   The templates in `web/` hold the web mechanics (the Tailwind plugin, the
   viewport, safe-area and scrollbar utilities, line clamps); every design value
@@ -35,7 +34,7 @@ defmodule Prism.Generator.Web do
   The files of the web target for a design's `__schema__/0`, as
   `[{path, body, design_file}]`: paths relative to the target's folder, and the
   design file each body is made from (the tokens' file for the preset and base
-  CSS, the design's own file for the component CSS and the spinner's image).
+  CSS, the design's own file for the component CSS).
   `mix prism.gen` puts a `Prism.Generator.Header` line naming that file above
   each body.
   """
@@ -48,19 +47,10 @@ defmodule Prism.Generator.Web do
         _ -> [{"css/components.css", Components.css(design), design.file}]
       end
 
-    # A spinner is drawn with an image of the web target's own, next to css/.
-    spinner =
-      if Enum.any?(design.components, &(&1.name == :spinner)) do
-        {path, body} = Components.spinner_image()
-        [{path, body, design.file}]
-      else
-        []
-      end
-
     [
       {"tailwind.preset.js", preset_js(tokens, web), design.tokens_file},
       {"css/base.css", base_css(tokens, web), design.tokens_file}
-    ] ++ components ++ spinner
+    ] ++ components
   end
 
   # ------------------------------------------------------------- tokens

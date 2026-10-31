@@ -146,27 +146,41 @@ defmodule Prism.Generator.Web.ComponentsTest do
           end
         """)
 
+      [_, mask] =
+        Regex.run(
+          ~r/\n  mask: (url\("data:image\/svg\+xml,[^"]+"\)) center \/ contain no-repeat;\n/,
+          css(design)
+        )
+
       assert css(design) =~
                ".only-spinner {\n  display: inline-block;\n  width: 24px;\n  height: 24px;\n" <>
                  "  background-color: currentColor;\n" <>
-                 "  -webkit-mask: url(\"../images/spinner.svg\") center / contain no-repeat;\n" <>
-                 "  mask: url(\"../images/spinner.svg\") center / contain no-repeat;\n" <>
+                 "  -webkit-mask: #{mask} center / contain no-repeat;\n" <>
+                 "  mask: #{mask} center / contain no-repeat;\n" <>
                  "  animation: only-spin 1s linear infinite;\n}\n"
 
+      assert mask =~ "%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'"
       assert css(design) =~ ".only-spinner--ink {\n  color: rgba(16, 16, 16, 0.5);\n}\n"
       refute css(design) =~ "filter"
     end
 
-    test "its image is written next to css/, only for a design with a spinner" do
-      design = compile("  component :spinner")
-      files = Web.files(design)
+    # An app imports the CSS into its own stylesheet, where a relative URL would
+    # resolve against the app; the web target ships no image files.
+    test "its image is inline: no URL in the CSS is relative" do
+      design =
+        compile("""
+          component :spinner
+          component :checkbox do
+            state :checked, foreground: "#FFFFFF"
+          end
+        """)
 
-      assert {"images/spinner.svg", svg, "nofile"} = List.keyfind(files, "images/spinner.svg", 0)
-      assert {"images/spinner.svg", svg} == Web.Components.spinner_image()
-      assert svg =~ ~r/\A<svg xmlns="http:\/\/www.w3.org\/2000\/svg" viewBox="0 0 24 24"/
-      assert svg =~ ~r/<\/svg>\n\z/
+      urls = Regex.scan(~r/url\(([^)]*)\)/, css(design), capture: :all_but_first)
+      assert length(urls) == 3
+      assert Enum.all?(urls, fn [url] -> String.starts_with?(url, ~s("data:)) end)
 
-      refute List.keyfind(Web.files(ExampleDesign.__schema__()), "images/spinner.svg", 0)
+      assert Enum.map(Web.files(design), &elem(&1, 0)) ==
+               ["tailwind.preset.js", "css/base.css", "css/components.css"]
     end
   end
 

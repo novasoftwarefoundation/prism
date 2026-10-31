@@ -6,6 +6,5 @@ fonts/Nunito-VariableFont_wght.woff2
 fonts/NunitoSans-Italic-VariableFont_wght.woff2
 fonts/NunitoSans-VariableFont_wght.woff2
 fonts/OFL.txt
-images/spinner.svg
 package.json
 tailwind.preset.js

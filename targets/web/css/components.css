@@ -401,8 +401,8 @@
   width: 24px;
   height: 24px;
   background-color: currentColor;
-  -webkit-mask: url("../images/spinner.svg") center / contain no-repeat;
-  mask: url("../images/spinner.svg") center / contain no-repeat;
+  -webkit-mask: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none'%3e%3ccircle cx='12' cy='12' r='10' stroke='black' stroke-opacity='0.25' stroke-width='4'/%3e%3cpath d='M22 12a10 10 0 0 0-10-10' stroke='black' stroke-width='4' stroke-linecap='round'/%3e%3c/svg%3e") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none'%3e%3ccircle cx='12' cy='12' r='10' stroke='black' stroke-opacity='0.25' stroke-width='4'/%3e%3cpath d='M22 12a10 10 0 0 0-10-10' stroke='black' stroke-width='4' stroke-linecap='round'/%3e%3c/svg%3e") center / contain no-repeat;
   animation: prism-spin 1s linear infinite;
 }
 

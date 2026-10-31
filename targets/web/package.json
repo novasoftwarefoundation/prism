@@ -15,8 +15,7 @@
   "files": [
     "tailwind.preset.js",
     "css/",
-    "fonts/",
-    "images/"
+    "fonts/"
   ],
   "peerDependencies": {
     "tailwindcss": ">=3.0.0"

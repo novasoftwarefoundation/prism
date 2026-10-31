@@ -208,7 +208,7 @@ Font classes: `font-title0` through `font-title7`, `font-body`, `font-button`, `
 | `prism-spinner--accent` | Accent colored |
 | `prism-spinner--inverse` | White, for colored backgrounds |
 
-The spinner is an empty element drawn with `images/spinner.svg` (in this package) as a mask over its text color, so a text color utility colors it too.
+The spinner is an empty element drawn with an image (inline in `components.css`) as a mask over its text color, so a text color utility colors it too.
 
 ### Checkbox
 
@@ -244,7 +244,9 @@ The spinner is an empty element drawn with `images/spinner.svg` (in this package
 
 ## Migrating from 0.1.7
 
-0.2.0 renames every component class to the names design systems share; no old class is kept. Replace each 0.1.7 class with its 0.2.0 class:
+0.2.0 renames every component class to the names design systems share; no old class is kept. Replace each 0.1.7 class with its 0.2.0 class.
+
+**Two names are reused, so rename these first:** `prism-radio` (0.1.7's input) becomes `prism-radio__control` before `prism-radio-label` becomes `prism-radio`. And a `prism-spinner` on an `<img>` becomes an empty `<span class="prism-spinner">` before anything else. Replacing the table from top to bottom would otherwise turn the radio's row into a control as well.
 
 | 0.1.7 class | 0.2.0 class |
 | --- | --- |
@@ -304,8 +306,9 @@ The spinner is an empty element drawn with `images/spinner.svg` (in this package
 
 Also:
 
-- **Spinner.** It is no longer a tinted image: use an empty element (`<span class="prism-spinner"></span>`, not an `<img>`). It is drawn with this package's `images/spinner.svg` as a mask over its text color, so CSS that drew it as a mask in an app can go. In a button it shows only while the button has `prism-button--loading`.
+- **Spinner.** It is no longer a tinted image: use an empty element (`<span class="prism-spinner"></span>`, not an `<img>`). Its image is inline in `components.css` and drawn as a mask over its text color, so CSS that drew it as a mask in an app can go, and the app serves no image for it. In a button it shows only while the button has `prism-button--loading`.
 - **Buttons with an icon** also take their variant's disabled look now.
+- **Buttons with an icon** are styled by two classes together (`.prism-button--primary.prism-button--with-icon`), which is more specific than one Tailwind utility. A padding or gap utility on such a button no longer wins as it did on 0.1.7's `prism-btn-primary-icon`; use Tailwind's important modifier (`!px-4`) or your own CSS for it.
 - `prism-max-lines-*` and `prism-text-shadow*` (in `css/base.css`) keep their names.
 
 ## License

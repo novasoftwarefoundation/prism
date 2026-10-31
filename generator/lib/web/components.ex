@@ -1,10 +1,10 @@
 defmodule Prism.Generator.Web.Components do
   @moduledoc """
-  Writes `css/components.css` from a design's components, and the spinner's
-  image. The design holds the look, which every target shares; this module
-  holds the web's mechanics of each component it knows: display and layout,
-  cursors, focus outlines, appearance resets, keyframes, the check mark and
-  spinner images, and how a state becomes a selector.
+  Writes `css/components.css` from a design's components. The design holds the
+  look, which every target shares; this module holds the web's mechanics of
+  each component it knows: display and layout, cursors, focus outlines,
+  appearance resets, keyframes, the check mark and spinner images, and how a
+  state becomes a selector.
 
   Its mechanics are keyed on component and part names. It knows these
   components (`kinds/0`): `:button`, `:text_field`, `:text_area`, `:field`,
@@ -69,9 +69,10 @@ defmodule Prism.Generator.Web.Components do
 
   ## The spinner
 
-  A spinner is the image `images/spinner.svg` (`spinner_image/0`), which the
-  web target writes next to `css/`, used as a mask over the spinner's text
-  color (`background-color: currentColor`). Its color is its `foreground`, an
+  A spinner is an image used as a mask over the spinner's text color
+  (`background-color: currentColor`). The image is inline, a `data:` URI like
+  the check mark's, because an app imports this CSS into its own stylesheet,
+  where a relative URL would resolve against the app. Its color is its `foreground`, an
   ordinary color. A button hides a part that is another component unless it
   is loading.
 
@@ -138,18 +139,12 @@ defmodule Prism.Generator.Web.Components do
 
   @check_mark "url(\"data:image/svg+xml,%3csvg viewBox='0 0 16 16' fill='FILL' xmlns='http://www.w3.org/2000/svg'%3e%3cpath d='M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2-2a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z'/%3e%3c/svg%3e\")"
 
-  # A ring at a quarter of its opacity, and a quarter of it opaque: as a mask, only
-  # its alpha counts, so the spinner takes its color from the CSS.
-  @spinner_svg """
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
-    <circle cx="12" cy="12" r="10" stroke="#000000" stroke-opacity="0.25" stroke-width="4"/>
-    <path d="M22 12a10 10 0 0 0-10-10" stroke="#000000" stroke-width="4" stroke-linecap="round"/>
-  </svg>
-  """
-
-  # The image's path in the target, and its URL from css/components.css.
-  @spinner_path "images/spinner.svg"
-  @spinner_mask ~s[url("../#{@spinner_path}") center / contain no-repeat]
+  # The spinner: a ring at a quarter of its opacity, and a quarter of it opaque. As
+  # a mask only its alpha counts, so the spinner takes its color from the CSS. It
+  # is inline, like the check mark: an app imports this CSS into its own, where a
+  # relative URL would point into the app.
+  @spinner_image "url(\"data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none'%3e%3ccircle cx='12' cy='12' r='10' stroke='black' stroke-opacity='0.25' stroke-width='4'/%3e%3cpath d='M22 12a10 10 0 0 0-10-10' stroke='black' stroke-width='4' stroke-linecap='round'/%3e%3c/svg%3e\")"
+  @spinner_mask "#{@spinner_image} center / contain no-repeat"
 
   @design {__MODULE__, :design}
   @read {__MODULE__, :read}
@@ -162,9 +157,6 @@ defmodule Prism.Generator.Web.Components do
 
   @doc "The keys a `web:` binding may have besides the properties, per kind of node."
   def bindings, do: @bindings
-
-  @doc "The spinner's image, `{path, body}`: the mask a spinner is drawn with."
-  def spinner_image, do: {@spinner_path, @spinner_svg}
 
   @doc false
   # Checks the value of a web binding key, for the schema.
