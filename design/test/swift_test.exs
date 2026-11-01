@@ -61,7 +61,7 @@ defmodule Prism.Design.SwiftTest do
     assert spinner =~ "root.apply(PrismLook(stroke: .fraction(0.16), track: Prism.Colors.grey4))"
 
     assert spinner =~
-             "if variant == .inverse && progress != nil {\n            root.apply(PrismLook(track: Prism.Colors.white.opacity(0.3)))"
+             "if variant == .inverse && progress != nil {\n            root.apply(PrismLook(track: Prism.Colors.white.opacity(0.2)))"
 
     assert read("Button.swift") =~ "PrismSpinnerStyle(nil, size: .size20, look: looks.spinner)"
   end

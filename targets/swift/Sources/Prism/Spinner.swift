@@ -40,7 +40,7 @@ public struct PrismSpinnerLooks: Sendable, Hashable {
             root.apply(PrismLook(foreground: Prism.Colors.white))
         }
         if variant == .inverse && progress != nil {
-            root.apply(PrismLook(track: Prism.Colors.white.opacity(0.3)))
+            root.apply(PrismLook(track: Prism.Colors.white.opacity(0.2)))
         }
     }
 }
@@ -83,7 +83,7 @@ extension ProgressViewStyle where Self == PrismSpinnerStyle {
         _ variant: PrismSpinnerVariant? = nil,
         size: PrismSpinnerSize = .size24
     ) -> PrismSpinnerStyle {
-            PrismSpinnerStyle(variant, size: size)
+        PrismSpinnerStyle(variant, size: size)
     }
 }
 
@@ -98,8 +98,9 @@ private struct PrismSpinnerBody: View {
         return PrismRing(look: look, progress: progress)
             .prismText(look)
             .prismBox(look)
-            .accessibilityElement()
-            .accessibilityValue(progress.map { Text($0 / 100, format: .percent) } ?? Text(""))
+            .accessibilityRepresentation {
+                ProgressView(configuration).progressViewStyle(.automatic)
+            }
     }
 }
 

@@ -149,17 +149,36 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - run: xcodebuild -version
+      # The package is made with Xcode 27: that one when the image has it, otherwise the
+      # newest the image has, not the image's default, which changes with the image.
+      - name: Select Xcode
+        run: |
+          xcode=$(ls -d /Applications/Xcode_27*.app 2>/dev/null | sort -V | tail -1)
+          [ -n "$xcode" ] || xcode=$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)
+          sudo xcode-select -s "$xcode"
+          xcodebuild -version
       # Prism's package, and the generator's fixtures: the example design with a
-      # component of every kind, and the one with a token of every kind.
+      # component of every kind, and the one with a token of every kind. A warning fails
+      # the build, as the generator's own do.
       - name: Build the packages
         run: |
           for package in targets/swift:Prism generator/test/fixtures/swift/components:Kit \
                          generator/test/fixtures/swift/design:Acme; do
             (cd "${package%%:*}" && xcodebuild build -quiet -scheme "${package##*:}" \
               -destination 'generic/platform=iOS Simulator' \
-              -derivedDataPath "$RUNNER_TEMP/${package##*:}")
+              -derivedDataPath "$RUNNER_TEMP/${package##*:}" \
+              SWIFT_TREAT_WARNINGS_AS_ERRORS=YES)
           done
+      # Every component rendered on a simulator at the default and the largest text
+      # size: a box that holds text grows with it and cuts none of it off.
+      - name: Render Prism's components
+        working-directory: design/test/swiftui
+        run: |
+          udid=$(xcrun simctl list devices available iPhone |
+            grep -m1 -oE '\([0-9A-F-]{36}\)' | tr -d '()')
+          [ -n "$udid" ] || { echo "::error::no iPhone simulator on this image"; exit 1; }
+          xcodebuild test -quiet -scheme PrismChecks-Package -destination "id=$udid" \
+            -derivedDataPath "$RUNNER_TEMP/PrismChecks" SWIFT_TREAT_WARNINGS_AS_ERRORS=YES
 
   npm-package:
     name: npm file list

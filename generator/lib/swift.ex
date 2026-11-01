@@ -44,7 +44,15 @@ defmodule Prism.Generator.Swift do
   whose default size is the closest below it: text up to 20 pt as body text
   (body 17, callout 16, subheadline 15, footnote 13, caption 12, caption 2
   11), larger text as a title (title 3 20, title 2 22, title 28, large title
-  34). So 18 and 20 pt scale as body, 14 as footnote, 24 as title 2.
+  34). So 18 and 20 pt scale as body, 14 as footnote, 24 as title 2. A look
+  with a typography scales its size and heights the same way, and its height
+  is the least it takes: a box grows with its text instead of cutting it off.
+
+  ## Deprecated tokens
+
+  A deprecated token is `@available(*, deprecated)` in Swift, with `renamed:`
+  for an alias, so an app that uses it gets a warning; the package's own code
+  writes its value instead, so it builds without warnings.
   """
 
   alias Prism.Generator.Swift.Components
@@ -96,11 +104,18 @@ defmodule Prism.Generator.Swift do
             do: {"#{dir}/#{name}.swift", body, design.file}
 
     copies =
-      for file <- fonts ++ swift.font_files,
+      for file <- if(fonts == [], do: [], else: fonts ++ swift.font_files),
           do: {"#{dir}/Fonts/#{file}", {:copy, Path.join(swift.fonts, file)}, design.tokens_file}
 
     generated ++ copies
   end
+
+  @doc """
+  The folder the Swift target copies fonts into, also while the design binds
+  none, so `mix prism.gen` removes the copies a design no longer makes.
+  """
+  def copy_folders(%{swift: %{module: module}}), do: ["Sources/#{module}/Fonts"]
+  def copy_folders(_design), do: []
 
   defp context(design, swift) do
     tokens = Map.new(design.tokens, &{{&1.kind, &1.name}, &1})
@@ -237,10 +252,29 @@ defmodule Prism.Generator.Swift do
   defp color_token(ctx, %{name: name, value: value}),
     do: static(name, if(is_atom(value), do: ident(value), else: color(ctx, value)))
 
-  defp shadow_token(_ctx, %{value: ref} = t) when is_atom(ref),
-    do: static(t.name, ident(ref), deprecated(t))
+  # A deprecated shadow is deprecated in Swift too, so an app that uses it gets a
+  # warning; an alias names the shadow to use instead.
+  defp shadow_token(ctx, %{value: ref} = t) when is_atom(ref) do
+    value = if deprecated?(ctx, ref), do: shadow_literal(ctx, ref), else: ident(ref)
+    available(t, ref) <> static(t.name, value)
+  end
 
-  defp shadow_token(ctx, %{value: value} = t) do
+  defp shadow_token(ctx, t) do
+    {head, args} = shadow_args(ctx, t)
+
+    available(t, nil) <>
+      fill("        ", "public static let #{ident(t.name)} = #{head}", args, ")") <> "\n"
+  end
+
+  defp available(t, alias) do
+    cond do
+      not Map.get(t, :deprecated, false) -> ""
+      alias -> ~s|        @available(*, deprecated, renamed: "#{camel(alias)}")\n|
+      true -> "        @available(*, deprecated)\n"
+    end
+  end
+
+  defp shadow_args(ctx, %{value: value} = t) do
     if Keyword.get(value, :spread, 0) != 0,
       do:
         raise(
@@ -256,14 +290,29 @@ defmodule Prism.Generator.Swift do
           do: {key, number(n)}
         ) ++ if(value[:inset], do: [inset: "true"], else: [])
 
-    args = Enum.map(fields, fn {k, v} -> "#{k}: #{v}" end)
-    doc = if deprecated(t), do: "        /// #{deprecated(t)}\n", else: ""
-
-    doc <>
-      fill("        ", "public static let #{ident(t.name)} = #{ctx.m}Shadow(", args, ")") <> "\n"
+    {"#{ctx.m}Shadow(", Enum.map(fields, fn {k, v} -> "#{k}: #{v}" end)}
   end
 
-  defp deprecated(t), do: if(Map.get(t, :deprecated), do: "Deprecated.")
+  # The shadow `name` in code: its token, or for a deprecated one its value, so the
+  # package itself uses no deprecated token.
+  defp shadow(ctx, name) do
+    if deprecated?(ctx, name),
+      do: shadow_literal(ctx, name),
+      else: "#{ctx.m}.Shadows.#{member(name)}"
+  end
+
+  defp shadow_literal(ctx, name) do
+    case ctx.tokens[{:shadow, name}] do
+      %{value: ref} when is_atom(ref) ->
+        shadow(ctx, ref)
+
+      t ->
+        {head, args} = shadow_args(ctx, t)
+        head <> Enum.join(args, ", ") <> ")"
+    end
+  end
+
+  defp deprecated?(ctx, name), do: Map.get(ctx.tokens[{:shadow, name}], :deprecated, false)
 
   defp length_token(_ctx, t),
     do: "        public static let #{ident(t.name)}: CGFloat = #{number(t.value)}\n"
@@ -333,7 +382,7 @@ defmodule Prism.Generator.Swift do
         [{"decoration", "#{ctx.m}Decoration.#{value}"}]
 
       :shadow ->
-        [{"shadow", "#{ctx.m}.Shadows.#{member(value)}"}]
+        [{"shadow", shadow(ctx, value)}]
 
       :opacity ->
         [{"opacity", number(value)}]

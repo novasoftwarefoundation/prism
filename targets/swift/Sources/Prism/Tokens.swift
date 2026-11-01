@@ -45,12 +45,12 @@ public enum Prism {
             color: Prism.Colors.black.opacity(0.3), y: 8, blur: 16)
 
         // Deprecated — use btn-pressed / card instead
-        /// Deprecated.
+        @available(*, deprecated, renamed: "prismBtnPressed")
         public static let top4px = prismBtnPressed
-        /// Deprecated.
+        @available(*, deprecated)
         public static let top2px = PrismShadow(
             color: Prism.Colors.black.opacity(0.15), y: 2, inset: true)
-        /// Deprecated.
+        @available(*, deprecated, renamed: "prismCard")
         public static let floating = prismCard
     }
 

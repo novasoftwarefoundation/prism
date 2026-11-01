@@ -104,6 +104,35 @@ defmodule Prism.Generator.SwiftTest do
       assert invalid < focused
     end
 
+    test "a variant's state and a look with a variant weigh the same; the later wins, as in the CSS" do
+      design =
+        schema("""
+        component :button do
+          variant :primary, background: :ink do
+            state :pressed, opacity: 0.8
+          end
+
+          variants :tone, default: :accent do
+            variant :danger do
+              with_variant(:primary, opacity: 0.5)
+            end
+          end
+        end
+        """)
+
+      {_, css, _} = design |> Prism.Generator.Web.files() |> List.keyfind("css/components.css", 0)
+
+      # On the web, `.only-button--primary.only-button--danger` comes after
+      # `.only-button--primary:active`, with the same weight, so it wins.
+      assert index(css, ".only-button--primary:active {") <
+               index(css, ".only-button--primary.only-button--danger {")
+
+      {_, button, _} = design |> Swift.files() |> List.keyfind("Sources/Only/Button.swift", 0)
+
+      assert index(button, "if variant == .primary && pressed {") <
+               index(button, "if variant == .primary && tone == .danger {")
+    end
+
     test "a look with a variant comes after the variant's own, a flag's state last" do
       button = body(ExampleComponents.__schema__(), "Sources/Kit/Button.swift")
 
@@ -256,7 +285,9 @@ defmodule Prism.Generator.SwiftTest do
   end
 
   # The Swift files of a design of components `body`, on Prism.Generator.TokensOnly.
-  defp files(body) do
+  defp files(body), do: body |> schema() |> Swift.files()
+
+  defp schema(body) do
     n = System.unique_integer([:positive])
 
     [{module, _}] =
@@ -268,7 +299,7 @@ defmodule Prism.Generator.SwiftTest do
       end
       """)
 
-    Swift.files(module.__schema__())
+    module.__schema__()
   end
 
   # A design of tokens `body`, with a swift declaration.

@@ -81,6 +81,6 @@ extension View {
         focused: Bool = false,
         invalid: Bool = false
     ) -> some View {
-            modifier(PrismTextFieldModifier(variant, focused: focused, invalid: invalid))
+        modifier(PrismTextFieldModifier(variant, focused: focused, invalid: invalid))
     }
 }

@@ -447,17 +447,31 @@ struct PrismTextModifier: ViewModifier {
 
 /// A look's box. The border is inside the box, as CSS's border box: the padding is
 /// from its inner edge, and the size and height include it.
+///
+/// A look with a typography scales its size, height and minimum and maximum height
+/// with Dynamic Type, as its text scales, and its height is the least it is, also
+/// where its parent offers less: at a larger text size the box grows with its text
+/// instead of cutting it off.
 struct PrismBoxModifier: ViewModifier {
     var look: PrismLook
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     func body(content: Content) -> some View {
         let shape = PrismShape(radius: look.radius)
         let border = look.borderColor == nil ? 0 : look.borderWidth ?? 0
+        let size = scaled(look.size)
+        // With text, the height is the least: the box grows with its text.
+        let text = look.typography != nil
+        let height = text ? nil : look.height
+        let minHeight = [text ? scaled(look.height) : nil, scaled(look.minHeight)]
+            .compactMap { $0 }.max()
         content
             .padding(look.padding.edgeInsets(adding: border))
-            .frame(width: look.size, height: look.size ?? look.height)
-            .frame(minHeight: look.minHeight, maxHeight: look.maxHeight)
-            .background { PrismSurface(look: look, shape: shape) }
+            .frame(width: size, height: size ?? height)
+            .frame(minHeight: minHeight, maxHeight: scaled(look.maxHeight))
+            // Its text's height even where less is offered, so none of it is cut off.
+            .fixedSize(horizontal: false, vertical: text && look.height != nil)
+            .background { PrismSurface(look: look, shape: shape, border: border) }
             .overlay {
                 if let color = look.borderColor, border > 0 {
                     shape.strokeBorder(color, lineWidth: border)
@@ -473,13 +487,24 @@ struct PrismBoxModifier: ViewModifier {
             .padding(look.margin.edgeInsets())
             .opacity(look.opacity ?? 1)
     }
+
+    /// A length as the look's text scales, or as it is without a typography.
+    private func scaled(_ length: CGFloat?) -> CGFloat? {
+        guard let length, let typography = look.typography else { return length }
+        let traits = UITraitCollection(
+            preferredContentSizeCategory: UIContentSizeCategory(dynamicTypeSize))
+        return UIFontMetrics(forTextStyle: typography.uiTextStyle)
+            .scaledValue(for: length, compatibleWith: traits)
+    }
 }
 
-/// A look's background and shadow. An inset shadow is drawn over the background, as
-/// CSS draws it: a white shape with the shadow inside, multiplied with what is below.
+/// A look's background and shadow. An inset shadow is drawn as CSS draws it: over the
+/// background, inside the border, as a white shape with the shadow inside, multiplied
+/// with what is below.
 struct PrismSurface: View {
     var look: PrismLook
     var shape: PrismShape
+    var border: CGFloat
 
     var body: some View {
         ZStack {
@@ -490,7 +515,7 @@ struct PrismSurface: View {
                 shape.fill(look.background ?? .clear)
             }
             if let shadow = look.shadow, shadow.inset {
-                shape
+                shape.inset(by: border)
                     .fill(
                         Color.white.shadow(
                             .inner(

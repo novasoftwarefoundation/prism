@@ -21,7 +21,7 @@ public enum Acme {
         public static let card = AcmeShadow(color: Acme.Colors.ink.opacity(0.08), y: 6, blur: 24)
 
         // Deprecated
-        /// Deprecated.
+        @available(*, deprecated, renamed: "card")
         public static let raised = card
     }
 

@@ -72,19 +72,53 @@ public struct PrismButtonLooks: Sendable, Hashable {
         if loading {
             label.apply(PrismLook(opacity: 0))
         }
+        if variant == .primary && pressed {
+            root.apply(PrismLook(
+                padding: .init(top: 16, bottom: 14), shadow: Prism.Shadows.prismBtnPressed))
+        }
+        if variant == .primary && disabled {
+            root.apply(PrismLook(opacity: 0.5))
+        }
         if variant == .primary && withIcon {
             root.apply(PrismLook(
                 padding: .init(top: 4, leading: 16, bottom: 4, trailing: 16), gap: 12))
         }
+        if variant == .secondary && pressed {
+            root.apply(PrismLook(
+                padding: .init(top: 14, bottom: 12),
+                shadow: PrismShadow(color: Prism.Colors.black.opacity(0.15), y: 2, inset: true)))
+        }
+        if variant == .secondary && disabled {
+            root.apply(PrismLook(opacity: 0.5))
+        }
         if variant == .secondary && withIcon {
             root.apply(PrismLook(gap: 12))
+        }
+        if variant == .plain && pressed {
+            root.apply(PrismLook(padding: .init(top: 5, bottom: 3)))
         }
         if variant == .plain && withIcon {
             root.apply(PrismLook(gap: 8))
         }
+        if variant == .link && hovered {
+            root.apply(PrismLook(decoration: PrismDecoration.none))
+        }
+        if variant == .text && pressed {
+            root.apply(PrismLook(padding: .init(top: 2, bottom: 0)))
+        }
+        if variant == .soft && pressed {
+            root.apply(PrismLook(
+                padding: .init(top: 16, bottom: 14), shadow: Prism.Shadows.prismBtnPressed))
+        }
+        if variant == .soft && disabled {
+            root.apply(PrismLook(opacity: 0.5))
+        }
         if variant == .soft && withIcon {
             root.apply(PrismLook(
                 padding: .init(top: 4, leading: 16, bottom: 4, trailing: 16), gap: 12))
+        }
+        if variant == .icon && pressed {
+            root.apply(PrismLook(opacity: 0.8))
         }
         if variant == .primary && tone == .success {
             root.apply(PrismLook(background: Prism.Colors.success, foreground: Prism.Colors.white))
@@ -182,43 +216,11 @@ public struct PrismButtonLooks: Sendable, Hashable {
         if variant == .text && padded {
             root.apply(PrismLook(padding: .init(top: 15, leading: 16, bottom: 15, trailing: 16)))
         }
-        if variant == .primary && pressed {
-            root.apply(PrismLook(
-                padding: .init(top: 16, bottom: 14), shadow: Prism.Shadows.prismBtnPressed))
-        }
-        if variant == .primary && disabled {
-            root.apply(PrismLook(opacity: 0.5))
-        }
         if variant == .primary && withIcon && pressed {
             root.apply(PrismLook(padding: .init(top: 5, bottom: 3)))
         }
-        if variant == .secondary && pressed {
-            root.apply(PrismLook(padding: .init(top: 14, bottom: 12), shadow: Prism.Shadows.top2px))
-        }
-        if variant == .secondary && disabled {
-            root.apply(PrismLook(opacity: 0.5))
-        }
-        if variant == .plain && pressed {
-            root.apply(PrismLook(padding: .init(top: 5, bottom: 3)))
-        }
-        if variant == .link && hovered {
-            root.apply(PrismLook(decoration: PrismDecoration.none))
-        }
-        if variant == .text && pressed {
-            root.apply(PrismLook(padding: .init(top: 2, bottom: 0)))
-        }
-        if variant == .soft && pressed {
-            root.apply(PrismLook(
-                padding: .init(top: 16, bottom: 14), shadow: Prism.Shadows.prismBtnPressed))
-        }
-        if variant == .soft && disabled {
-            root.apply(PrismLook(opacity: 0.5))
-        }
         if variant == .soft && withIcon && pressed {
             root.apply(PrismLook(padding: .init(top: 5, bottom: 3)))
-        }
-        if variant == .icon && pressed {
-            root.apply(PrismLook(opacity: 0.8))
         }
         if variant == .plain && padded && pressed {
             root.apply(PrismLook(padding: .init(top: 16, bottom: 14)))
@@ -267,7 +269,7 @@ extension ButtonStyle where Self == PrismButtonStyle {
         loading: Bool = false,
         icon: PrismSide? = nil
     ) -> PrismButtonStyle {
-            PrismButtonStyle(variant, tone: tone, padded: padded, loading: loading, icon: icon)
+        PrismButtonStyle(variant, tone: tone, padded: padded, loading: loading, icon: icon)
     }
 }
 

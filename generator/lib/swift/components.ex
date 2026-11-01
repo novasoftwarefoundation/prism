@@ -57,7 +57,9 @@ defmodule Prism.Generator.Swift.Components do
   a spinner draws its ring (a quarter of it, at a quarter's opacity around)
   and turns, or with a progress value its track and an arc from the top; a
   checkbox draws its check mark; a select's list is the system's menu, so the
-  listbox and option looks are only in its looks, for an app's own list; a
+  listbox and option looks are only in its looks, for an app's own list, and
+  its icon takes the text color around it, not the menu's tint; a spinner
+  keeps the `ProgressView`'s label and value for VoiceOver; a
   text field's placeholder color is in its modifier's `prompt(_:)`, since a
   modifier can't reach a `TextField`'s prompt; a step indicator has tabular
   numbers; a field, a text field and a message bar take the width they are
@@ -153,15 +155,25 @@ defmodule Prism.Generator.Swift.Components do
   defp file(ctx, design, c) do
     spec = spec(ctx, c)
 
-    Enum.join(
-      [
-        "import SwiftUI\n",
-        Enum.map_join(spec.axes, "\n", &axis_enum(ctx, c, &1)),
-        looks_struct(ctx, c, spec),
-        kind(ctx, design, c, spec)
-      ],
-      "\n"
-    )
+    [
+      "import SwiftUI\n",
+      Enum.map_join(spec.axes, "\n", &axis_enum(ctx, c, &1)),
+      looks_struct(ctx, c, spec),
+      kind(ctx, design, c, spec)
+    ]
+    |> Enum.join("\n")
+    |> tidy()
+  end
+
+  # The templates' empty parts: an empty argument list is `()`, an empty body `{}`;
+  # no blank line after `{` or before `}`, and never two blank lines.
+  defp tidy(code) do
+    code
+    |> String.replace(~r/\(\n\s*\n\s*\)/, "()")
+    |> String.replace(~r/\(\) \{\n\s*\}/, "() {}")
+    |> String.replace(~r/\{\n\n+/, "{\n")
+    |> String.replace(~r/\n\n+(\s*\})/, "\n\\1")
+    |> String.replace(~r/\n{3,}/, "\n\n")
   end
 
   # The component's arguments, in order: `%{name, type, default, label, kind}`.
@@ -515,7 +527,7 @@ defmodule Prism.Generator.Swift.Components do
         public static func #{ctx.lower}(
     #{wrap(params(args), "        ", ",")}
         ) -> #{type} {
-        #{Swift.fill("        ", "#{type}(", forward(args), ")")}
+    #{Swift.fill("        ", "#{type}(", forward(args), ")")}
         }
     }
 
@@ -579,7 +591,7 @@ defmodule Prism.Generator.Swift.Components do
         public static func #{ctx.lower}(
     #{wrap(params(args), "        ", ",")}
         ) -> #{type} {
-        #{Swift.fill("        ", "#{type}(", forward(args), ")")}
+    #{Swift.fill("        ", "#{type}(", forward(args), ")")}
         }
     }
 
@@ -593,8 +605,9 @@ defmodule Prism.Generator.Swift.Components do
             return #{m}Ring(look: look, progress: progress)
                 .#{ctx.lower}Text(look)
                 .#{ctx.lower}Box(look)
-                .accessibilityElement()
-                .accessibilityValue(progress.map { Text($0 / 100, format: .percent) } ?? Text(""))
+                .accessibilityRepresentation {
+                    ProgressView(configuration).progressViewStyle(.automatic)
+                }
         }
     }
 
@@ -673,7 +686,7 @@ defmodule Prism.Generator.Swift.Components do
         public static func #{ctx.lower}(
     #{wrap(params(args), "        ", ",")}
         ) -> #{type} {
-        #{Swift.fill("        ", "#{type}(", forward(args), ")")}
+    #{Swift.fill("        ", "#{type}(", forward(args), ")")}
         }
     }
 
@@ -766,7 +779,7 @@ defmodule Prism.Generator.Swift.Components do
         public func #{ctx.lower}#{pascal}(
     #{wrap(params(args), "        ", ",")}
         ) -> some View {
-        #{Swift.fill("        ", "modifier(#{type}(", forward(args), "))")}
+    #{Swift.fill("        ", "modifier(#{type}(", forward(args), "))")}
         }
     }
     """
@@ -785,7 +798,7 @@ defmodule Prism.Generator.Swift.Components do
 
     rows =
       Enum.map_join(parts, "", fn p ->
-        "                if let #{Swift.ident(p)} { #{Swift.ident(p)}.#{ctx.lower}Look(looks.#{Swift.ident(p)}) }\n"
+        "            if let #{Swift.ident(p)} { #{Swift.ident(p)}.#{ctx.lower}Look(looks.#{Swift.ident(p)}) }\n"
       end)
 
     [before, after_] = split_rows(rows, parts, :label)
@@ -907,7 +920,9 @@ defmodule Prism.Generator.Swift.Components do
         do: """
                         .overlay(alignment: looks.icon.inset.alignment) {
                             if let icon {
-                                icon.#{ctx.lower}Look(looks.icon).padding(looks.icon.inset.edgeInsets())
+                                icon.#{ctx.lower}Look(looks.icon)
+                                    .foregroundStyle(looks.root.foreground ?? Color.primary)
+                                    .padding(looks.icon.inset.edgeInsets())
                             }
                         }
         """,
@@ -934,6 +949,8 @@ defmodule Prism.Generator.Swift.Components do
                 content
             } label: {
                 label
+                    .lineLimit(nil)
+                    .multilineTextAlignment(.leading)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .#{ctx.lower}Look(#{field})
     #{icon}        }

@@ -76,6 +76,6 @@ extension View {
         focused: Bool = false,
         invalid: Bool = false
     ) -> some View {
-            modifier(KitTextFieldModifier(variant, focused: focused, invalid: invalid))
+        modifier(KitTextFieldModifier(variant, focused: focused, invalid: invalid))
     }
 }

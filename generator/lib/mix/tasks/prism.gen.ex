@@ -26,10 +26,13 @@ defmodule Mix.Tasks.Prism.Gen do
   naming any design file, is hand-written and never overwritten.
 
   A target may also copy a file the design names, such as a font: a copy has no
-  header and is written byte for byte. The folders a target copies into are the
-  generator's: a copy replaces the file at its path (never a link or a folder),
-  and a file there of a type the target copies (`.woff2`, `.txt`, …) that no
-  target copies now is left over too. Other files there stay.
+  header and is written byte for byte. A target names the folders it copies into
+  (`copy_folders/1`), also while it copies nothing, and they are the generator's:
+  a copy replaces the file at its path (never a link or a folder), and any
+  file there, not a link, that no target copies now is left over too, so a
+  design that stops bundling its fonts leaves none behind. A copy folder, or a
+  folder between it and the target's, that is a link fails the task: it would
+  copy into, and remove from, a folder outside the target.
 
   A file that starts with exactly the header, of a type the targets write, in
   a folder a target writes into, which no target generates now (a renamed or
@@ -49,7 +52,8 @@ defmodule Mix.Tasks.Prism.Gen do
   # Every target module has `files/1`: a design's `__schema__/0` to
   # `[{path, body, design_file}]`, the design file being the one the body is made from;
   # a body `{:copy, source}` is a copy of the file at `source`, relative to the design's
-  # project.
+  # project. A target that copies also has `copy_folders/1`: the folders, relative to
+  # its own, it copies into, also while it copies nothing.
   @targets %{
     web: Prism.Generator.Web,
     react: Prism.Generator.React,
@@ -63,11 +67,14 @@ defmodule Mix.Tasks.Prism.Gen do
     if rest != [], do: Mix.raise("unexpected argument #{Enum.join(rest, " ")}")
 
     schema = design!().__schema__()
-    files = for {target, dir} <- targets!(), file <- files(target, dir, schema), do: file
+    targets = targets!()
+    files = for {target, dir} <- targets, file <- files(target, dir, schema), do: file
     {copies, generated} = Enum.split_with(files, &match?({_, {:copy, _}}, &1))
+    folders = copy_folders(targets, schema, copies)
+    Enum.each(folders, &no_links!/1)
     copies = Enum.map(copies, &read_copy!/1)
 
-    leftovers = leftovers(generated, files) ++ leftover_copies(copies, files)
+    leftovers = leftovers(generated, files) ++ leftover_copies(folders, files)
 
     if opts[:check] do
       check!(generated ++ copies, leftovers)
@@ -128,11 +135,18 @@ defmodule Mix.Tasks.Prism.Gen do
     for path <- candidates(generated, types, files), Header.exact?(path), do: path
   end
 
-  # The copies no target makes now, in the folders the targets copy into: files, not
-  # links, of a type the targets copy, that are no generated file.
-  defp leftover_copies(copies, files) do
-    types = MapSet.new(copies, fn {path, _} -> Path.extname(path) end)
-    for path <- candidates(copies, types, files), not Header.exact?(path), do: path
+  # The copies no target makes now, in the folders the targets copy into: every file,
+  # not a link, that no target writes now.
+  defp leftover_copies(folders, files) do
+    written = MapSet.new(files, fn {path, _} -> Path.expand(path) end)
+
+    for {_dir, folder} <- folders,
+        {:ok, names} <- [File.ls(folder)],
+        name <- Enum.sort(names),
+        path = Path.join(folder, name),
+        match?({:ok, %File.Stat{type: :regular}}, File.lstat(path)),
+        Path.expand(path) not in written,
+        do: path
   end
 
   # The regular files of `types` in the folders of `files`, that no target writes now.
@@ -147,6 +161,44 @@ defmodule Mix.Tasks.Prism.Gen do
         match?({:ok, %File.Stat{type: :regular}}, File.lstat(path)),
         Path.expand(path) not in written,
         do: path
+  end
+
+  # `[{target_dir, folder}]`: the folders each target names as its copy folders, and
+  # those its copies go into now.
+  defp copy_folders(targets, schema, copies) do
+    named =
+      for {target, dir} <- targets,
+          module = Map.fetch!(@targets, target),
+          Code.ensure_loaded?(module) and function_exported?(module, :copy_folders, 1),
+          folder <- module.copy_folders(schema),
+          do: {dir, Path.join(dir, folder)}
+
+    current =
+      for {_target, dir} <- targets,
+          {path, {:copy, _}} <- copies,
+          String.starts_with?(Path.expand(path), Path.expand(dir) <> "/"),
+          do: {dir, Path.dirname(path)}
+
+    Enum.uniq(named ++ current)
+  end
+
+  # A copy folder, or a folder between it and its target's, that is a link would
+  # take copies, and removals, out of the target.
+  defp no_links!({dir, folder}) do
+    folder
+    |> Path.relative_to(dir)
+    |> Path.split()
+    |> Enum.reduce(dir, fn part, parent ->
+      path = Path.join(parent, part)
+
+      case File.lstat(path) do
+        {:ok, %File.Stat{type: :symlink}} ->
+          Mix.raise("#{path} is a link; not copying into or removing from a linked folder")
+
+        _ ->
+          path
+      end
+    end)
   end
 
   defp remove!(path) do

@@ -89,9 +89,16 @@ defmodule Mix.Tasks.Prism.GenTest do
     end
   end
 
-  # A design whose family binds iOS to a font in test/fixtures/fonts.
-  defp font_design do
+  # A design whose family binds iOS to a font in test/fixtures/fonts, or with `ios:
+  # :system` to the system font, so the Swift target copies nothing.
+  defp font_design(ios \\ :named) do
     n = System.unique_integer([:positive])
+
+    ios =
+      if ios == :system,
+        do: ":system",
+        else:
+          ~s|[name: "Fonty", faces: [[file: "Fonty.woff2", weights: {1, 1000}, style: :normal]]]|
 
     [{module, _}] =
       Code.compile_string("""
@@ -103,7 +110,7 @@ defmodule Mix.Tasks.Prism.GenTest do
         family :text,
           doc: "Text",
           web: [name: "Fonty", fallback: "serif", faces: [[file: "Fonty", weights: {1, 1000}, style: :normal]]],
-          ios: [name: "Fonty", faces: [[file: "Fonty.woff2", weights: {1, 1000}, style: :normal]]],
+          ios: #{ios},
           android: :system
       end
       """)
@@ -137,7 +144,7 @@ defmodule Mix.Tasks.Prism.GenTest do
              File.read!("test/fixtures/fonts/Fonty.woff2")
   end
 
-  test "a copy no target makes now is left over; other types and links stay", %{tmp_dir: dir} do
+  test "a file no target copies now is left over in a copy folder; links stay", %{tmp_dir: dir} do
     Application.put_env(:prism_generator, :design, font_design())
     Application.put_env(:prism_generator, :targets, swift: dir)
     fonts = Path.join(dir, "Sources/Fonty/Fonts")
@@ -147,15 +154,63 @@ defmodule Mix.Tasks.Prism.GenTest do
     File.write!(Path.join(fonts, "notes.md"), "hand-written")
     File.ln_s!("Fonty.woff2", Path.join(fonts, "Alias.woff2"))
 
-    assert_raise Mix.Error, ~r/Old.woff2 \(no longer generated\)$/, fn -> gen(["--check"]) end
+    assert_raise Mix.Error,
+                 ~r/Old.woff2 \(no longer generated\), .*notes.md \(no longer generated\)$/,
+                 fn -> gen(["--check"]) end
 
     gen()
     assert_received {:mix_shell, :info, ["* removing " <> removed]}
     assert removed =~ "Old.woff2"
     refute File.exists?(Path.join(fonts, "Old.woff2"))
-    assert File.exists?(Path.join(fonts, "notes.md"))
+    refute File.exists?(Path.join(fonts, "notes.md"))
     assert match?({:ok, _}, File.lstat(Path.join(fonts, "Alias.woff2")))
     gen(["--check"])
+  end
+
+  test "copies a design no longer makes are left over: --check fails, prism.gen removes them",
+       %{tmp_dir: dir} do
+    Application.put_env(:prism_generator, :targets, swift: dir)
+    fonts = Path.join(dir, "Sources/Fonty/Fonts")
+
+    Application.put_env(:prism_generator, :design, font_design())
+    gen()
+    assert File.ls!(fonts) |> Enum.sort() == ["Fonty.woff2", "OFL.txt"]
+
+    # The same design with the system font: it copies nothing now.
+    Application.put_env(:prism_generator, :design, font_design(:system))
+
+    assert_raise Mix.Error, ~r/Fonty.woff2 \(no longer generated\), .*OFL.txt \(no longer/, fn ->
+      gen(["--check"])
+    end
+
+    gen()
+    assert File.ls!(fonts) == []
+    refute File.exists?(Path.join(dir, "Sources/Fonty/Fonts.swift"))
+    gen(["--check"])
+  end
+
+  test "a linked copy folder, or a linked folder above it, fails and touches nothing",
+       %{tmp_dir: dir} do
+    Application.put_env(:prism_generator, :design, font_design())
+    Application.put_env(:prism_generator, :targets, swift: Path.join(dir, "swift"))
+    outside = Path.join(dir, "outside")
+    File.mkdir_p!(outside)
+    File.write!(Path.join(outside, "notes.txt"), "hand-written")
+    File.write!(Path.join(outside, "Other.woff2"), "a font of someone else's")
+
+    for link <- ["swift/Sources/Fonty/Fonts", "swift/Sources/Fonty"] do
+      File.rm_rf!(Path.join(dir, "swift"))
+      File.mkdir_p!(Path.dirname(Path.join(dir, link)))
+      File.ln_s!(outside, Path.join(dir, link))
+
+      for args <- [[], ["--check"]] do
+        assert_raise Mix.Error, ~r/#{link} is a link; not copying into or removing from/, fn ->
+          gen(args)
+        end
+      end
+
+      assert File.ls!(outside) |> Enum.sort() == ["Other.woff2", "notes.txt"]
+    end
   end
 
   test "a copy never replaces a link, and a missing source fails", %{tmp_dir: dir} do

@@ -49,8 +49,17 @@ public struct KitButtonLooks: Sendable, Hashable {
         if loading {
             label.apply(KitLook(opacity: 0))
         }
+        if variant == .primary && pressed {
+            root.apply(KitLook(shadow: Kit.Shadows.pressed))
+        }
+        if variant == .primary && disabled {
+            root.apply(KitLook(opacity: 0.5))
+        }
         if variant == .primary && withIcon {
             root.apply(KitLook(gap: 8))
+        }
+        if variant == .icon && pressed {
+            root.apply(KitLook(opacity: 0.8))
         }
         if variant == .primary && tone == .danger {
             root.apply(KitLook(background: Kit.Colors.alarm))
@@ -60,15 +69,6 @@ public struct KitButtonLooks: Sendable, Hashable {
         }
         if variant == .quiet && roomy {
             root.apply(KitLook(padding: .init(top: 8, leading: 12, bottom: 8, trailing: 12)))
-        }
-        if variant == .primary && pressed {
-            root.apply(KitLook(shadow: Kit.Shadows.pressed))
-        }
-        if variant == .primary && disabled {
-            root.apply(KitLook(opacity: 0.5))
-        }
-        if variant == .icon && pressed {
-            root.apply(KitLook(opacity: 0.8))
         }
         if variant == .quiet && tone == .danger && hovered {
             root.apply(KitLook(foreground: Kit.Colors.ink))
@@ -118,7 +118,7 @@ extension ButtonStyle where Self == KitButtonStyle {
         loading: Bool = false,
         icon: KitSide? = nil
     ) -> KitButtonStyle {
-            KitButtonStyle(
+        KitButtonStyle(
             variant, tone: tone, roomy: roomy, strong: strong, loading: loading, icon: icon)
     }
 }

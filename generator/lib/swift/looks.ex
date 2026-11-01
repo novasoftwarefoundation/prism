@@ -122,7 +122,7 @@ defmodule Prism.Generator.Swift.Looks do
     [
       layer(c, nil, own, 1, v),
       parts,
-      component_states(c, own, 2, v),
+      component_states(c, own, 1, v),
       withs,
       with_variants(c, own, v),
       for(value <- v.values, do: layer(c, nil, own ++ [{:value, value.name}], 2, value))

@@ -80,7 +80,7 @@ extension ProgressViewStyle where Self == KitSpinnerStyle {
         _ variant: KitSpinnerVariant? = nil,
         size: KitSpinnerSize = .size24
     ) -> KitSpinnerStyle {
-            KitSpinnerStyle(variant, size: size)
+        KitSpinnerStyle(variant, size: size)
     }
 }
 
@@ -95,8 +95,9 @@ private struct KitSpinnerBody: View {
         return KitRing(look: look, progress: progress)
             .kitText(look)
             .kitBox(look)
-            .accessibilityElement()
-            .accessibilityValue(progress.map { Text($0 / 100, format: .percent) } ?? Text(""))
+            .accessibilityRepresentation {
+                ProgressView(configuration).progressViewStyle(.automatic)
+            }
     }
 }
 
