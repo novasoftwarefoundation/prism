@@ -63,7 +63,17 @@ defmodule Prism.Generator.ReactTest do
     assert button =~ ~s|  accent: undefined,\n  danger: "kit-button--danger",|
     assert button =~ ~s|loading && "kit-button--loading"|
     assert button =~ ~s|present(icon) && "kit-button--with-icon"|
-    assert button =~ ~s|{loading && <span className="kit-spinner" />}|
+    assert button =~ ~s|{loading && <span className="kit-spinner kit-spinner--16" />}|
+  end
+
+  # As Phoenix's `nil`: no value unless the app gives a finite number.
+  test "a value is a number or null, and none without a finite number" do
+    spinner = body(ExampleComponents.__schema__(), "src/Spinner.tsx")
+
+    assert spinner =~ "  progress?: number | null;\n"
+
+    assert spinner =~
+             "    progress == null || !Number.isFinite(progress)\n      ? undefined\n      : Math.min(100, Math.max(0, progress));\n"
   end
 
   # A design of `body`, on the tokens of Prism.Generator.TokensOnly.

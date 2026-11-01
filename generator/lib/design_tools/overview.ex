@@ -9,15 +9,16 @@ defmodule Prism.Generator.DesignTools.Overview do
     heights as bars; radii; shadows on cards; text shadows on text.
   - **Components**: a sheet per component, a row per variant (each variant of
     the `:variant` axis, each variant of another axis combined with the
-    first, each look with a variant of another axis with that variant, and
+    first, each look with a variant of another axis with that variant,
     each flag that is off by default turned on, or each flag that is on by
-    default turned off), a column per state. A cell is drawn from the same data as the web
+    default turned off, and each value at 40 of 100, also with each variant
+    that changes it), a column per state. A cell is drawn from the same data as the web
     target's `components.css`: the design's shared look with its `web:`
     binding, the markup of `Prism.Generator.Web.Elements` (which parts there
     are and what each holds), a part's look inside its component's.
     It is a sketch, not a rendering: text widths are estimated, and the web's
-    mechanics are left out but for the two images it draws (a spinner's ring
-    and a checkbox's check mark) and a field's width.
+    mechanics are left out but for the images it draws (a spinner's ring, its
+    progress ring, and a checkbox's check mark) and a field's width.
 
   The SVG holds no external references and no CSS: every look is a
   presentation attribute. Text is `<text>` (not outlined), its family the
@@ -40,6 +41,9 @@ defmodule Prism.Generator.DesignTools.Overview do
   @line "#D9D9D9"
   @bar "#8DA2C0"
   @placeholder "#B0B0B0"
+
+  # How far a value is in its row (of 0 to 100).
+  @sample 40
 
   # The states, in the schema's order, for the order of a sheet's columns.
   @states [:pressed, :hovered, :focused, :disabled, :checked, :selected, :loading, :invalid]
@@ -699,7 +703,26 @@ defmodule Prism.Generator.DesignTools.Overview do
         {Enum.map_join(variants, " + ", &key(&1.name)) <> " + " <> flag, sel ++ flags}
       end
 
-    Enum.uniq_by(none ++ own_rows ++ other_rows ++ with_rows ++ flag_rows, fn {_, sel} ->
+    # Each value the app may give, at the sample: on the first variant's look, and
+    # with each variant that changes it, its change after the value's own look.
+    value_rows =
+      for v <- c.values,
+          {sel, change} <-
+            [{defaults.(:variant) ++ base ++ on, []}] ++
+              for(
+                w <- c.variants,
+                change <- w.values,
+                change.name == v.name,
+                do: {defaults.(w.axis) ++ [w] ++ on, [change]}
+              ) do
+        variants = Enum.filter(sel, &Map.has_key?(&1, :axis))
+        label = Enum.map_join(variants ++ [v], " + ", &key(&1.name))
+        looks = for node <- [v | change], do: Map.put(node, :states, [])
+        {"#{label} #{@sample}", sel ++ looks}
+      end
+
+    Enum.uniq_by(none ++ own_rows ++ other_rows ++ with_rows ++ flag_rows ++ value_rows, fn {_,
+                                                                                             sel} ->
       Enum.map(sel, & &1.name)
     end)
   end
@@ -947,7 +970,15 @@ defmodule Prism.Generator.DesignTools.Overview do
         if while_loading and state != :loading do
           []
         else
-          other_sel = defaults(other).(nil)
+          # The variants the part picks, and the other axes' defaults.
+          picked =
+            for {axis, name} <- part.variants,
+                do: Enum.find(other.variants, &(&1.axis == axis and &1.name == name))
+
+          other_sel =
+            Enum.reject(defaults(other).(nil), &Keyword.has_key?(part.variants, &1.axis)) ++
+              picked
+
           own = other |> root_look(other_sel, nil) |> merge(part_look(c, sel, state, name))
           nested = box(ctx, other, specs[other.name], specs, other_sel, nil, own, inherited)
           # While loading, it shows in the place of the content.
@@ -1182,8 +1213,8 @@ defmodule Prism.Generator.DesignTools.Overview do
     }
   end
 
-  # The visible box: fill, border, outline and shadow, and the two images the web
-  # draws, a spinner's ring and a checkbox's check mark.
+  # The visible box: fill, border, outline and shadow, and the images the web
+  # draws, a spinner's ring or its progress ring and a checkbox's check mark.
   defp surface(ctx, kind, look, x, y, w, h, state) do
     r = radius_value(ctx, look[:radius], min(w, h))
     border = look[:border] || []
@@ -1248,25 +1279,10 @@ defmodule Prism.Generator.DesignTools.Overview do
     [rect, outline, image(ctx, kind, look, x, y, w, h, state)]
   end
 
+  # With a progress value (a track in the look), the track and an arc of the
+  # sample's length, from the top; its stroke is a share of the size.
   defp image(ctx, :spinner, look, x, y, w, _h, _state) do
-    stroke = max(w / 8, 2)
-    r = (w - stroke) / 2
-    circumference = 2 * :math.pi() * r
-    color = look[:foreground]
-
-    el(
-      "circle",
-      [
-        cx: num(x + w / 2),
-        cy: num(y + w / 2),
-        r: num(r),
-        fill: "none",
-        stroke: paint(ctx, color),
-        "stroke-width": num(stroke),
-        "stroke-linecap": "round",
-        "stroke-dasharray": "#{num(circumference * 0.75)} #{num(circumference)}"
-      ] ++ opacity_attr("stroke-opacity", ctx, color)
-    )
+    if look[:track], do: progress_ring(ctx, look, x, y, w), else: spinner_ring(ctx, look, x, y, w)
   end
 
   defp image(ctx, :checkbox, look, x, y, w, h, :checked) do
@@ -1290,6 +1306,55 @@ defmodule Prism.Generator.DesignTools.Overview do
   end
 
   defp image(_, _, _, _, _, _, _, _), do: []
+
+  defp spinner_ring(ctx, look, x, y, w) do
+    stroke = max(w / 8, 2)
+    r = (w - stroke) / 2
+    circumference = 2 * :math.pi() * r
+    color = look[:foreground]
+
+    el(
+      "circle",
+      [
+        cx: num(x + w / 2),
+        cy: num(y + w / 2),
+        r: num(r),
+        fill: "none",
+        stroke: paint(ctx, color),
+        "stroke-width": num(stroke),
+        "stroke-linecap": "round",
+        "stroke-dasharray": "#{num(circumference * 0.75)} #{num(circumference)}"
+      ] ++ opacity_attr("stroke-opacity", ctx, color)
+    )
+  end
+
+  defp progress_ring(ctx, look, x, y, w) do
+    {share, :percent} = look[:stroke]
+    stroke = w * share / 100
+    r = (w - stroke) / 2
+    circumference = 2 * :math.pi() * r
+    {cx, cy} = {x + w / 2, y + w / 2}
+    circle = [cx: num(cx), cy: num(cy), r: num(r), fill: "none", "stroke-width": num(stroke)]
+    color = look[:foreground]
+
+    [
+      el(
+        "circle",
+        circle ++
+          [stroke: paint(ctx, look[:track])] ++ opacity_attr("stroke-opacity", ctx, look[:track])
+      ),
+      el(
+        "circle",
+        circle ++
+          [
+            stroke: paint(ctx, color),
+            "stroke-linecap": "round",
+            "stroke-dasharray": "#{num(circumference * @sample / 100)} #{num(circumference)}",
+            transform: "rotate(-90 #{num(cx)} #{num(cy)})"
+          ] ++ opacity_attr("stroke-opacity", ctx, color)
+      )
+    ]
+  end
 
   # ------------------------------------------------------------- values
 
@@ -1437,7 +1502,7 @@ defmodule Prism.Generator.DesignTools.Overview do
   defp num(n) when is_integer(n), do: Integer.to_string(n)
   defp num(n), do: n |> Float.round(2) |> Web.number()
 
-  defp key(name), do: name |> Atom.to_string() |> String.replace("_", "-")
+  defp key(name), do: name |> to_string() |> String.replace("_", "-")
 
   defp segment(name) when is_integer(name), do: Integer.to_string(name)
   defp segment(name) when is_atom(name), do: key(name)

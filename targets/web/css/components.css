@@ -180,8 +180,8 @@
   /* Use margins instead of transform for centering because
      the spinner animation uses transform: rotate() which would
      override translate(-50%, -50%) centering */
-  margin-top: -12px;
-  margin-left: -12px;
+  margin-top: -10px;
+  margin-left: -10px;
 }
 
 .prism-button:not(.prism-button--loading) .prism-spinner {
@@ -576,12 +576,17 @@
   animation: prism-spin 1s linear infinite;
 }
 
-.prism-spinner--small {
+.prism-spinner--16 {
   width: 16px;
   height: 16px;
 }
 
-.prism-spinner--large {
+.prism-spinner--20 {
+  width: 20px;
+  height: 20px;
+}
+
+.prism-spinner--32 {
   width: 32px;
   height: 32px;
 }
@@ -602,6 +607,34 @@
 
 .prism-spinner--inverse {
   color: #ffffff;
+}
+
+/* Spinner with a progress value */
+.prism-spinner--progress {
+  background-color: transparent;
+  -webkit-mask: none;
+  mask: none;
+}
+
+.prism-spinner--progress svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke-width: 16;
+}
+
+.prism-spinner--progress .prism-spinner__track {
+  stroke: #eeeeee;
+}
+
+.prism-spinner--progress .prism-spinner__indicator {
+  stroke: currentColor;
+  stroke-linecap: round;
+}
+
+.prism-spinner--inverse.prism-spinner--progress .prism-spinner__track {
+  stroke: rgba(255, 255, 255, 0.3);
 }
 
 /* ==========================================================================

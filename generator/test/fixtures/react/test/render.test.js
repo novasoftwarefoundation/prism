@@ -108,10 +108,10 @@ describe("axes", () => {
       [h(Kit.Button, { tone: "accent" }, "x"), "kit-button kit-button--primary"],
       [h(Kit.Button, { tone: "danger" }, "x"), "kit-button kit-button--primary kit-button--danger"],
       [h(Kit.TextField, { variant: "inverse" }), "kit-text-field kit-text-field--inverse"],
-      [h(Kit.Spinner, { size: "medium" }), "kit-spinner"],
+      [h(Kit.Spinner, { size: 24 }), "kit-spinner"],
       [
-        h(Kit.Spinner, { size: "small", variant: "accent" }),
-        "kit-spinner kit-spinner--accent kit-spinner--small",
+        h(Kit.Spinner, { size: 16, variant: "accent" }),
+        "kit-spinner kit-spinner--accent kit-spinner--16",
       ],
       [h(Kit.Tag, { tone: "accent" }, "x"), "kit-tag kit-tag--accent"],
       [h(Kit.MessageBar, { tone: "danger" }, "x"), "kit-message-bar kit-message-bar--danger"],
@@ -135,7 +135,7 @@ describe("states", () => {
       html(h(Kit.Button, { loading: true }, "Save")),
       norm(
         '<button class="kit-button kit-button--primary kit-button--loading">' +
-          '<span class="kit-button__label">Save</span><span class="kit-spinner"></span></button>',
+          '<span class="kit-button__label">Save</span><span class="kit-spinner kit-spinner--16"></span></button>',
       ),
     );
     // The radio's row is no form control, so its disabled state is a class; it
@@ -259,7 +259,8 @@ describe("parts", () => {
     assert.doesNotMatch(html(h(Kit.Button, null, "Save")), /kit-spinner/);
     assert.match(
       html(h(Kit.Button, { loading: true }, "Save")),
-      /<span class="kit-spinner"><\/span><\/button>$/,
+      // With the variant the part picks.
+      /<span class="kit-spinner kit-spinner--16"><\/span><\/button>$/,
     );
   });
 
@@ -294,6 +295,59 @@ describe("parts", () => {
     assert.equal(
       html(h(Kit.Field, { label: false }, "CONTROL")),
       norm('<div class="kit-field">CONTROL</div>'),
+    );
+  });
+});
+
+describe("values", () => {
+  const ring = (value) =>
+    '<svg viewBox="0 0 100 100" aria-hidden="true">' +
+    '<circle class="kit-spinner__track" cx="50" cy="50" r="44"></circle>' +
+    '<circle class="kit-spinner__indicator" cx="50" cy="50" r="44" pathLength="100" ' +
+    `stroke-dasharray="${value} 100" transform="rotate(-90 50 50)"></circle></svg>`;
+
+  test("with a value, the class, the progressbar's attributes and the ring", () => {
+    assert.equal(
+      html(h(Kit.Spinner, { progress: 40 })),
+      norm(
+        '<span role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="40" ' +
+          `class="kit-spinner kit-spinner--progress">${ring(40)}</span>`,
+      ),
+    );
+  });
+
+  test("a value out of range clamps to 0 and 100", () => {
+    assert.match(
+      html(h(Kit.Spinner, { progress: 140 })),
+      /aria-valuenow="100".*stroke-dasharray="100 100"/,
+    );
+  });
+
+  // At 0 the arc's round ends would still draw a dot.
+  test("at 0, and below, the track without the arc", () => {
+    for (const progress of [0, -5]) {
+      const markup = html(h(Kit.Spinner, { progress }));
+      assert.match(markup, /aria-valuenow="0"/);
+      assert.match(markup, /kit-spinner__track/);
+      assert.doesNotMatch(markup, /kit-spinner__indicator/);
+    }
+  });
+
+  // As Phoenix's nil: a JS app may pass null, or a NaN from its own arithmetic.
+  test("null, NaN or Infinity is no value: the plain spinner", () => {
+    for (const progress of [null, NaN, Infinity, undefined]) {
+      assert.equal(
+        html(h(Kit.Spinner, { size: 16, progress })),
+        norm('<span class="kit-spinner kit-spinner--16"></span>'),
+        String(progress),
+      );
+    }
+  });
+
+  test("without a value, the spinner as it is, with no role", () => {
+    assert.equal(
+      html(h(Kit.Spinner, { size: 16 })),
+      norm('<span class="kit-spinner kit-spinner--16"></span>'),
     );
   });
 });
@@ -346,7 +400,9 @@ test("every class a component renders is a class of the web target's CSS", () =>
     h(Kit.Field, { label: "x", errorMessage: "x" }, "x"),
     h(Kit.RadioGroup, null, h(Kit.Radio, { checked: true, disabled: true, onChange }, "x")),
     h(Kit.Select, { icon: "v", options: [{ selected: true, children: "x" }] }, "x"),
-    h(Kit.Spinner, { size: "small", variant: "accent" }),
+    h(Kit.Spinner, { size: 16, variant: "accent" }),
+    h(Kit.Spinner, { size: 32, progress: 40 }),
+    h(Kit.Spinner, { variant: "inverse", progress: 40 }),
     h(Kit.Checkbox, { checked: true, disabled: true, onChange }),
     h(Kit.Tag, { tone: "accent" }, "x"),
     h(Kit.MessageBar, { tone: "danger" }, "x"),

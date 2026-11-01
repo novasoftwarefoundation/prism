@@ -124,7 +124,7 @@ export const Button = forwardRef<HTMLElement, ButtonProps>(function Button(
           {icon}
         </span>
       )}
-      {loading && <span className="prism-spinner" />}
+      {loading && <span className="prism-spinner prism-spinner--20" />}
     </Element>
   );
 });

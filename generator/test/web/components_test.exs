@@ -194,6 +194,108 @@ defmodule Prism.Generator.Web.ComponentsTest do
       refute css(design) =~ "filter"
     end
 
+    test "its sizes named by numbers are classes of those numbers" do
+      design =
+        compile("""
+          component :spinner do
+            style size: 24
+            variants :size, default: 24 do
+              variant 16, size: 16
+              variant 32, size: 32
+            end
+          end
+        """)
+
+      assert css(design) =~ ".only-spinner--16 {\n  width: 16px;\n  height: 16px;\n}\n"
+      assert css(design) =~ ".only-spinner--32 {\n  width: 32px;\n  height: 32px;\n}\n"
+      refute css(design) =~ "only-spinner--24"
+    end
+
+    test "with its progress, it is the markup's ring: a track and an arc in its color" do
+      design =
+        compile("""
+          component :spinner do
+            style size: 24, rotation: {1000, :linear}
+            variant :ink, foreground: :ink
+            value :progress, stroke: {16, :percent}, track: {:ink, 0.1}, web: [doc: "With progress"]
+          end
+        """)
+
+      # After the colors, so it takes away the image whatever the color.
+      assert css(design) =~
+               ".only-spinner--ink {\n  color: #101010;\n}\n\n" <>
+                 "/* With progress */\n.only-spinner--progress {\n" <>
+                 "  background-color: transparent;\n  -webkit-mask: none;\n  mask: none;\n}\n\n" <>
+                 ".only-spinner--progress svg {\n  display: block;\n  width: 100%;\n  height: 100%;\n" <>
+                 "  fill: none;\n  stroke-width: 16;\n}\n\n" <>
+                 ".only-spinner--progress .only-spinner__track {\n  stroke: rgba(16, 16, 16, 0.1);\n}\n\n" <>
+                 ".only-spinner--progress .only-spinner__indicator {\n  stroke: currentColor;\n  stroke-linecap: round;\n}\n"
+
+      # The spinner still turns.
+      assert css(design) =~ "  animation: only-spin 1s linear infinite;\n"
+    end
+
+    test "a variant changes its progress's track: the variant and the value together" do
+      design =
+        compile("""
+          component :spinner do
+            style size: 24
+            variant :light, foreground: "#FFFFFF", aliases: [:white] do
+              value :progress, track: {:ink, 0.3}, web: [doc: "Light with progress"]
+            end
+            value :progress, stroke: {16, :percent}, track: :ink
+          end
+        """)
+
+      # After the value's own rules, once per name of the variant.
+      assert css(design) =~
+               ".only-spinner--progress .only-spinner__indicator {\n  stroke: currentColor;\n  stroke-linecap: round;\n}\n\n" <>
+                 "/* Light with progress */\n" <>
+                 ".only-spinner--light.only-spinner--progress .only-spinner__track,\n" <>
+                 ".only-spinner--white.only-spinner--progress .only-spinner__track {\n" <>
+                 "  stroke: rgba(16, 16, 16, 0.3);\n}\n"
+    end
+
+    test "a variant keeps the value's stroke, which the markup's ring is drawn with" do
+      assert_compile_error(
+        "  component :spinner do\n    value :progress, stroke: {16, :percent}, track: :ink\n    variant :thin do\n      value :progress, stroke: {8, :percent}\n    end\n  end",
+        "component :spinner, variant :thin, value :progress: stroke: the markup draws the ring with the value's own stroke",
+        6
+      )
+    end
+
+    test "its progress has a stroke in percent, a share of the ring's box of 100" do
+      for stroke <- ["4", "{0.5, :rem}", "{60, :percent}", "{0, :percent}"] do
+        assert_compile_error(
+          "  component :spinner do\n    value :progress, stroke: #{stroke}, track: :ink\n  end",
+          "component :spinner, value :progress: stroke: the ring is drawn in a box of 100, so its stroke is a share of the spinner's size",
+          4
+        )
+      end
+    end
+
+    test "a value the web doesn't write fails, as does a value's property it writes nowhere" do
+      design = compile("  component :tag do\n    value :progress, track: :ink\n  end")
+
+      assert_raise ArgumentError,
+                   "the web target has no value :progress of :tag; it writes no values there",
+                   fn -> css(design) end
+
+      design = compile("  component :spinner do\n    value :level, stroke: {10, :percent}\n  end")
+
+      assert_raise ArgumentError,
+                   "the web target has no value :level of :spinner; it knows :progress",
+                   fn -> css(design) end
+
+      design =
+        compile(
+          "  component :spinner do\n    value :progress, stroke: {10, :percent}, track: :ink, gap: 4\n  end"
+        )
+
+      assert css(design) =~
+               ".only-spinner--progress {\n  background-color: transparent;\n  -webkit-mask: none;\n  mask: none;\n  gap: 4px;\n}"
+    end
+
     # An app imports the CSS into its own stylesheet, where a relative URL would
     # resolve against the app; the web target ships no image files.
     test "its image is inline: no URL in the CSS is relative" do
@@ -482,6 +584,32 @@ defmodule Prism.Generator.Web.ComponentsTest do
     assert css =~ "  margin-top: -10px;\n  margin-left: -10px;\n"
     # While not loading, the spinner is hidden.
     assert css =~ ".only-button:not(.only-button--loading) .only-spinner {\n  display: none;\n}"
+  end
+
+  test "a loading button centers its spinner by the size of the variant the part picks" do
+    design =
+      compile("""
+        component :button do
+          part :spinner, component: :spinner, variants: [size: 20, variant: :ink]
+          state :loading
+        end
+        component :spinner do
+          style size: 24
+          variants :size, default: 24 do
+            variant 20, size: 20
+          end
+          variant :ink, foreground: :ink
+        end
+      """)
+
+    assert css(design) =~ "  margin-top: -10px;\n  margin-left: -10px;\n"
+
+    # A size in percent can't be halved, also a picked variant's.
+    assert_compile_error(
+      "  component :button do\n    part :spinner, component: :spinner, variants: [variant: :wide]\n    state :loading\n  end\n  component :spinner do\n    style size: 24\n    variant :wide, size: {50, :percent}\n  end",
+      "a button centers its spinner by half the spinner's size",
+      9
+    )
   end
 
   test "classes: a part is __part, a variant and a state --name, so they never read alike" do

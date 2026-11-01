@@ -17,7 +17,8 @@ defmodule Prism.Generator.React do
   - **Each axis** (`variant`, and each `variants` block such as `tone` or
     `size`) is a prop typed as a union of the design's values, its variants
     and their aliases, and its default when that is a name without a look of
-    its own, so TypeScript rejects any other value. Its default is the
+    its own, so TypeScript rejects any other value: strings, or numbers when
+    the design names them by numbers (`size={16}`). Its default is the
     design's; a default that is one of the variants adds that variant's
     class, one without a look adds none. An axis without a default adds no
     class until the app picks a variant.
@@ -28,6 +29,13 @@ defmodule Prism.Generator.React do
     `"start"` or `"end"` (`iconPosition`), with the design's side as its
     default: the part goes at that side of the content, which follows the
     text's direction. Any other value throws when it renders.
+  - **Each value** (a spinner's `progress`) is a number prop from 0 to 100,
+    clamped; `null` or `NaN` is no value, as `undefined` is (Phoenix's
+    `nil`). While the app gives it, the element gets the value's class
+    (`--progress`), `role="progressbar"` with `aria-valuenow`,
+    `aria-valuemin` and `aria-valuemax`, and what the value draws (a
+    spinner's ring); without it, none of them. The app names a progress
+    bar with `aria-label` or `aria-labelledby`, which go on the element.
   - **Each state the app sets** is a boolean prop: a state the CSS writes as a
     modifier class adds that class (`loading`, `invalid`, a radio's
     `disabled`); `disabled` and `checked` on a form control set the element's
@@ -99,7 +107,7 @@ defmodule Prism.Generator.React do
     axes =
       for a <- spec.axes do
         {camel(a.name), type_name(spec, a.name), axis_doc(spec, a),
-         a.default && js_str(a.default)}
+         a.default && js_value(a.default)}
       end
 
     flags =
@@ -114,6 +122,13 @@ defmodule Prism.Generator.React do
       end
 
     states = for s <- spec.states, do: {camel(s.name), "boolean", state_doc(spec, s), nil}
+
+    values =
+      for v <- spec.values do
+        {camel(v.name), "number | null",
+         "#{v.min} to #{v.max} (clamped; null or NaN: none); adds `#{v.class}`, a progressbar.",
+         nil}
+      end
 
     # A part whose side the app picks is there twice; it is one prop.
     parts =
@@ -150,6 +165,7 @@ defmodule Prism.Generator.React do
       flags ++
       positions ++
       states ++
+      values ++
       parts ++ [{"className", "string", "Classes after the component's own.", nil}] ++ content
   end
 
@@ -162,7 +178,7 @@ defmodule Prism.Generator.React do
         only ->
           " with " <>
             Enum.map_join(only, " or ", fn {axis, values} ->
-              "#{words(axis)} #{Enum.map_join(values, " or ", &js_str/1)}"
+              "#{words(axis)} #{Enum.map_join(values, " or ", &js_value/1)}"
             end)
       end
 
@@ -174,7 +190,9 @@ defmodule Prism.Generator.React do
     fixed = ~w(className children)
 
     # The module's own constants, which a prop of the same name would hide.
-    consts = [camel(spec.name) <> "Elements" | Enum.map(spec.axes, &classes_const/1)]
+    consts =
+      [camel(spec.name) <> "Elements" | Enum.map(spec.axes, &classes_const/1)] ++
+        Enum.flat_map(spec.values, &[value_const(&1), attributes_const(&1)])
 
     for name <- names -- fixed, name in @reserved or name in @keywords or name in consts do
       raise ArgumentError,
@@ -204,8 +222,8 @@ defmodule Prism.Generator.React do
 
   defp axis_doc(_spec, a) do
     if a.classes[a.default],
-      do: "Default #{js_str(a.default)}.",
-      else: "Default #{js_str(a.default)}, which has no class."
+      do: "Default #{js_value(a.default)}.",
+      else: "Default #{js_value(a.default)}, which has no class."
   end
 
   defp state_doc(spec, s) do
@@ -288,7 +306,7 @@ defmodule Prism.Generator.React do
   end
 
   defp axis_type(spec, a) do
-    values = Enum.map_join(a.values, " | ", &js_str/1)
+    values = Enum.map_join(a.values, " | ", &js_value/1)
 
     "\n/** The #{words(spec.name)}'s #{words(a.name)}. */\nexport type #{type_name(spec, a.name)} = #{values};\n"
   end
@@ -443,6 +461,7 @@ defmodule Prism.Generator.React do
       ",\n  ref,\n) {\n",
       guard,
       positions,
+      Enum.map(spec.values, &value_consts/1),
       "  return (\n",
       render(root, 4),
       "\n  );\n});\n"
@@ -457,6 +476,43 @@ defmodule Prism.Generator.React do
       do: flat,
       else: "#{pad}{\n" <> Enum.map_join(bindings, ",\n", &"#{pad}  #{&1}") <> "\n#{pad}}"
   end
+
+  # A value's number, clamped to its range, and the attributes it adds. Without a
+  # finite number (`undefined`, `null`, `NaN`) there is none, as with Phoenix's `nil`.
+  defp value_consts(v) do
+    prop = camel(v.name)
+    clamp = "Math.min(#{v.max}, Math.max(#{v.min}, #{prop}))"
+
+    entries =
+      Enum.map(v.attrs, fn {name, value} ->
+        key = if String.contains?(to_string(name), "-"), do: js_str(name), else: to_string(name)
+        "          #{key}: #{js_expr(v, value)},\n"
+      end)
+
+    [
+      "  // The #{words(v.name)}, within #{v.min} and #{v.max}, and its attributes while the app gives it:\n",
+      "  // none without a finite number (undefined, null, NaN).\n",
+      "  const #{value_const(v)} =\n",
+      "    #{prop} == null || !Number.isFinite(#{prop})\n",
+      "      ? undefined\n",
+      "      : #{clamp};\n",
+      "  const #{attributes_const(v)} =\n",
+      "    #{value_const(v)} === undefined\n",
+      "      ? {}\n",
+      "      : {\n",
+      entries,
+      "        };\n\n"
+    ]
+  end
+
+  # A value's attribute in TypeScript: text, or the number with what follows it.
+  defp js_expr(_v, text) when is_binary(text), do: js_str(text)
+  defp js_expr(_v, n) when is_integer(n), do: Integer.to_string(n)
+  defp js_expr(v, {:value, ""}), do: value_const(v)
+  defp js_expr(v, {:value, suffix}), do: "`${#{value_const(v)}}#{suffix}`"
+
+  defp value_const(v), do: camel(v.name) <> "Value"
+  defp attributes_const(v), do: camel(v.name) <> "Attributes"
 
   # ------------------------------------------------------------ the markup
 
@@ -481,7 +537,7 @@ defmodule Prism.Generator.React do
         only =
           for {axis, values} <- f.only || [],
               value <- values,
-              do: "#{camel(axis)} === #{js_str(value)}"
+              do: "#{camel(axis)} === #{js_value(value)}"
 
         case only do
           [] -> "#{camel(f.name)} && #{js_str(f.class)}"
@@ -498,7 +554,8 @@ defmodule Prism.Generator.React do
         if test == "true", do: js_str(class), else: "#{test} && #{js_str(class)}"
       end
 
-    classes = [js_str(spec.class)] ++ axes ++ flags ++ states ++ withs ++ ["className"]
+    values = for v <- spec.values, do: "#{value_const(v)} !== undefined && #{js_str(v.class)}"
+    classes = [js_str(spec.class)] ++ axes ++ flags ++ states ++ values ++ withs ++ ["className"]
 
     # An element the app picks is typed as its default (`function/3`).
     {ref, rest} =
@@ -515,11 +572,49 @@ defmodule Prism.Generator.React do
       if(on_root, do: [ref], else: []) ++
         fixed_attrs(spec.attrs) ++
         natives(spec, nil) ++
+        Enum.map(spec.values, &"{...#{attributes_const(&1)}}") ++
         if(on_root, do: [rest], else: []) ++ [class_attr(classes)]
 
-    children = Enum.flat_map(spec.children, &child(&1, spec))
+    # What a value draws, after the other children, while the app gives it.
+    drawn =
+      for v <- spec.values, tree <- v.children do
+        {:cond, "#{value_const(v)} !== undefined", jsx(tree, v)}
+      end
+
+    children = Enum.flat_map(spec.children, &child(&1, spec)) ++ drawn
 
     {:el, tag, attrs, children}
+  end
+
+  # A value's markup tree as a JSX node: attributes by React's names.
+  defp jsx({:above_min, tree}, v), do: {:cond, "#{value_const(v)} > #{v.min}", jsx(tree, v)}
+
+  defp jsx({tag, attrs, children}, v) do
+    attrs =
+      for {name, value} <- attrs do
+        case value do
+          text when is_binary(text) -> "#{jsx_name(name)}=#{js_str(text)}"
+          expr -> "#{jsx_name(name)}={#{js_expr(v, expr)}}"
+        end
+      end
+
+    {:el, tag, attrs, Enum.map(children, &jsx(&1, v))}
+  end
+
+  defp jsx_name(:class), do: "className"
+
+  defp jsx_name(name) do
+    case to_string(name) do
+      "aria-" <> _ = aria ->
+        aria
+
+      "data-" <> _ = data ->
+        data
+
+      other ->
+        [first | rest] = String.split(other, "-")
+        Enum.join([first | Enum.map(rest, &String.capitalize/1)])
+    end
   end
 
   defp child(%{as: :inner_block}, _spec), do: [{:expr, "{children}"}]
@@ -756,4 +851,8 @@ defmodule Prism.Generator.React do
   defp words(name), do: name |> Atom.to_string() |> String.replace("_", " ")
 
   defp js_str(value), do: JSON.encode!(to_string(value))
+
+  # A design value in TypeScript: a number as it is, a name as a string.
+  defp js_value(value) when is_integer(value), do: Integer.to_string(value)
+  defp js_value(value), do: js_str(value)
 end

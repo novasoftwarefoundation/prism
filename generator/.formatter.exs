@@ -31,7 +31,9 @@ design_dsl = [
   with_part: 3,
   state: 1,
   state: 2,
-  state: 3
+  state: 3,
+  value: 1,
+  value: 2
 ]
 
 [

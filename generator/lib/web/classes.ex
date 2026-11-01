@@ -11,9 +11,11 @@ defmodule Prism.Generator.Web.Classes do
   - a component is `<prefix>-<component>` (`acme-button`);
   - a part is `__<part>` after its component (`acme-button__label`); a part
     that is another component has that component's class;
-  - a variant (of any axis, or one of its aliases), a state of the component
-    and a look with a part are `--<name>` after the component
-    (`acme-button--primary`, `acme-button--loading`, `acme-button--with-icon`);
+  - a variant (of any axis, or one of its aliases), a state of the component,
+    a look with a part and a value are `--<name>` after the component
+    (`acme-button--primary`, `acme-button--loading`, `acme-button--with-icon`,
+    `acme-spinner--progress`); a variant named by a number is that number
+    (`acme-spinner--16`);
   - a state of a part is `--<state>` after the part
     (`acme-select__option--selected`).
 
@@ -74,5 +76,5 @@ defmodule Prism.Generator.Web.Classes do
   def control?(component, nil), do: component in @controls
   def control?(component, part), do: {component, part} in @control_parts
 
-  defp key(name), do: name |> Atom.to_string() |> String.replace("_", "-")
+  defp key(name), do: name |> to_string() |> String.replace("_", "-")
 end

@@ -13,13 +13,16 @@ if Code.ensure_loaded?(Phoenix.Component) do
         end
 
       for p <- spec.positions, do: position!(p.name, assigns[p.name])
+      values = values(spec, assigns)
 
       assigns =
         assign(assigns,
           prism_tag: tag,
           prism_void: spec.void,
-          prism_attrs: root_attrs(spec, assigns),
-          prism_children: Enum.flat_map(spec.children, &child(&1, spec, assigns))
+          prism_attrs: root_attrs(spec, assigns, values),
+          prism_children:
+            Enum.flat_map(spec.children, &child(&1, spec, assigns)) ++
+              for({v, n} <- values, tree <- v.children, drawn <- tree(tree, v, n), do: drawn)
         )
 
       ~H"""
@@ -55,7 +58,7 @@ if Code.ensure_loaded?(Phoenix.Component) do
         <% {:element, tag, attrs, entries} -> %><.dynamic_tag tag_name={tag} {attrs}>{render_slot(
             entries
           )}</.dynamic_tag>
-        <% {:list, tag, attrs, items} -> %><.dynamic_tag tag_name={tag} {attrs}><.child
+        <% {:tree, tag, attrs, items} -> %><.dynamic_tag tag_name={tag} {attrs}><.child
             :for={item <- items}
             child={item}
           /></.dynamic_tag>
@@ -67,7 +70,36 @@ if Code.ensure_loaded?(Phoenix.Component) do
       """
     end
 
-    defp root_attrs(spec, assigns) do
+    # The values the app gives, each with its number clamped to the value's range.
+    defp values(spec, assigns) do
+      for v <- spec.values, n = assigns[v.name], n != nil do
+        unless is_number(n),
+          do:
+            raise(
+              ArgumentError,
+              "#{v.name}: #{inspect(n)} is not a number from #{v.min} to #{v.max}, or nil"
+            )
+
+        {v, n |> max(v.min) |> min(v.max)}
+      end
+    end
+
+    # A markup tree of a value, with its number in the attributes that take it.
+    defp tree({:above_min, tree}, v, n), do: if(n > v.min, do: tree(tree, v, n), else: [])
+
+    defp tree({tag, attrs, children}, v, n) do
+      attrs = for {name, value} <- attrs, do: {name, fill(value, n)}
+
+      case children do
+        [] -> [{:empty, tag, attrs}]
+        _ -> [{:tree, tag, attrs, Enum.flat_map(children, &tree(&1, v, n))}]
+      end
+    end
+
+    defp fill({:value, suffix}, n), do: "#{n}#{suffix}"
+    defp fill(text, _n), do: text
+
+    defp root_attrs(spec, assigns, values) do
       axes = for a <- spec.axes, do: a.classes[assigns[a.name]]
       states = for {:class, nil, class} <- effects(spec, assigns), do: class
       withs = for {part, class} <- spec.withs, present?(spec, part, assigns), do: class
@@ -76,12 +108,19 @@ if Code.ensure_loaded?(Phoenix.Component) do
       native =
         for {:native, nil, name} <- effects(spec, assigns), do: {name, true}
 
+      value_attrs = for {v, n} <- values, {name, value} <- v.attrs, do: {name, fill(value, n)}
+      value_classes = for {v, _} <- values, do: v.class
       rest = if spec.rest == :root, do: Map.to_list(assigns.rest), else: []
 
       spec.attrs ++
         native ++
+        value_attrs ++
         rest ++
-        [class: [spec.class | axes ++ flags ++ states ++ withs] ++ List.wrap(assigns.class)]
+        [
+          class:
+            [spec.class | axes ++ flags ++ states ++ value_classes ++ withs] ++
+              List.wrap(assigns.class)
+        ]
     end
 
     # A flag whose only looks are with some variants is on only with them.
@@ -172,7 +211,7 @@ if Code.ensure_loaded?(Phoenix.Component) do
                  ]), [entry]}
             end
 
-          [{:list, p.element, [role: "listbox", class: [p.class]], items}]
+          [{:tree, p.element, [role: "listbox", class: [p.class]], items}]
       end
     end
 

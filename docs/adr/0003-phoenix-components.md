@@ -28,7 +28,9 @@ The design is Elixir code, and `__schema__/0` returns it as data. An Elixir app 
 
 4. **Attributes.**
    - Each **axis** (`variant`, each `variants` block) is an atom attribute with `values:` from the design, so Phoenix warns at compile time about an unknown value. Its values are the axis's variants and their aliases.
-   - Each axis has the **design's default**. The format gets a `default:` option, on a `component` for its `:variant` axis and on a `variants` block, and `__schema__/0` carries it (`default` on the component, `default` on each axis). A default is one of the axis's variants (a tag's `:accent`, whose class it then adds), a name without a look of its own (a button's `:accent` tone, a spinner's `:medium` size: no class, but a value the app can pass), or none (the attribute adds no class until the app picks one). The schema checks that a default is a snake_case name, not an alias, and, when it is no variant, not another name of the component.
+   - Each axis has the **design's default**. The format gets a `default:` option, on a `component` for its `:variant` axis and on a `variants` block, and `__schema__/0` carries it (`default` on the component, `default` on each axis). A default is one of the axis's variants (a tag's `:accent`, whose class it then adds), a name without a look of its own (a button's `:accent` tone, a spinner's `24` size: no class, but a value the app can pass), or none (the attribute adds no class until the app picks one). The schema checks that a default is a snake_case name (a whole number above 0 for an axis named by numbers, [ADR 0007](0007-spinner-sizes-progress.md)), not an alias, and, when it is no variant, not another name of the component.
+   - An axis whose variants are named by numbers ([ADR 0007](0007-spinner-sizes-progress.md)) is an `:integer` attribute (`size={16}`).
+   - Each **value** (a spinner's `progress`, ADR 0007) is an attribute, a number or `nil` (the default). With a number, clamped to 0..100, the element gets the value's class, `role="progressbar"` with the ARIA values, and what the value draws (the spinner's ring); with `nil`, none of them.
    - Each **state the app sets** is a boolean attribute. A state the CSS writes as a modifier class adds that class (`loading`, `invalid`, the radio row's `disabled`, on the component or on the part it belongs to). `disabled` and `checked` on a form control set the element's own attribute instead, which the CSS's pseudo-class reads; a disabled component also disables the form controls among its parts (a radio's control, a select's field). The browser's states (`pressed`, `hovered`, `focused` on a form control) get no attribute.
    - `class` appends the app's classes after the component's own; `rest` takes the global attributes and the element's own (`type`, `name`, `value`, `href`, …).
 
@@ -47,7 +49,7 @@ The design is Elixir code, and `__schema__/0` returns it as data. An Elixir app 
 | String values (`variant="primary"`) | Phoenix's own core components use them, but the axis names are atoms in the design, and atoms read the same in the design, the schema and the app. |
 | One generic renderer with no per-component knowledge | The CSS expects specific elements (an `<input>` for a text field, a `<label>` around a radio), so the markup needs the same names the web mechanics are keyed on. |
 | Part nesting in the format (`part :option, within: :listbox`) | Only the select needs it, and the target already knows the select's parts by name. A native target that needs it can add it then. |
-| A default that is always a variant | A button's accent tone and a spinner's medium size are the component's own look, with no class; making them variants would add classes and rules to the CSS. |
+| A default that is always a variant | A button's accent tone and a spinner's 24 size are the component's own look, with no class; making them variants would add classes and rules to the CSS. |
 
 ## Consequences
 

@@ -20,7 +20,7 @@ defmodule Prism.Generator.Web.Elements do
   | `radio_group` | `<div role="radiogroup">` | the content (the radios) |
   | `radio` | `<label>` | its `control` (an `<input type="radio">`, which gets the app's attributes), `label` holds the content |
   | `select` | `<div>` | `field` (a `<button>`) holds the content; `icon`; `listbox` (a `<ul>`) holds the options |
-  | `spinner` | `<span>` | none |
+  | `spinner` | `<span>` | none; with a progress value, an `<svg>` ring |
   | `checkbox` | `<input type="checkbox">` | none |
   | `tag` | `<span>` | `label` holds the content |
   | `message_bar` | `<div>` | the content |
@@ -36,9 +36,9 @@ defmodule Prism.Generator.Web.Elements do
     (`[role: "radiogroup"]`).
   - `axes`: `[%{name, values, default, classes}]`, the `:variant` axis first,
     then the `variants` blocks. `values` are the axis's variants and aliases,
-    with its default first when that is a name without a look of its own;
-    `classes` maps each variant and alias to its class (a default without a
-    look has none).
+    with its default first when that is a name without a look of its own, or
+    all of them in ascending order when they are numbers; `classes` maps each
+    variant and alias to its class (a default without a look has none).
   - `states`: `[%{name, effects}]`, the states the app sets, in the order of
     `Prism.Generator.Schema.Components.states/0`. An effect is
     `{:class, part, class}`, a class on the element (`part` `nil`) or on a
@@ -57,8 +57,9 @@ defmodule Prism.Generator.Web.Elements do
       gets the app's attributes (`rest` is `:control`);
     - `%{as: :component, name, element, class, while_loading}`: a part that
       is another component, with that component's class and the classes of
-      its defaults that are variants; while `while_loading`, it is there only
-      while the component is loading;
+      the variants the part picks and of its other axes' defaults that are
+      variants; while `while_loading`, it is there only while the component
+      is loading;
     - `%{as: :list, name, element, class, item, item_element, item_class,
       item_states}`: a list of items the app gives, such as a select's
       options; `item_states` are `[%{name, class}]`;
@@ -75,6 +76,18 @@ defmodule Prism.Generator.Web.Elements do
   - `positions`: `[%{name, part, default}]`, the parts whose side of the
     content the app picks: `name` is the setting (`icon_position`), and
     `default` the side without one, `:start` or `:end`.
+  - `values`: `[%{name, class, min, max, attrs, children}]`, the numbers the
+    app may give (a spinner's `progress`). While the app gives one, it is
+    clamped to `min`..`max`, and the element gets `class`, `attrs` (`role` and
+    the ARIA value attributes) and, after its other children, `children`.
+    Their attribute values are text, a number, or `{:value, suffix}`: the
+    clamped number followed by `suffix` (`{:value, ""}` is the number itself).
+    A tree is `{tag, attrs, children}`, or `{:above_min, tree}`, a tree there
+    only while the number is above `min`. A spinner's progress is a ring: an
+    `<svg>` box of 100 with a `__track` circle and, above 0, an `__indicator`
+    circle whose `pathLength` is 100 and whose dash is the value, so the arc
+    is as long as the number (at 0, its round ends would still draw a dot).
+    Its radius leaves room for the value's `stroke`, a share of the box.
   - `rest`: where the app's other attributes go, `:root` or `:control`.
 
   A design component or part this module doesn't know raises an
@@ -115,7 +128,7 @@ defmodule Prism.Generator.Web.Elements do
       ],
       content: nil
     },
-    spinner: %{element: "span", parts: [], content: nil},
+    spinner: %{element: "span", parts: [], content: nil, values: [progress: :ring]},
     checkbox: %{element: "input", attrs: [type: "checkbox"], parts: [], content: nil},
     tag: %{element: "span", parts: [label: {:content, "span"}], content: :end},
     message_bar: %{element: "div", parts: [], content: :end},
@@ -169,6 +182,17 @@ defmodule Prism.Generator.Web.Elements do
               )
     end
 
+    known_values = Keyword.keys(Map.get(kind, :values, []))
+
+    for %{name: name} <- Map.get(c, :values, []), name not in known_values do
+      raise ArgumentError,
+            "#{target} has no value #{inspect(name)} of #{inspect(c.name)}; " <>
+              if(known_values == [],
+                do: "it renders no values there",
+                else: "it knows #{Enum.map_join(known_values, ", ", &inspect/1)}"
+              )
+    end
+
     parts = Enum.map(c.parts, &part(c, kind, &1, prefix, components))
 
     %{
@@ -188,9 +212,67 @@ defmodule Prism.Generator.Web.Elements do
           side != nil,
           do: %{name: position_name(p.name), part: p.name, default: side}
         ),
+      values: Enum.map(Map.get(c, :values, []), &value(c, kind, &1, prefix, target)),
       rest: if(Enum.any?(parts, &(&1.as == :control)), do: :control, else: :root)
     }
   end
+
+  # The values a component's markup follows: the range, the attributes while the
+  # app gives one, and what it draws.
+  defp value(c, kind, v, prefix, target) do
+    {min, max} = {0, 100}
+
+    attrs = [
+      role: "progressbar",
+      "aria-valuemin": min,
+      "aria-valuemax": max,
+      "aria-valuenow": {:value, ""}
+    ]
+
+    %{
+      name: v.name,
+      class: Classes.modifier(prefix, c.name, v.name),
+      min: min,
+      max: max,
+      attrs: attrs,
+      children: [drawing(kind.values[v.name], c, v, prefix, target)]
+    }
+  end
+
+  # A ring in a box of 100: the track, and the indicator, whose dash is as long as
+  # the value since its path is 100 long. It starts at the top, and is there only
+  # above 0, where its round ends would draw a dot. Its radius leaves room for the
+  # stroke, a share of the box.
+  defp drawing(:ring, c, v, prefix, target) do
+    stroke =
+      case Keyword.get(v.web, :stroke, v.style[:stroke]) do
+        {n, :percent} ->
+          n
+
+        nil ->
+          raise ArgumentError,
+                "#{target} draws #{inspect(c.name)}'s #{inspect(v.name)} as a ring, and it has no stroke"
+      end
+
+    circle = [cx: "50", cy: "50", r: number(50 - stroke / 2)]
+
+    {"svg", [viewBox: "0 0 100 100", "aria-hidden": "true"],
+     [
+       {"circle", [class: Classes.part(prefix, c, :track)] ++ circle, []},
+       {:above_min,
+        {"circle",
+         [class: Classes.part(prefix, c, :indicator)] ++
+           circle ++
+           [
+             pathLength: "100",
+             "stroke-dasharray": {:value, " 100"},
+             transform: "rotate(-90 50 50)"
+           ], []}}
+     ]}
+  end
+
+  defp number(n) when n == trunc(n), do: Integer.to_string(trunc(n))
+  defp number(n), do: Float.to_string(n)
 
   defp position_name(part), do: :"#{part}_position"
 
@@ -239,16 +321,17 @@ defmodule Prism.Generator.Web.Elements do
 
     other = Enum.find(components, &(&1.name == ref))
 
-    defaults =
-      for %{default: default, classes: classes} <- axes(other, prefix),
-          class = classes[default],
+    # The variant the part picks of each axis, or the axis's default.
+    picked =
+      for %{name: axis, default: default, classes: classes} <- axes(other, prefix),
+          class = classes[Keyword.get(Map.get(p, :variants, []), axis, default)],
           do: class
 
     %{
       name: p.name,
       as: :component,
       element: element,
-      class: [Classes.part(prefix, c, p.name) | defaults]
+      class: [Classes.part(prefix, c, p.name) | picked]
     }
   end
 
@@ -379,6 +462,9 @@ defmodule Prism.Generator.Web.Elements do
 
       values =
         if default == nil or default in variants, do: variants, else: [default | variants]
+
+      # Numbers read in their order.
+      values = if Enum.all?(values, &is_integer/1), do: Enum.sort(values), else: values
 
       %{name: axis, values: values, default: default, classes: classes}
     end

@@ -10,7 +10,9 @@ export const accepted = (
     <Button as="a" href="/next">
       Next
     </Button>
-    <Spinner size="medium" variant="accent" />
+    <Spinner size={16} variant="accent" />
+    <Spinner size={24} progress={40} />
+    <Spinner progress={null} />
     <TextField invalid name="email" />
     <Select options={[{ selected: true, children: "A" }]}>Pick</Select>
   </>
@@ -34,6 +36,15 @@ export const sides = (
     <Button variant="icon" icon="*" aria-label="Add" />
   </>
 );
+
+// @ts-expect-error: no such size
+export const unknownSize = <Spinner size={20} />;
+
+// @ts-expect-error: a size named by a number is a number, not a string
+export const sizeAsText = <Spinner size="16" />;
+
+// @ts-expect-error: a value is a number
+export const progressAsText = <Spinner progress="40" />;
 
 // @ts-expect-error: no such tone
 export const unknownTone = <Tag tone="error">Done</Tag>;
