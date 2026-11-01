@@ -177,8 +177,10 @@ jobs:
           udid=$(xcrun simctl list devices available iPhone |
             grep -m1 -oE '\([0-9A-F-]{36}\)' | tr -d '()')
           [ -n "$udid" ] || { echo "::error::no iPhone simulator on this image"; exit 1; }
+          # No warnings-as-errors here: Xcode builds the package as a dependency with its
+          # warnings suppressed, which the flag conflicts with; the step above checks them.
           xcodebuild test -quiet -scheme PrismChecks-Package -destination "id=$udid" \
-            -derivedDataPath "$RUNNER_TEMP/PrismChecks" SWIFT_TREAT_WARNINGS_AS_ERRORS=YES
+            -derivedDataPath "$RUNNER_TEMP/PrismChecks"
 
   npm-package:
     name: npm file list
