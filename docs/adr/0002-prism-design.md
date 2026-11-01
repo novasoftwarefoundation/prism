@@ -20,7 +20,7 @@ Prism is a look for scientific software: a Tailwind preset plus component CSS, p
    - `:display` for headings (> 20px): Nunito on the web;
    - `:text` for body text (≤ 20px): Nunito Sans on the web.
 
-   Both are `:system` on iOS and Android. While iOS uses `:system`, the Swift package bundles no fonts, so there is no font generator and no TTF files in it. `font :mono` stays as it is in 0.1.7 for now: the `:text` role at weight 300, not a monospaced font.
+   Both are `:system` on iOS and Android. While iOS uses `:system`, the Swift package bundles no fonts. Whether iOS binds Nunito and Nunito Sans instead is not decided yet; the Swift target supports it, as a change to the iOS binding and the `swift` declaration ([ADR 0008](0008-swift-target.md), decision 7). `font :mono` stays as it is in 0.1.7 for now: the `:text` role at weight 300, not a monospaced font.
 
 5. **Compatibility with 0.1.7, recorded.** The generator's web spelling matches 0.1.7 (upper-case hex and two-decimal alphas in the preset, `0px` in text shadows, `0` in box shadows, prettier's 80-column wrap). `design/test/golden/0.1.7/` holds 0.1.7's files, and `design/test/golden_test.exs` compares the generated files with them:
 
@@ -31,7 +31,7 @@ Prism is a look for scientific software: a Tailwind preset plus component CSS, p
 
 6. **Brand-neutrality and theming:** the design holds Prism's defaults. It keeps 0.1.7's behaviour: the preset is overridable, the component CSS is not. Emitting CSS custom properties for theming is a possible later change, not part of this decision.
 
-7. **One version for Prism.** `design/mix.exs` has the same version as `targets/web/package.json`, and a test checks it. The generator has its own version (0.2.0). A release tag `vX.Y.Z` will be the npm version and, later, the Swift package's version. 0.x rules apply: a removed token, class or variant is a minor bump, so decision 10's new class names are 0.2.0 (a consumer on `^0.1.7` doesn't take it by accident).
+7. **One version for Prism.** `design/mix.exs` has the same version as `targets/web/package.json`, and a test checks it. The generator has its own version (0.2.0). A release tag `vX.Y.Z` is the npm version and the Swift package's version: the release mirrors `targets/swift/` to the `prism-swift` repository and tags it `vX.Y.Z` there too ([ADR 0008](0008-swift-target.md)). 0.x rules apply: a removed token, class or variant is a minor bump, so decision 10's new class names are 0.2.0 (a consumer on `^0.1.7` doesn't take it by accident).
 
 8. **Typography.** Every role in either list (fonts and text sizes) has a `typography` token of the same name, and every font and text size is used by one; a test checks both. The format is in [ADR 0001](0001-design-format.md); this records Prism's pairings.
 
@@ -147,5 +147,5 @@ Prism is a look for scientific software: a Tailwind preset plus component CSS, p
 - Prism's look is edited in `design/lib/tokens.ex` and `design/lib/components.ex` and regenerated with `cd design && mix prism.gen`; CI fails (`mix prism.gen --check`) when the committed files differ.
 - 0.2.0 breaks every app that uses 0.1.7's classes: each moves to the classes of decision 10 when it takes 0.2.0.
 - The generator can move to its own repository by moving `generator/` out and changing one dependency line in `design/mix.exs`; nothing in Prism's design changes.
-- Swift comes later in `targets/swift/`, with its own `Package.swift`. It and Kotlin get type from the 31 typography tokens; a new font or text size needs a typography token too, or the design's test fails.
+- The Swift package is `targets/swift/` ([ADR 0008](0008-swift-target.md)), named `Prism` by the `swift` declaration in `Prism.Design.Tokens`. It, and Kotlin later, get type from the 31 typography tokens; a new font or text size needs a typography token too, or the design's test fails.
 - 0.1.7's inconsistencies stay until someone changes them on purpose.

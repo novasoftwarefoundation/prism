@@ -10,6 +10,7 @@ Part of the [Nova Software Foundation](https://novasf.org) - open source softwar
 - **Hybrid approach** - Both Tailwind preset (for customization) and ready-made component classes
 - **Variable fonts** - Uses Nunito and Nunito Sans variable fonts for optimal typography
 - **Easy to adopt** - Drop-in CSS classes for common components
+- **iOS too** - The same design for SwiftUI, tokens and components, in the Swift package [`prism-swift`](https://github.com/novasoftwarefoundation/prism-swift) at the same version (since 0.2.0)
 
 ## Installation
 

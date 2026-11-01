@@ -429,4 +429,76 @@ defmodule Prism.Generator.SchemaTest do
       3
     )
   end
+
+  test "the swift declaration is checked" do
+    [{module, _}] =
+      compile(~s(  swift module: "Acme", fonts: "../fonts", font_files: ["OFL.txt"]))
+
+    assert module.__schema__().swift == %{
+             module: "Acme",
+             fonts: "../fonts",
+             font_files: ["OFL.txt"]
+           }
+
+    assert_compile_error(
+      ~s(  swift module: "Acme"\n  swift module: "Acme"),
+      "swift is declared more than once",
+      3
+    )
+
+    assert_compile_error(~s(  swift module: "Acme", name: "A"), "unknown option :name", 3)
+
+    for name <- ["acme", "Acme Kit", "1Acme", nil] do
+      assert_compile_error(
+        "  swift module: #{inspect(name)}",
+        "module must be an upper camel case Swift name",
+        3
+      )
+    end
+
+    assert_compile_error(
+      ~s(  swift module: "Acme", fonts: "/fonts"),
+      "fonts must be a relative path (no leading /)",
+      3
+    )
+
+    assert_compile_error(
+      ~s(  swift module: "Acme", fonts: "f", font_files: ["../OFL.txt"]),
+      "font_files must be a list of file names",
+      3
+    )
+
+    assert_compile_error(
+      ~s(  swift module: "Acme", font_files: ["OFL.txt"]),
+      "font_files: needs fonts:",
+      3
+    )
+  end
+
+  test "a design that takes its tokens from another takes its swift declaration" do
+    [{tokens, _}] =
+      compile(
+        ~s(  web prefix: "acme", fonts_url: "f"\n  swift module: "Acme"\n  color :ink, "#101010")
+      )
+
+    module = "Design#{System.unique_integer([:positive])}"
+
+    [{components, _}] =
+      Code.compile_string(
+        "defmodule #{module} do\n  use Prism.Generator.Schema, tokens: #{inspect(tokens)}\nend\n",
+        "design.ex"
+      )
+
+    assert components.__schema__().swift.module == "Acme"
+
+    error =
+      assert_raise CompileError, fn ->
+        Code.compile_string(
+          "defmodule #{module}B do\n  use Prism.Generator.Schema, tokens: #{inspect(tokens)}\n  swift module: \"Other\"\nend\n",
+          "design.ex"
+        )
+      end
+
+    assert Exception.message(error) =~ "swift: it comes with the tokens"
+  end
 end

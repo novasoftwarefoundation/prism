@@ -22,13 +22,14 @@ defmodule Prism.Design.TokensTest do
     assert MapSet.new(typographies, & &1.text) == names.(:text)
   end
 
-  test "mix prism.gen generates Prism's whole design into targets/web, react and design-tools" do
+  test "mix prism.gen generates Prism's whole design into targets/web, react, design-tools and swift" do
     assert Application.get_env(:prism_generator, :design) == Prism.Design.Components
 
     assert Application.get_env(:prism_generator, :targets) == [
              web: "../targets/web",
              react: "../targets/react",
-             design_tools: "../targets/design-tools"
+             design_tools: "../targets/design-tools",
+             swift: "../targets/swift"
            ]
 
     assert File.exists?("../targets/web/package.json")

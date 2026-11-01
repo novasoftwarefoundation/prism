@@ -140,6 +140,27 @@ jobs:
       - run: npm ci
       - run: npm test
 
+  swift:
+    name: Swift package (iOS Simulator)
+    # SwiftUI builds only on macOS. Its Xcode has Swift 6.2 or later and the iOS 26 SDK,
+    # which the packages' tools version and platform need.
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: xcodebuild -version
+      # Prism's package, and the generator's fixtures: the example design with a
+      # component of every kind, and the one with a token of every kind.
+      - name: Build the packages
+        run: |
+          for package in targets/swift:Prism generator/test/fixtures/swift/components:Kit \
+                         generator/test/fixtures/swift/design:Acme; do
+            (cd "${package%%:*}" && xcodebuild build -quiet -scheme "${package##*:}" \
+              -destination 'generic/platform=iOS Simulator' \
+              -derivedDataPath "$RUNNER_TEMP/${package##*:}")
+          done
+
   npm-package:
     name: npm file list
     runs-on: ubuntu-latest

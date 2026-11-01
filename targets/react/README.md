@@ -6,6 +6,8 @@ Part of the [Nova Software Foundation](https://novasf.org) - open source softwar
 
 The components render the look only: their element, classes and parts. What a component does stays in the app: `onClick` and the other DOM props go on the element.
 
+An iOS app gets the same components in SwiftUI from the Swift package [`prism-swift`](https://github.com/novasoftwarefoundation/prism-swift), at the same version.
+
 ## Installation
 
 ```bash
