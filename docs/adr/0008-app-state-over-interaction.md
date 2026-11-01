@@ -10,17 +10,20 @@ The owner decided that an invalid field keeps its warning border while it has fo
 
 ## Decision
 
-1. **A state the app sets outweighs the pointer and the focus.** Where a state the app sets (`invalid`, `selected`, `loading`) and `pressed`, `hovered` or `focused` change the same property of the same element, the app's state wins. This holds property by property: the focused state's other properties still apply. The app's state says something about the value or the choice, and that stays true while someone points at the element or types in it.
+1. **A state the app sets outweighs the pointer and the focus.** The states the app sets are `invalid`, `selected` and `loading`, picked by name. Where one of them and `pressed`, `hovered` or `focused` change the same property, the app's state wins. The rule holds property by property: the focused state's other properties still apply. The app's state says something about the value or the choice, and that stays true while someone points at the element or types in it.
 
-2. **Only the pointer and the focus.** `disabled` and `checked` are not part of the rule. They aren't passing states of someone acting on the element, and whether `invalid` should outweigh `disabled` is a separate design question. No component in Prism's design has both change one property today.
+2. **Only the pointer and the focus.** `disabled` and `checked` are not part of the rule, also on an element that isn't a form control, where the web writes them as classes. They aren't passing states of someone acting on the element, and whether `invalid` should outweigh `disabled` is a separate design question. `pressed`, `hovered` and `focused` don't outweigh each other either. No component in Prism's design has both change one property today.
 
-3. **On the same element.** The rule covers a state the app sets on a component or on one of its parts. It holds against the pointer and focus states of every node drawn on that element:
-   - for a component, its own states and those of its variants, its flags, and its looks with a part or with a variant;
-   - for a part, its own states and each variant's change to it.
+3. **On the element and on each part.** The rule compares the properties a state changes on its own element with those the pointer or focus changes there. It compares a state's change to a part with the pointer's or focus's change to that same part, whether or not they share a property on the element itself.
 
-   A state the app sets inside a variant keeps the web's usual weights. Prism's design has none.
+4. **Against every node that holds with the state.** The rule holds against the pointer and focus states of the nodes on the same element that hold whenever the state's node holds, or within it:
+   - for a component's own state, its own states and those of its variants, its flags, and its looks with a part or with a variant;
+   - for a part's own state, its own states and each variant's change to the part;
+   - for a state in a variant (or a flag, or a look), the component's or the part's own states, the variant's, and those of the nodes within the variant.
 
-4. **On the web, one class heavier.** The app's state keeps its rule. That rule also gets the selector of each pointer or focus rule that changes one of its properties, with the state's class added:
+   A node within it that has a look of its own for the same state is left to that look. A variant's own invalid look then outweighs both the focus and the component's invalid look, as it does without the focus.
+
+5. **On the web, at least one class heavier.** The app's state keeps its rule. That rule also gets, for each pointer or focus rule that changes one of its properties, the classes of both selectors together, for each element in the selector:
 
    ```css
    .prism-text-field--invalid,
@@ -30,9 +33,9 @@ The owner decided that an invalid field keeps its warning border while it has fo
    }
    ```
 
-   Each added selector is one class heavier than the browser's rule, so it wins wherever it stands in the file and whatever order the design gives the states. Only a rule that shares a property gets a selector, so the CSS changes only where the look changes. The Phoenix and React components set the same classes, so nothing changes in them.
+   Each added selector is at least one class heavier than the browser's rule, so it wins wherever it stands in the file and whatever order the design gives the states. A variant's own look for the state carries the variant's class too (`.prism-text-field.prism-text-field--inverse.prism-text-field--invalid:focus`), so it outweighs the component's. A combination that can't hold, such as two variants of one axis or two names of one variant, gets no selector. A state's change to a part gets the same for the part: for a tag whose selected and hovered looks both color its label, `.prism-tag.prism-tag--selected:hover .prism-tag__label`. Only a rule that shares a property gets a selector, so the CSS changes only where the look changes. The Phoenix and React components set the same classes, so nothing changes in them.
 
-5. **A native target lays the app's state over these states.** A target that draws looks as layers puts the layer of a state the app sets above the `pressed`, `hovered` and `focused` layers of the same element, for the properties both set. iOS then shows what the web shows.
+6. **A native target lays the app's state over these states.** A target that draws looks as layers puts the layer of a state the app sets above the `pressed`, `hovered` and `focused` layers it is compared with, for the properties both set. A node's own look for the state stays above the component's look for it. iOS then shows what the web shows.
 
 In Prism's design, only the text field has both an invalid look and a focus look. The text area and the select have a focus look but no invalid look. If they get one, this rule covers them with no further change.
 
@@ -50,5 +53,5 @@ In Prism's design, only the text field has both an invalid look and a focus look
 ## Consequences
 
 - A focused invalid text field keeps its warning border, on the inverse field too. In `css/components.css`, the invalid rule gets two more selectors. The golden diff (`design/test/golden/0.1.7.diff`) includes them.
-- An app that styled a focused invalid field itself can drop that CSS.
-- A native target ranks the layer of a state the app sets above the pointer and focus layers of the same element. A Swift target that ranks layers by the weight of the web's selectors does this through the added selectors' weight.
+- An app that styled a focused invalid field itself can drop that CSS. On an invalid field, the added selectors now beat an app's own `:focus` border: a Tailwind `focus:border-*` utility, or a rule of one class and `:focus` such as `.prism-text-field--invalid:focus`. An app that wants another color there uses the important modifier (`focus:!border-…`) or a rule at least as heavy (`.prism-text-field.prism-text-field--invalid:focus`), after Prism's CSS.
+- A native target ranks the layer of a state the app sets above the pointer and focus layers it is compared with, and a node's own look for the state above the component's. A target that ranks layers by the weight of the web's selectors has to rank them as the added selectors weigh.

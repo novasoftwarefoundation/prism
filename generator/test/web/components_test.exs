@@ -479,6 +479,108 @@ defmodule Prism.Generator.Web.ComponentsTest do
     assert css =~ "\n.only-text-field:disabled {\n"
   end
 
+  test "the states that outweigh the pointer and the focus are picked by name" do
+    # On an element that isn't a form control, `disabled`, `checked`, `focused` and
+    # `pressed` are classes; they don't outweigh the hover.
+    radio =
+      compile("""
+        component :radio do
+          state :hovered, opacity: 0.9
+          state :disabled, opacity: 0.5
+        end
+      """)
+
+    assert css(radio) =~ "\n.only-radio--disabled {\n  opacity: 0.5;\n"
+    refute css(radio) =~ "only-radio--disabled:hover"
+
+    tag =
+      compile("""
+        component :tag do
+          state :hovered, background: :ink
+          state :focused, background: :ink
+          state :pressed, background: :ink
+          state :checked, background: :ink
+        end
+      """)
+
+    refute css(tag) =~ ":hover,"
+    refute css(tag) =~ ~r/--(focused|pressed|checked)[.:]/
+
+    # `loading` is one: its rule outweighs the hover too.
+    button =
+      compile("""
+        component :button do
+          state :hovered, background: :ink
+          state :loading, background: "#222222", opacity: 0.7
+        end
+      """)
+
+    assert css(button) =~
+             "\n.only-button--loading,\n.only-button.only-button--loading:hover {\n" <>
+               "  position: relative;\n  background-color: #222222;\n  opacity: 0.7;\n}\n"
+  end
+
+  test "a variant's own look for a state the app sets outweighs the focus and the component's look" do
+    css =
+      css(
+        compile("""
+          component :text_field do
+            state :focused, border: [color: "#111111"]
+            state :invalid, border: [color: "#222222"]
+
+            variant :inverse do
+              state :focused, border: [color: "#333333"]
+              state :invalid, border: [color: "#444444"]
+            end
+          end
+        """)
+      )
+
+    # The component's look leaves the variant to its own: no selector with the
+    # variant's focus.
+    assert css =~
+             "\n.only-text-field--invalid,\n.only-text-field.only-text-field--invalid:focus {\n" <>
+               "  border-color: #222222;\n}\n"
+
+    # The variant's, over the component's focus (one class heavier than the
+    # component's invalid look there) and over its own.
+    assert css =~
+             "\n.only-text-field--inverse.only-text-field--invalid,\n" <>
+               ".only-text-field.only-text-field--inverse.only-text-field--invalid:focus,\n" <>
+               ".only-text-field--inverse.only-text-field--invalid:focus {\n" <>
+               "  border-color: #444444;\n}\n"
+  end
+
+  test "a state's change to a part outweighs the pointer's change to it, property by property" do
+    design = fn root ->
+      compile("""
+        component :tag do
+          part :label
+          state :hovered#{root} do
+            part :label, foreground: :ink, opacity: 0.9
+          end
+          state :selected#{root} do
+            part :label, foreground: "#222222"
+          end
+        end
+      """)
+    end
+
+    # The label's color is shared, so its rule outweighs the hover's, whether or not
+    # the tag's own properties are.
+    for root <- ["", ", background: :ink"] do
+      assert css(design.(root)) =~
+               "\n.only-tag--selected .only-tag__label,\n" <>
+                 ".only-tag.only-tag--selected:hover .only-tag__label {\n  color: #222222;\n}\n"
+    end
+
+    # The tag's own rule gets the heavier selector only where its own properties are.
+    refute css(design.("")) =~ "\n.only-tag--selected,\n"
+
+    assert css(design.(", background: :ink")) =~
+             "\n.only-tag--selected,\n.only-tag.only-tag--selected:hover {\n"
+  end
+
   test "a variant's change to a part has the part's states, inside the variant" do
     design =
       compile("""
@@ -506,8 +608,12 @@ defmodule Prism.Generator.Web.ComponentsTest do
     assert css =~
              "\n.only-tag--accent .only-tag__label:hover,\n.only-tag--blue .only-tag__label:hover {\n  opacity: 0.5;\n}\n"
 
+    # The selected label outweighs its hover, which changes its opacity too (ADR 0008),
+    # once per name of the variant.
     assert css =~
-             "\n.only-tag--accent .only-tag__label--selected,\n.only-tag--blue .only-tag__label--selected {\n  opacity: 0.8;\n}\n"
+             "\n.only-tag--accent .only-tag__label--selected,\n.only-tag--blue .only-tag__label--selected,\n" <>
+               ".only-tag--accent .only-tag__label.only-tag__label--selected:hover,\n" <>
+               ".only-tag--blue .only-tag__label.only-tag__label--selected:hover {\n  opacity: 0.8;\n}\n"
 
     # A form control's state is the browser's; the change without a look has no rule.
     assert css =~
