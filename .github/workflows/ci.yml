@@ -149,14 +149,25 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      # The package is made with Xcode 27: that one when the image has it, otherwise the
-      # newest the image has, not the image's default, which changes with the image.
+      # One exact Xcode, not the image's default or its newest, which change with the
+      # image. The step fails when the image no longer has it: pick another it lists.
       - name: Select Xcode
+        env:
+          XCODE: "26.6"
         run: |
-          xcode=$(ls -d /Applications/Xcode_27*.app 2>/dev/null | sort -V | tail -1)
-          [ -n "$xcode" ] || xcode=$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)
-          sudo xcode-select -s "$xcode"
-          xcodebuild -version
+          app="/Applications/Xcode_$XCODE.app"
+          [ -d "$app" ] || {
+            echo "::error::Xcode $XCODE is not on this image; it has: $(ls -d /Applications/Xcode_*.app | xargs)"
+            exit 1
+          }
+          sudo xcode-select -s "$app"
+          # sed reads all of the output: head would close the pipe on xcodebuild.
+          version=$(xcodebuild -version | sed -n 1p)
+          echo "$version"
+          [ "$version" = "Xcode $XCODE" ] || {
+            echo "::error::$app is $version, not Xcode $XCODE"
+            exit 1
+          }
       # Prism's package, and the generator's fixtures: the example design with a
       # component of every kind, and the one with a token of every kind. A warning fails
       # the build, as the generator's own do.

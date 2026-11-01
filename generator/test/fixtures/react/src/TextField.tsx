@@ -28,6 +28,9 @@ export const TextField = forwardRef<HTMLInputElement, TextFieldProps>(function T
   { variant, disabled, invalid, className, ...rest },
   ref,
 ) {
+  if (variant != null && !["inverse"].includes(variant)) {
+    throw new Error(`variant: ${JSON.stringify(variant)} is not one of "inverse"`);
+  }
   return (
     <input
       ref={ref}

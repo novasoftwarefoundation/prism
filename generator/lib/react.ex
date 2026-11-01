@@ -18,7 +18,9 @@ defmodule Prism.Generator.React do
     `size`) is a prop typed as a union of the design's values, its variants
     and their aliases, and its default when that is a name without a look of
     its own, so TypeScript rejects any other value: strings, or numbers when
-    the design names them by numbers (`size={16}`). Its default is the
+    the design names them by numbers (`size={16}`). Any other value, from
+    code TypeScript doesn't check, throws when it renders; an axis without a
+    default also takes `null` and `undefined`, as Phoenix's `nil`. Its default is the
     design's; a default that is one of the variants adds that variant's
     class, one without a look adds none. An axis without a default adds no
     class until the app picks a variant.
@@ -36,6 +38,8 @@ defmodule Prism.Generator.React do
     `aria-valuemin` and `aria-valuemax`, and what the value draws (a
     spinner's ring); without it, none of them. The app names a progress
     bar with `aria-label` or `aria-labelledby`, which go on the element.
+    Anything else that isn't a number, such as `"40"`, throws when it
+    renders, as in Phoenix.
   - **Each state the app sets** is a boolean prop: a state the CSS writes as a
     modifier class adds that class (`loading`, `invalid`, a radio's
     `disabled`); `disabled` and `checked` on a form control set the element's
@@ -440,6 +444,10 @@ defmodule Prism.Generator.React do
           ""
       end
 
+    # An axis's value is one of the design's, or null or undefined for an axis without
+    # a default (Phoenix's nil); any other value would add no class.
+    axes = Enum.map(spec.axes, &axis_check/1)
+
     # A part's side is "start" or "end"; any other value would drop the part.
     positions =
       for p <- spec.positions do
@@ -460,12 +468,35 @@ defmodule Prism.Generator.React do
       pattern,
       ",\n  ref,\n) {\n",
       guard,
+      axes,
       positions,
       Enum.map(spec.values, &value_consts/1),
       "  return (\n",
       render(root, 4),
       "\n  );\n});\n"
     ]
+  end
+
+  defp axis_check(a) do
+    prop = camel(a.name)
+    values = Enum.map_join(a.values, ", ", &js_value/1)
+    known = "[#{values}].includes(#{prop})"
+    test = if a.default, do: ["!" <> known], else: ["#{prop} != null", "!" <> known]
+    message = "`#{prop}: ${JSON.stringify(#{prop})} is not one of #{values}`"
+
+    condition =
+      if String.length("  if (#{Enum.join(test, " && ")}) {") <= @width,
+        do: "  if (#{Enum.join(test, " && ")}) {\n",
+        else: "  if (\n" <> Enum.map_join(test, " &&\n", &"    #{&1}") <> "\n  ) {\n"
+
+    [condition, js_throw(message), "  }\n"]
+  end
+
+  # `throw new Error(message)` inside an `if`, wrapped when it is past the width.
+  defp js_throw(message) do
+    if String.length("    throw new Error(#{message});") <= @width,
+      do: "    throw new Error(#{message});\n",
+      else: "    throw new Error(\n      #{message},\n    );\n"
   end
 
   defp bindings_pattern(bindings, indent) do
@@ -490,6 +521,12 @@ defmodule Prism.Generator.React do
       end)
 
     [
+      "  // A #{words(v.name)} that isn't a number would be no value.\n",
+      "  if (#{prop} != null && typeof #{prop} !== \"number\") {\n",
+      js_throw(
+        "`#{prop}: ${JSON.stringify(#{prop})} is not a number from #{v.min} to #{v.max}, or null`"
+      ),
+      "  }\n",
       "  // The #{words(v.name)}, within #{v.min} and #{v.max}, and its attributes while the app gives it:\n",
       "  // none without a finite number (undefined, null, NaN).\n",
       "  const #{value_const(v)} =\n",

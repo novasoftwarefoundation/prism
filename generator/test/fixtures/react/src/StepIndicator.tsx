@@ -26,6 +26,9 @@ export const StepIndicator = forwardRef<HTMLSpanElement, StepIndicatorProps>(fun
   { status, className, children, ...rest },
   ref,
 ) {
+  if (status != null && !["current"].includes(status)) {
+    throw new Error(`status: ${JSON.stringify(status)} is not one of "current"`);
+  }
   return (
     <span
       ref={ref}

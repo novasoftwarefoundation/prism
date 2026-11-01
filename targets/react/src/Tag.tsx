@@ -29,6 +29,11 @@ export const Tag = forwardRef<HTMLSpanElement, TagProps>(function Tag(
   { tone = "accent", className, children, ...rest },
   ref,
 ) {
+  if (!["accent", "success", "warning", "danger", "neutral"].includes(tone)) {
+    throw new Error(
+      `tone: ${JSON.stringify(tone)} is not one of "accent", "success", "warning", "danger", "neutral"`,
+    );
+  }
   return (
     <span ref={ref} {...rest} className={classNames("prism-tag", toneClasses[tone], className)}>
       {present(children) && <span className="prism-tag__label">{children}</span>}

@@ -95,6 +95,19 @@ export const Button = forwardRef<HTMLElement, ButtonProps>(function Button(
   }
   // Typed as a button: ButtonProps has checked the props for the element the app picked.
   const Element = element as "button";
+  if (
+    variant != null &&
+    !["primary", "secondary", "plain", "link", "text", "soft", "icon"].includes(variant)
+  ) {
+    throw new Error(
+      `variant: ${JSON.stringify(variant)} is not one of "primary", "secondary", "plain", "link", "text", "soft", "icon"`,
+    );
+  }
+  if (!["accent", "success", "warning", "danger", "neutral", "highlight"].includes(tone)) {
+    throw new Error(
+      `tone: ${JSON.stringify(tone)} is not one of "accent", "success", "warning", "danger", "neutral", "highlight"`,
+    );
+  }
   if (iconPosition !== "start" && iconPosition !== "end") {
     throw new Error(`iconPosition: ${JSON.stringify(iconPosition)} is not one of "start", "end"`);
   }

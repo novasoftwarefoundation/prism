@@ -62,12 +62,15 @@ defmodule Prism.Generator.Web.Components do
 
   A state the app sets (`:invalid`, `:selected`, `:loading`, by name)
   outweighs `:pressed`, `:hovered` and `:focused` where both change one
-  property (ADR 0008): on its element, and on each part it changes. Its rule
-  also gets, for each such rule of a node that holds with it, the classes of
-  both selectors together (`.acme-text-field.acme-text-field--invalid:focus`),
-  at least one class heavier, so it wins wherever it stands in the file. A
-  variant's own look for the state is left to the variant, whose rule then
-  gets the variant's class too and outweighs the component's.
+  property (ADR 0008): on its element, and on each part it changes. For each
+  such rule of a node that holds with it, the classes of both selectors
+  together (`.acme-text-field.acme-text-field--invalid:focus`), at least one
+  class heavier, win for the properties both change, wherever they stand in
+  the file: on the state's rule when those are all of its properties, in a
+  rule of their own with only those properties otherwise. A property that a
+  variant's own look for the state sets is left to the variant, whose rule
+  then gets the variant's class too and outweighs the component's; the
+  component's look still wins for the others.
 
   ## The `web:` binding
 
@@ -817,7 +820,12 @@ defmodule Prism.Generator.Web.Components do
       cursor = if s.name == :disabled, do: ["cursor: not-allowed"], else: []
 
       with_doc(state, [
-        rule(heavier(sel, outweighed(path, s, sel, selectors)), lines ++ cursor)
+        heavier(
+          sel,
+          outweighed(path, s, sel, selectors),
+          lines ++ cursor,
+          &declarations(state, only: &1)
+        )
         | state_parts(path, s, sel, selectors)
       ])
     end
@@ -831,7 +839,22 @@ defmodule Prism.Generator.Web.Components do
           state_part(sel, path ++ [s.name], part, outweighed(path, s, sel, selectors, part.name))
   end
 
-  defp heavier(sel, more), do: Enum.join([sel | more], ",\n")
+  # A state's rule, `sel` with `lines`, and the selectors that make it outweigh the
+  # pointer and the focus (`more`, `outweighed/5`). A selector that outweighs them
+  # for all of the state's properties goes on the rule. One for only some of them
+  # gets a rule of its own after it, with those properties (`only.(keys)`), so it
+  # outweighs no other rule for the rest.
+  defp heavier(sel, more, lines, only, path \\ nil) do
+    all = for {:all, s} <- more, do: s
+    some = for {keys, s} <- more, keys != :all, s not in all, do: {keys, s}
+
+    [
+      rule(path, Enum.join([sel | all], ",\n"), lines)
+      | for keys <- some |> Enum.map(&elem(&1, 0)) |> Enum.uniq() do
+          rule(Enum.join(for({^keys, s} <- some, do: s), ",\n"), only.(keys))
+        end
+    ]
+  end
 
   # A state's selector, or `nil` for a state the markup can't show, which is then
   # written nowhere, so generation fails.
@@ -857,26 +880,33 @@ defmodule Prism.Generator.Web.Components do
   # class heavier than the browser's rule, so it wins wherever it stands in the file.
   #
   # The nodes are the element's own (the component or the part), the node of the
-  # state, and those within it. A node within it that has a look of its own for the
-  # state is left to that look: a variant's own invalid look, with the variant's and
-  # the state's classes, then outweighs both the focus and the component's invalid
-  # look, as it does without the focus.
+  # state, and those within it. A property that a node within it gives a look of its
+  # own for the state is left to that look, property by property: a variant's own
+  # invalid look, with the variant's and the state's classes, then outweighs both the
+  # focus and the component's invalid look, as it does without the focus, and the
+  # component's invalid look still outweighs the variant's focus for the others.
+  #
+  # Each selector comes with the properties it outweighs the pointer or the focus
+  # for: `:all` of the state's, or some of them, `[{:all | keys, selector}]`. Those
+  # are the properties both change, less those left to a node's own look.
   defp outweighed(path, s, sel, selectors, part \\ nil)
 
   defp outweighed(path, %{name: name}, sel, selectors, part) when name in @winners do
     keys = properties(path ++ [name], part)
 
     for e <- candidates(path),
-        not Enum.any?(within(path, e), &state?(&1, name)),
+        own = own(path, e, name, part),
         b <- node!(e).states,
         b.name in @interactions,
-        Enum.any?(properties(e ++ [b.name], part), &(&1 in keys)),
-        browser = state_selector(e, b, selectors) do
-      compound(descend(browser, part, path), descend(sel, part, path))
+        shared = properties(e ++ [b.name], part),
+        wins = Enum.filter(keys, &(&1 in shared and &1 not in own)),
+        wins != [],
+        browser = state_selector(e, b, selectors),
+        compound <- compound(descend(browser, part, path), descend(sel, part, path)),
+        possible?(hd(path), compound) do
+      {if(wins == keys, do: :all, else: wins), compound}
     end
-    |> List.flatten()
     |> Enum.uniq()
-    |> Enum.filter(&possible?(hd(path), &1))
   end
 
   defp outweighed(_path, _s, _sel, _selectors, _part), do: []
@@ -923,6 +953,16 @@ defmodule Prism.Generator.Web.Components do
   end
 
   defp state?(path, name), do: Enum.any?(node!(path).states, &(&1.name == name))
+
+  # The properties that the nodes between `path` and `e` give a look of their own for
+  # state `name`, on the element or on `part`.
+  defp own(path, e, name, part) do
+    for w <- within(path, e),
+        state?(w, name),
+        key <- properties(w ++ [name], part),
+        uniq: true,
+        do: key
+  end
 
   # Whether a selector can match: no two variants of one axis (or two names of one
   # variant) on the component at once.
@@ -1014,10 +1054,11 @@ defmodule Prism.Generator.Web.Components do
   # state's selectors (`.a:hover .acme-tag__label, .b:hover .acme-tag__label`), and
   # the selectors that make it outweigh the pointer and the focus there (`more`).
   defp state_part(sel, state, part, more) do
+    path = state ++ [part.name]
+
     sel
     |> descend("." <> class([hd(state), part.name]))
-    |> heavier(more)
-    |> rule(declarations(state ++ [part.name]))
+    |> heavier(more, declarations(path), &declarations(path, only: &1))
   end
 
   # While loading, the parts change, and a part that is another component (a
@@ -1056,7 +1097,13 @@ defmodule Prism.Generator.Web.Components do
         more = outweighed([c.name], s, sel, pseudo(c))
 
         [
-          rule(state, heavier(sel, more), ["position: relative", declarations(state)])
+          heavier(
+            sel,
+            more,
+            ["position: relative", declarations(state)],
+            &declarations(state, only: &1),
+            state
+          )
           | state_parts([c.name], s, sel, pseudo(c))
         ] ++ spinners
     end

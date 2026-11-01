@@ -12,6 +12,7 @@ if Code.ensure_loaded?(Phoenix.Component) do
           element -> element
         end
 
+      for a <- spec.axes, do: axis!(a, assigns[a.name])
       for p <- spec.positions, do: position!(p.name, assigns[p.name])
       values = values(spec, assigns)
 
@@ -41,6 +42,19 @@ if Code.ensure_loaded?(Phoenix.Component) do
           raise(
             ArgumentError,
             "as: #{inspect(tag)} is not one of #{Enum.map_join(Prism.Generator.Web.Elements.as(), ", ", &inspect/1)}"
+          )
+    end
+
+    # An axis's value is one of the design's, or nil for an axis without a default;
+    # any other value would add no class. `values:` warns only about a literal.
+    defp axis!(%{default: nil}, nil), do: :ok
+
+    defp axis!(a, value) do
+      unless value in a.values,
+        do:
+          raise(
+            ArgumentError,
+            "#{a.name}: #{inspect(value)} is not one of #{Enum.map_join(a.values, ", ", &inspect/1)}"
           )
     end
 

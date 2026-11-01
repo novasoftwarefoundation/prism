@@ -460,12 +460,15 @@ defmodule Prism.Generator.Web.ComponentsTest do
     # The focus rules, the component's and each name of the variant's, with the
     # state's class added: one class heavier, so the order in the file doesn't count.
     # Not the hover or the press, which change none of its properties, nor
-    # `:disabled`, which isn't the pointer or the focus.
+    # `:disabled`, which isn't the pointer or the focus. The component's focus changes
+    # both of the state's properties; the variant's only the border, so its selectors
+    # get a rule of their own with only the border.
     assert css =~
-             "\n.only-text-field--invalid,\n.only-text-field.only-text-field--invalid:focus,\n" <>
+             "\n.only-text-field--invalid,\n.only-text-field.only-text-field--invalid:focus {\n" <>
+               "  border-color: #101010;\n  opacity: 0.8;\n}\n\n" <>
                ".only-text-field--dark.only-text-field--invalid:focus,\n" <>
                ".only-text-field--night.only-text-field--invalid:focus {\n" <>
-               "  border-color: #101010;\n  opacity: 0.8;\n}\n"
+               "  border-color: #101010;\n}\n"
 
     # A part's state, over the part's hover and a variant's hover of the part.
     assert css =~
@@ -506,7 +509,8 @@ defmodule Prism.Generator.Web.ComponentsTest do
     refute css(tag) =~ ":hover,"
     refute css(tag) =~ ~r/--(focused|pressed|checked)[.:]/
 
-    # `loading` is one: its rule outweighs the hover too.
+    # `loading` is one: it outweighs the hover too, for the background they both
+    # change, and only for it.
     button =
       compile("""
         component :button do
@@ -516,8 +520,9 @@ defmodule Prism.Generator.Web.ComponentsTest do
       """)
 
     assert css(button) =~
-             "\n.only-button--loading,\n.only-button.only-button--loading:hover {\n" <>
-               "  position: relative;\n  background-color: #222222;\n  opacity: 0.7;\n}\n"
+             "\n.only-button--loading {\n" <>
+               "  position: relative;\n  background-color: #222222;\n  opacity: 0.7;\n}\n\n" <>
+               ".only-button.only-button--loading:hover {\n  background-color: #222222;\n}\n"
   end
 
   test "a variant's own look for a state the app sets outweighs the focus and the component's look" do
