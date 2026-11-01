@@ -1689,7 +1689,7 @@
 <text x="48" y="9788" font-family="Nunito Sans" font-size="13" font-weight="700" fill="#222222">inverse + progress 40</text>
 <g id="spinner/inverse+progress-40/enabled">
 <rect x="230.34" y="9763" width="40" height="40" rx="4" fill="#222222"/>
-<circle cx="250.34" cy="9783" r="10.08" fill="none" stroke-width="3.84" stroke="#FFFFFF" stroke-opacity="0.3"/>
+<circle cx="250.34" cy="9783" r="10.08" fill="none" stroke-width="3.84" stroke="#FFFFFF" stroke-opacity="0.2"/>
 <circle cx="250.34" cy="9783" r="10.08" fill="none" stroke-width="3.84" stroke="#FFFFFF" stroke-linecap="round" stroke-dasharray="25.33 63.33" transform="rotate(-90 250.34 9783)"/>
 </g>
 </g>
