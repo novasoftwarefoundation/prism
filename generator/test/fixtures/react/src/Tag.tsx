@@ -26,6 +26,9 @@ export const Tag = forwardRef<HTMLSpanElement, TagProps>(function Tag(
   { tone = "neutral", className, children, ...rest },
   ref,
 ) {
+  if (!["neutral", "accent"].includes(tone)) {
+    throw new Error(`tone: ${JSON.stringify(tone)} is not one of "neutral", "accent"`);
+  }
   return (
     <span ref={ref} {...rest} className={classNames("kit-tag", toneClasses[tone], className)}>
       {present(children) && <span className="kit-tag__label">{children}</span>}

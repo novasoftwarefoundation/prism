@@ -39,6 +39,16 @@ export const Spinner = forwardRef<HTMLSpanElement, SpinnerProps>(function Spinne
   { variant, size = 24, progress, className, ...rest },
   ref,
 ) {
+  if (variant !== undefined && !["accent", "inverse"].includes(variant)) {
+    throw new Error(`variant: ${JSON.stringify(variant)} is not one of "accent", "inverse"`);
+  }
+  if (![16, 20, 24, 32].includes(size)) {
+    throw new Error(`size: ${JSON.stringify(size)} is not one of 16, 20, 24, 32`);
+  }
+  // A progress that isn't a number would be no value.
+  if (progress != null && typeof progress !== "number") {
+    throw new Error(`progress: ${JSON.stringify(progress)} is not a number from 0 to 100, or null`);
+  }
   // The progress, within 0 and 100, and its attributes while the app gives it:
   // none without a finite number (undefined, null, NaN).
   const progressValue =

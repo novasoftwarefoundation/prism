@@ -29,6 +29,11 @@ export const MessageBar = forwardRef<HTMLDivElement, MessageBarProps>(function M
   { tone = "info", className, children, ...rest },
   ref,
 ) {
+  if (!["info", "success", "warning", "danger"].includes(tone)) {
+    throw new Error(
+      `tone: ${JSON.stringify(tone)} is not one of "info", "success", "warning", "danger"`,
+    );
+  }
   return (
     <div
       ref={ref}

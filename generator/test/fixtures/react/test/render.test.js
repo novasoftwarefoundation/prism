@@ -123,6 +123,32 @@ describe("axes", () => {
       assert.match(html(element), new RegExp(`^<[a-z]+ class="${expected}"`), expected);
     }
   });
+
+  // From untyped JS, such as a size the design no longer has: TypeScript rejects them.
+  test("a value the axis doesn't have fails when it renders, not renders the default", () => {
+    for (const [component, props, message] of [
+      [Kit.Spinner, { size: 20 }, "size: 20 is not one of 16, 24, 32"],
+      [Kit.Spinner, { size: "16" }, 'size: "16" is not one of 16, 24, 32'],
+      [Kit.Spinner, { size: null }, "size: null is not one of 16, 24, 32"],
+      [Kit.Spinner, { variant: "large" }, 'variant: "large" is not one of "accent", "inverse"'],
+      [
+        Kit.Button,
+        { variant: "loud" },
+        'variant: "loud" is not one of "primary", "quiet", "subtle", "icon"',
+      ],
+      [Kit.Button, { tone: "toString" }, 'tone: "toString" is not one of "accent", "danger"'],
+      [Kit.Tag, { tone: "" }, 'tone: "" is not one of "neutral", "accent"'],
+      [Kit.StepIndicator, { status: null }, 'status: null is not one of "current"'],
+    ]) {
+      assert.throws(() => html(h(component, props, "x")), { message }, message);
+    }
+
+    // An axis without a default takes no value.
+    assert.equal(
+      html(h(Kit.StepIndicator, { status: undefined })),
+      norm('<span class="kit-step-indicator"></span>'),
+    );
+  });
 });
 
 describe("states", () => {
@@ -341,6 +367,15 @@ describe("values", () => {
         norm('<span class="kit-spinner kit-spinner--16"></span>'),
         String(progress),
       );
+    }
+  });
+
+  // As Phoenix raises: from untyped JS, a string isn't taken for its number.
+  test("a value that isn't a number fails when it renders", () => {
+    for (const progress of ["40", true, [40], { value: 40 }]) {
+      assert.throws(() => html(h(Kit.Spinner, { progress })), {
+        message: `progress: ${JSON.stringify(progress)} is not a number from 0 to 100, or null`,
+      });
     }
   });
 

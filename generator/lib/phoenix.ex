@@ -27,7 +27,9 @@ if Code.ensure_loaded?(Phoenix.Component) do
       `size`) is an atom attribute with `values:` from the design: its variants
       and their aliases, and its default when that is a name without a look
       of its own; an integer attribute when they are numbers (`size={16}`).
-      Phoenix warns at compile time about any other value. Its
+      Phoenix warns at compile time about any other value, and a value it
+      can't check then (from an assign) fails when it renders; an axis
+      without a default also takes `nil`. Its
       default is the axis's `default:` in the design; a default that is one of
       the variants adds that variant's class, one without a look adds none. An
       axis without a default adds no class until the app picks a variant.

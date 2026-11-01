@@ -28,6 +28,11 @@ export const StepIndicator = forwardRef<HTMLSpanElement, StepIndicatorProps>(fun
   { status = "incomplete", className, children, ...rest },
   ref,
 ) {
+  if (!["incomplete", "current", "complete"].includes(status)) {
+    throw new Error(
+      `status: ${JSON.stringify(status)} is not one of "incomplete", "current", "complete"`,
+    );
+  }
   return (
     <span
       ref={ref}

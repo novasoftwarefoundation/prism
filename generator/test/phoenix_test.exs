@@ -175,6 +175,40 @@ defmodule Prism.Generator.PhoenixTest do
       assert message ==
                ~s(attribute "variant" in component Prism.Generator.PhoenixTest.Kit.button/1 must be one of [:primary, :quiet, :subtle, :icon], got: :primray)
     end
+
+    # A value from an assign, which `values:` doesn't see, such as a size the design no
+    # longer has.
+    test "a value the axis doesn't have fails when it renders, not renders the default" do
+      spinner_size = fn assigns -> ~H"<Kit.spinner size={@value} />" end
+      spinner_variant = fn assigns -> ~H"<Kit.spinner variant={@value} />" end
+      button_variant = fn assigns -> ~H"<Kit.button variant={@value}>x</Kit.button>" end
+      button_tone = fn assigns -> ~H"<Kit.button tone={@value}>x</Kit.button>" end
+      tag_tone = fn assigns -> ~H"<Kit.tag tone={@value}>x</Kit.tag>" end
+      status = fn assigns -> ~H"<Kit.step_indicator status={@value}>1</Kit.step_indicator>" end
+
+      for {render, value, message} <- [
+            {spinner_size, 20, "size: 20 is not one of 16, 24, 32"},
+            {spinner_size, "16", ~s(size: "16" is not one of 16, 24, 32)},
+            {spinner_size, nil, "size: nil is not one of 16, 24, 32"},
+            {spinner_variant, :large, "variant: :large is not one of :accent, :inverse"},
+            {button_variant, "primary",
+             ~s(variant: "primary" is not one of :primary, :quiet, :subtle, :icon)},
+            {button_tone, :loud, "tone: :loud is not one of :accent, :danger"},
+            {tag_tone, nil, "tone: nil is not one of :neutral, :accent"},
+            {status, :done, "status: :done is not one of :current"}
+          ] do
+        assert_raise ArgumentError, message, fn ->
+          rendered_to_string(render.(%{value: value}))
+        end
+      end
+    end
+
+    test "an axis without a default takes nil" do
+      assigns = %{status: nil}
+
+      assert html(~H"<Kit.step_indicator status={@status}>1</Kit.step_indicator>") =~
+               norm(~s(class="kit-step-indicator"))
+    end
   end
 
   describe "states" do
