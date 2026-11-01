@@ -543,6 +543,7 @@ defmodule Prism.Generator.PhoenixTest do
       <Kit.select>x<:icon>v</:icon><:option selected>x</:option></Kit.select>
       <Kit.spinner size={16} variant={:accent} />
       <Kit.spinner size={32} progress={40} />
+      <Kit.spinner variant={:inverse} progress={40} />
       <Kit.checkbox checked disabled />
       <Kit.tag tone={:accent}>x</Kit.tag>
       <Kit.message_bar tone={:danger}>x</Kit.message_bar>

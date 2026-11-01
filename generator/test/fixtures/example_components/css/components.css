@@ -264,6 +264,10 @@
   color: #1a73e8;
 }
 
+.kit-spinner--inverse {
+  color: #fdfdfd;
+}
+
 .kit-spinner--progress {
   background-color: transparent;
   -webkit-mask: none;
@@ -285,6 +289,10 @@
 .kit-spinner--progress .kit-spinner__indicator {
   stroke: currentColor;
   stroke-linecap: round;
+}
+
+.kit-spinner--inverse.kit-spinner--progress .kit-spinner__track {
+  stroke: rgba(253, 253, 253, 0.3);
 }
 
 .kit-checkbox {

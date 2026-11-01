@@ -235,6 +235,35 @@ defmodule Prism.Generator.Web.ComponentsTest do
       assert css(design) =~ "  animation: only-spin 1s linear infinite;\n"
     end
 
+    test "a variant changes its progress's track: the variant and the value together" do
+      design =
+        compile("""
+          component :spinner do
+            style size: 24
+            variant :light, foreground: "#FFFFFF", aliases: [:white] do
+              value :progress, track: {:ink, 0.3}, web: [doc: "Light with progress"]
+            end
+            value :progress, stroke: {16, :percent}, track: :ink
+          end
+        """)
+
+      # After the value's own rules, once per name of the variant.
+      assert css(design) =~
+               ".only-spinner--progress .only-spinner__indicator {\n  stroke: currentColor;\n  stroke-linecap: round;\n}\n\n" <>
+                 "/* Light with progress */\n" <>
+                 ".only-spinner--light.only-spinner--progress .only-spinner__track,\n" <>
+                 ".only-spinner--white.only-spinner--progress .only-spinner__track {\n" <>
+                 "  stroke: rgba(16, 16, 16, 0.3);\n}\n"
+    end
+
+    test "a variant keeps the value's stroke, which the markup's ring is drawn with" do
+      assert_compile_error(
+        "  component :spinner do\n    value :progress, stroke: {16, :percent}, track: :ink\n    variant :thin do\n      value :progress, stroke: {8, :percent}\n    end\n  end",
+        "component :spinner, variant :thin, value :progress: stroke: the markup draws the ring with the value's own stroke",
+        6
+      )
+    end
+
     test "its progress has a stroke in percent, a share of the ring's box of 100" do
       for stroke <- ["4", "{0.5, :rem}", "{60, :percent}", "{0, :percent}"] do
         assert_compile_error(

@@ -73,7 +73,7 @@ defmodule Prism.Generator.Schema do
       variants it picks of the component it is, `[{axis, variant}]` (`[]`
       when it picks none);
     - `variants`: `[%{name, axis, aliases, style, parts, with_parts,
-      with_variants, states}]` in the design's order; `name` is a snake_case
+      with_variants, states, values}]` in the design's order; `name` is a snake_case
       atom, or a whole number above 0 (all of an axis's variants are one or
       the other); `axis` is `:variant`, or
       the name of the `variants` block it is in; `parts` are the changes it
@@ -91,7 +91,9 @@ defmodule Prism.Generator.Schema do
       component has one of its parts (`part`), named `with_<part>`; a
       variant's `with_parts` have the same shape;
     - `values`: `[%{name, style}]`, the numbers from 0 to 100 the app may
-      give, each with its look while the app gives it;
+      give, each with its look while the app gives it; a variant's `values`
+      are its changes to them, `[%{name, style}]`, the value's look with the
+      variant;
     - `states`: `[%{name, style, parts}]`, `name` one of
       `Prism.Generator.Schema.Components.states/0`; a part's states have the
       same shape. A state's `parts` are its changes to the component's parts,

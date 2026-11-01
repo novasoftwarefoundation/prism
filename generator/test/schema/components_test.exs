@@ -726,9 +726,9 @@ defmodule Prism.Generator.Schema.ComponentsTest do
 
     test "is declared in a component, has no block, and shares the component's names" do
       assert_compile_error(
-        "  component :c do\n    variant :v do\n      value :progress\n    end\n  end",
-        "value :progress can't be declared inside variant :v",
-        14
+        "  component :c do\n    value :progress\n    state :pressed do\n      value :progress\n    end\n  end",
+        "value :progress can't be declared inside state :pressed",
+        15
       )
 
       assert_compile_error(
@@ -753,6 +753,41 @@ defmodule Prism.Generator.Schema.ComponentsTest do
         "  component :c do\n    part :progress\n    value :progress\n  end",
         ":progress is both a part and a value",
         12
+      )
+    end
+  end
+
+  describe "a variant's change to a value" do
+    test "is the value's look with the variant, named again in the variant" do
+      [c] =
+        compile("""
+          component :c do
+            value :progress, stroke: {16, :percent}, track: :ink
+            variant :inverse, foreground: :ink do
+              value :progress, track: {:ink, 0.3}
+            end
+            variant :plain
+          end
+        """).components
+
+      assert [
+               %{values: [%{name: :progress, style: [track: {:ink, 0.3}], web: []}]},
+               %{values: []}
+             ] =
+               c.variants
+    end
+
+    test "names a value the component declares, once" do
+      assert_compile_error(
+        "  component :c do\n    variant :v do\n      value :progress, track: :ink\n    end\n  end",
+        "component :c, variant :v, value :progress: component :c has no value :progress",
+        14
+      )
+
+      assert_compile_error(
+        "  component :c do\n    value :progress\n    variant :v do\n      value :progress, track: :ink\n      value :progress, opacity: 0.5\n    end\n  end",
+        "component :c, variant :v: :progress is both a value and a value",
+        14
       )
     end
   end

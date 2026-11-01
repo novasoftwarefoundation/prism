@@ -71,7 +71,9 @@ defmodule Prism.Generator.Schema.Components do
   - A `value` is a number the app gives, from 0 to 100, that the look
     follows, such as a spinner's progress (`value :progress, stroke: {16,
     :percent}, track: :grey4`). Its properties are the look while the app
-    gives it; without it, the component looks as it does without a value.
+    gives it; without it, the component looks as it does without a value. A
+    variant changes a value's look by naming it again (`value :progress,
+    track: {:white, 0.3}` in `variant :inverse`).
     Each target knows the values of its components by name, and draws what
     follows the number (on the web, the length of a ring's arc).
 
@@ -152,7 +154,7 @@ defmodule Prism.Generator.Schema.Components do
     nil => [:component],
     component: [:style, :variants, :variant, :part, :with_part, :flag, :state, :value],
     variants: [:variant],
-    variant: [:part, :with_part, :with_variant, :state],
+    variant: [:part, :with_part, :with_variant, :state, :value],
     part: [:state],
     with_part: [:state],
     with_variant: [:state],
@@ -517,6 +519,7 @@ defmodule Prism.Generator.Schema.Components do
             style: props!(v, props, known, file),
             parts: overrides!(nodes, v, c, known, file),
             with_parts: with_parts!(nodes, v, c, known, file),
+            values: value_changes!(nodes, v, c, known, file),
             states: states!(nodes, v, c, known, file),
             node: v
           },
@@ -789,6 +792,31 @@ defmodule Prism.Generator.Schema.Components do
           states: states!(nodes, p, component, known, file)
         },
         bindings!(p, opts, known, file)
+      )
+    end
+  end
+
+  # A variant's changes to values the component declares, each named once: the
+  # value's look with that variant.
+  defp value_changes!(nodes, node, component, known, file) do
+    declared = for v <- children(nodes, component, :value), do: v.name
+    changes = children(nodes, node, :value)
+    unique!(Enum.map(changes, &{&1.name, "value"}), node, file)
+
+    for v <- changes do
+      unless v.name in declared,
+        do:
+          fail(
+            file,
+            v.line,
+            "#{path_label(v)}: #{path_label(component)} has no value #{inspect(v.name)}"
+          )
+
+      {opts, props} = split!(v, file)
+
+      Map.merge(
+        %{name: v.name, style: props!(v, props, known, file)},
+        bindings!(v, opts, known, file)
       )
     end
   end

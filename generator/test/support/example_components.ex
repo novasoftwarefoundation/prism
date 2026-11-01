@@ -123,7 +123,8 @@ defmodule Prism.Generator.ExampleComponents do
   end
 
   # No default color: it takes the text color around it. Its sizes are named by
-  # their px; 24 is its own. With a progress value, a ring with a faint track.
+  # their px; 24 is its own. With a progress value, a ring with a faint track,
+  # which the inverse variant makes light.
   component :spinner do
     style size: 24, rotation: {1000, :linear}
 
@@ -133,7 +134,13 @@ defmodule Prism.Generator.ExampleComponents do
     end
 
     variant :accent, foreground: :accent
-    value(:progress, stroke: {12, :percent}, track: {:ink, 0.1})
+
+    # On a dark background, a light track.
+    variant :inverse, foreground: :paper do
+      value :progress, track: {:paper, 0.3}
+    end
+
+    value :progress, stroke: {12, :percent}, track: {:ink, 0.1}
   end
 
   component :checkbox do

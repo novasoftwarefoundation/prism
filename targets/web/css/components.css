@@ -633,6 +633,10 @@
   stroke-linecap: round;
 }
 
+.prism-spinner--inverse.prism-spinner--progress .prism-spinner__track {
+  stroke: rgba(255, 255, 255, 0.3);
+}
+
 /* ==========================================================================
    Checkbox (bonus component)
    ========================================================================== */

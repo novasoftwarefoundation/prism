@@ -11,7 +11,8 @@ defmodule Prism.Generator.DesignTools.Overview do
     the `:variant` axis, each variant of another axis combined with the
     first, each look with a variant of another axis with that variant,
     each flag that is off by default turned on, or each flag that is on by
-    default turned off, and each value at 40 of 100), a column per state. A cell is drawn from the same data as the web
+    default turned off, and each value at 40 of 100, also with each variant
+    that changes it), a column per state. A cell is drawn from the same data as the web
     target's `components.css`: the design's shared look with its `web:`
     binding, the markup of `Prism.Generator.Web.Elements` (which parts there
     are and what each holds), a part's look inside its component's.
@@ -702,13 +703,22 @@ defmodule Prism.Generator.DesignTools.Overview do
         {Enum.map_join(variants, " + ", &key(&1.name)) <> " + " <> flag, sel ++ flags}
       end
 
-    # Each value the app may give, at the sample, on the first variant's look.
+    # Each value the app may give, at the sample: on the first variant's look, and
+    # with each variant that changes it, its change after the value's own look.
     value_rows =
-      for v <- c.values do
-        sel = defaults.(:variant) ++ base ++ on
+      for v <- c.values,
+          {sel, change} <-
+            [{defaults.(:variant) ++ base ++ on, []}] ++
+              for(
+                w <- c.variants,
+                change <- w.values,
+                change.name == v.name,
+                do: {defaults.(w.axis) ++ [w] ++ on, [change]}
+              ) do
         variants = Enum.filter(sel, &Map.has_key?(&1, :axis))
         label = Enum.map_join(variants ++ [v], " + ", &key(&1.name))
-        {"#{label} #{@sample}", sel ++ [Map.put(v, :states, [])]}
+        looks = for node <- [v | change], do: Map.put(node, :states, [])
+        {"#{label} #{@sample}", sel ++ looks}
       end
 
     Enum.uniq_by(none ++ own_rows ++ other_rows ++ with_rows ++ flag_rows ++ value_rows, fn {_,

@@ -280,6 +280,14 @@ defmodule Prism.Generator.DesignToolsTest do
       assert ring =~
                ~r/stroke="#1A73E8" stroke-linecap="round" stroke-dasharray="26.54 66.35" transform="rotate\(-90 /
 
+      # With a variant that changes it: the variant's track, on a dark backdrop.
+      [_, inverse] =
+        Regex.run(~r/<g id="spinner\/inverse\+progress-40\/enabled">(.*?)<\/g>/s, svg)
+
+      assert inverse =~ ~r/<rect [^>]*fill="#222222"/
+      assert inverse =~ ~r/stroke-width="2.88" stroke="#FDFDFD" stroke-opacity="0.3"\/>/
+      assert inverse =~ ~r/stroke="#FDFDFD" stroke-linecap="round"/
+
       # The button's spinner is the size its part picks.
       assert svg =~ ~r/<g id="button\/primary\/loading">(?:(?!<g id=).)*<circle [^>]* r="7"/s
     end

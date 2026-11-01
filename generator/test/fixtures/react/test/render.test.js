@@ -402,6 +402,7 @@ test("every class a component renders is a class of the web target's CSS", () =>
     h(Kit.Select, { icon: "v", options: [{ selected: true, children: "x" }] }, "x"),
     h(Kit.Spinner, { size: 16, variant: "accent" }),
     h(Kit.Spinner, { size: 32, progress: 40 }),
+    h(Kit.Spinner, { variant: "inverse", progress: 40 }),
     h(Kit.Checkbox, { checked: true, disabled: true, onChange }),
     h(Kit.Tag, { tone: "accent" }, "x"),
     h(Kit.MessageBar, { tone: "danger" }, "x"),

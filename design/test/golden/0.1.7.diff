@@ -365,7 +365,7 @@
  .prism-spinner--32 {
    width: 32px;
    height: 32px;
-@@ -438,16 +599,39 @@
+@@ -438,16 +599,43 @@
    }
  }
  
@@ -407,10 +407,14 @@
 +  stroke-linecap: round;
 +}
 +
++.prism-spinner--inverse.prism-spinner--progress .prism-spinner__track {
++  stroke: rgba(255, 255, 255, 0.3);
++}
++
  /* ==========================================================================
     Checkbox (bonus component)
     ========================================================================== */
-@@ -477,7 +661,7 @@
+@@ -477,7 +665,7 @@
  }
  
  /* ==========================================================================
@@ -419,7 +423,7 @@
     ========================================================================== */
  
  /* Base tag styles - colored label with background opacity */
-@@ -502,7 +686,7 @@
+@@ -502,7 +690,7 @@
    line-height: 16px;
  }
  
@@ -428,7 +432,7 @@
  .prism-tag--accent .prism-tag__label {
    background-color: rgba(66, 114, 239, 0.2);
    color: #4272ef;
-@@ -520,24 +704,23 @@
+@@ -520,24 +708,23 @@
    color: #f28d15;
  }
  
@@ -457,7 +461,7 @@
  .prism-message-bar {
    display: flex;
    justify-content: center;
-@@ -551,35 +734,35 @@
+@@ -551,35 +738,35 @@
    line-height: 16px;
  }
  
@@ -499,7 +503,7 @@
  .prism-step-indicator {
    display: flex;
    align-items: center;
-@@ -595,19 +778,19 @@
+@@ -595,19 +782,19 @@
    font-variant-numeric: tabular-nums;
  }
  

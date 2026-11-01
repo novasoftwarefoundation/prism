@@ -104,6 +104,12 @@ defmodule Prism.Generator.Web.Components do
   the spinner's color (`currentColor`), with round ends. The spinner keeps
   turning.
 
+  A variant changes the progress's look by naming the value again: its rules
+  are the variant's and the value's classes together
+  (`.acme-spinner--inverse.acme-spinner--progress`), and its `track` colors
+  the track there. Its stroke stays the value's own, since the markup draws
+  the ring's radius from it for every variant.
+
   ## Spelling
 
   The spelling is fixed, so regenerating gives the same bytes: lower-case hex,
@@ -209,6 +215,11 @@ defmodule Prism.Generator.Web.Components do
       {{:component, :spinner}, _, :size, {_, :percent}} ->
         {:error,
          "a button centers its spinner by half the spinner's size, which a percentage can't give; use px or rem"}
+
+      # The ring's radius in the markup follows the stroke, the same for every variant.
+      {{:component, :spinner}, {:value, _}, :stroke, _} when length(place) > 2 ->
+        {:error,
+         "the markup draws the ring with the value's own stroke, the same with every variant; give the stroke on the component's value"}
 
       {{:component, :spinner}, {:value, _}, :stroke, stroke} ->
         case stroke do
@@ -557,6 +568,7 @@ defmodule Prism.Generator.Web.Components do
       """,
       for(v <- c.variants, colors.(v), do: axis_variant(c, v, pseudo(c))),
       Enum.map(c.values, &progress(c, &1)),
+      for(v <- c.variants, change <- v.values, do: progress_change(c, v, change)),
       flags(c, pseudo(c))
     ]
   end
@@ -671,13 +683,37 @@ defmodule Prism.Generator.Web.Components do
         # In the ring's box of 100, a share of the size.
         "stroke-width: #{Web.number(stroke)}"
       ]),
-      rule("#{sel} .#{Classes.part(prefix(), c, :track)}", ["stroke: #{value(path, :track)}"]),
+      rule(descend(sel, ".#{Classes.part(prefix(), c, :track)}"), [
+        "stroke: #{value(path, :track)}"
+      ]),
       rule("#{sel} .#{Classes.part(prefix(), c, :indicator)}", [
         "stroke: currentColor",
         "stroke-linecap: round"
       ])
     ])
   end
+
+  # A variant's change to a spinner's progress: its own look on the variant and the
+  # value together (`.acme-spinner--inverse.acme-spinner--progress`), and its track.
+  defp progress_change(c, v, change) do
+    path = [c.name, {:variant, v.name}, change.name]
+    sel = selector(path)
+
+    track =
+      if has?(path, :track),
+        do: [
+          rule(descend(sel, ".#{Classes.part(prefix(), c, :track)}"), [
+            "stroke: #{value(path, :track)}"
+          ])
+        ],
+        else: []
+
+    with_doc(path, [rule(sel, declarations(path, except: [:track])) | track])
+  end
+
+  # A descendant of each of a selector's alternatives (one per name of a variant).
+  defp descend(sel, descendant),
+    do: sel |> String.split(",\n") |> Enum.map_join(",\n", &"#{&1} #{descendant}")
 
   # A component's own states and its looks with a part.
   defp own(path, c, selectors), do: [states(path, c, selectors), with_parts(path, c, selectors)]
@@ -1014,6 +1050,9 @@ defmodule Prism.Generator.Web.Components do
           Enum.reduce(rest, own, fn
             {:part, _}, acc ->
               Enum.map(acc, &"#{&1} .#{class(path)}")
+
+            {:value, _}, acc ->
+              Enum.map(acc, &"#{&1}.#{class(path)}")
 
             {:with_part, _}, acc ->
               Enum.map(acc, &"#{&1}.#{class(path)}")

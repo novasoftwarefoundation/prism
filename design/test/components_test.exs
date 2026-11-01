@@ -158,6 +158,16 @@ defmodule Prism.Design.ComponentsTest do
     assert Enum.find(button.parts, &(&1.name == :spinner)).variants == [size: 20]
   end
 
+  # The inverse spinner's white arc on a white track at 30%, on any colored background.
+  test "the inverse spinner's progress has a white track at 30%" do
+    spinner = Enum.find(@design.components, &(&1.name == :spinner))
+    inverse = Enum.find(spinner.variants, &(&1.name == :inverse))
+
+    assert inverse.style == [foreground: :white]
+    assert [%{name: :progress, style: [track: {:white, 0.3}]}] = inverse.values
+    assert for(v <- spinner.variants, v.name != :inverse, do: v.values) |> Enum.all?(&(&1 == []))
+  end
+
   test "the spinner's color is its foreground, a token" do
     spinner = Enum.find(@design.components, &(&1.name == :spinner))
 

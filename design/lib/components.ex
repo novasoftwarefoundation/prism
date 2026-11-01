@@ -263,8 +263,11 @@ defmodule Prism.Design.Components do
     end
 
     variant :accent, foreground: :primary, web: [doc: "Spinner colors"]
-    # On a colored background.
-    variant :inverse, foreground: :white
+    # On a colored or dark background. With a progress value, its white arc goes on a
+    # white track at 30%, which reads on any such background.
+    variant :inverse, foreground: :white do
+      value(:progress, track: {:white, 0.3})
+    end
 
     # With a progress value: a light grey track, and an arc in the spinner's color as
     # long as the value, with a thicker line than the spinner's own. grey4 is the

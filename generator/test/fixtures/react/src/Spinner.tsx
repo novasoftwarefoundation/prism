@@ -3,13 +3,14 @@ import { forwardRef, type ComponentPropsWithoutRef } from "react";
 import { classNames } from "./helpers.js";
 
 /** The spinner's variant. */
-export type SpinnerVariant = "accent";
+export type SpinnerVariant = "accent" | "inverse";
 
 /** The spinner's size. */
 export type SpinnerSize = 16 | 24 | 32;
 
 const variantClasses: Record<SpinnerVariant, string> = {
   accent: "kit-spinner--accent",
+  inverse: "kit-spinner--inverse",
 };
 
 const sizeClasses: Record<SpinnerSize, string | undefined> = {
