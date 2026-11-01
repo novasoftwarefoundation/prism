@@ -23,8 +23,13 @@ defmodule Prism.Generator.Swift.Looks do
     (`.acme-spinner--progress`), and two with a variant
     (`.acme-spinner--inverse.acme-spinner--progress`).
 
-  So a focused text field shows its focused border over its invalid one, as
-  on the web, where `:focus` outweighs the `--invalid` class.
+  A state the app sets (`invalid`, `selected`, `loading`) outweighs `pressed`,
+  `hovered` and `focused` for the properties both set (ADR 0008). The web
+  writes that as one more selector on the app's state's rule, one class
+  heavier than the pointer's or focus's (`.acme-text-field.acme-text-field--invalid:focus`);
+  here it is one more layer, of those properties, that holds while both states
+  do and weighs the same. So a focused invalid text field keeps its warning
+  border, as on the web.
 
   The design's order, for two layers of one rank, is: the component, its
   parts and their states, its states and their changes to parts, its looks
@@ -47,12 +52,87 @@ defmodule Prism.Generator.Swift.Looks do
   list of properties. Layers without properties are left out.
   """
   def layers(c) do
-    c
-    |> nodes()
-    |> Enum.with_index()
+    indexed = c |> nodes() |> Enum.with_index()
+
+    (indexed ++ over(indexed, c))
     |> Enum.sort_by(fn {layer, index} -> {layer.rank, index} end)
     |> Enum.map(fn {layer, _} -> Map.delete(layer, :rank) end)
     |> Enum.reject(&(&1.style == []))
+  end
+
+  # ------------------------------------------------------------ the app's states
+
+  # A state the app sets outweighs the pointer and the focus (ADR 0008): for each
+  # layer of `invalid`, `selected` or `loading` and each `pressed`, `hovered` or
+  # `focused` layer of the same element that holds with it, a layer of the
+  # properties both set, which holds while both states do and weighs what the web's
+  # added selector does: one more than the pointer's or focus's layer, and one more
+  # for each condition of the app's state's own node, so a variant's own look for
+  # the state stays above the component's. It goes right after the app's state's
+  # layer, as the web's selector is on that layer's rule.
+  @app [:invalid, :selected, :loading]
+  @interaction [:pressed, :hovered, :focused]
+
+  defp over(indexed, c) do
+    states = for {layer, index} <- indexed, state = state(layer), do: {layer, index, state}
+
+    for {a, index, {a_state, a_base}} <- states,
+        state_name(a_state) in @app,
+        {i, _, {i_state, i_base}} <- states,
+        state_name(i_state) in @interaction,
+        a.part == i.part,
+        base = Enum.uniq(a_base ++ i_base),
+        possible?(base),
+        a_base -- i_base == [] or i_base -- a_base == [],
+        keys = shared(a, i, a_state, a_base, i_base, states),
+        keys != [] do
+      layer = %{
+        part: a.part,
+        conditions: sort(base, c) ++ [i_state, a_state],
+        style: Keyword.take(a.style, keys),
+        rank: i.rank + 1 + length(a_base)
+      }
+
+      {layer, index + 0.5}
+    end
+    # The same state's look over two pointer or focus layers of different nodes is
+    # one layer, of the higher rank.
+    |> Enum.sort_by(fn {layer, _} -> -layer.rank end)
+    |> Enum.uniq_by(fn {layer, _} -> {layer.part, layer.conditions, layer.style} end)
+  end
+
+  # The properties the app's state `a` and the pointer or focus `i` both set, less
+  # those a node within `a`'s gives a look of its own for the same state, where that
+  # node holds whenever `i` does: they are left to that look.
+  defp shared(a, i, a_state, a_base, i_base, states) do
+    own =
+      for {other, _, {^a_state, base}} <- states,
+          other.part == a.part,
+          base != a_base,
+          a_base -- base == [],
+          base -- i_base == [],
+          {key, _} <- other.style,
+          do: key
+
+    for {key, _} <- a.style, Keyword.has_key?(i.style, key), key not in own, do: key
+  end
+
+  # A layer's state, the last of its conditions, and the conditions before it.
+  defp state(%{conditions: conditions}) do
+    case List.last(conditions) do
+      {:state, _} = state -> {state, Enum.drop(conditions, -1)}
+      {:part_state, _, _} = state -> {state, Enum.drop(conditions, -1)}
+      _ -> nil
+    end
+  end
+
+  defp state_name({:state, name}), do: name
+  defp state_name({:part_state, _, name}), do: name
+
+  # Conditions that can hold together: no two variants of one axis.
+  defp possible?(conditions) do
+    axes = for {:axis, axis, _} <- conditions, do: axis
+    axes == Enum.uniq(axes)
   end
 
   @doc """
@@ -187,6 +267,9 @@ defmodule Prism.Generator.Swift.Looks do
     Enum.sort_by(conditions, fn
       {:axis, axis, _} -> {0, Enum.find_index(axes, &(&1 == axis))}
       {:flag, _} -> {1, 0}
+      {:with, _} -> {2, 0}
+      {:value, _} -> {3, 0}
+      _ -> {4, 0}
     end)
   end
 end

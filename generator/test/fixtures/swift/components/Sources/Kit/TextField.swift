@@ -29,6 +29,9 @@ public struct KitTextFieldLooks: Sendable, Hashable {
         if disabled {
             root.apply(KitLook(opacity: 0.5))
         }
+        if focused && invalid {
+            root.apply(KitLook(borderColor: Kit.Colors.alarm))
+        }
     }
 }
 

@@ -1,4 +1,4 @@
-# 0008: The Swift target: tokens and components in SwiftUI's own forms
+# 0009: The Swift target: tokens and components in SwiftUI's own forms
 
 Status: proposed, 2026-11-01
 
@@ -31,7 +31,7 @@ SwiftUI has its own forms for a control's look. A `ButtonStyle`, a `ProgressView
    - **States SwiftUI knows come from SwiftUI:** pressed from `configuration.isPressed`, disabled from `@Environment(\.isEnabled)`, checked from the toggle, hovered from the pointer, and a spinner's progress from the `ProgressView`'s fraction.
    - **Parts:** a button's icon is `icon: .start` or `.end` (`nil` without one); the button then lays out a `Label`'s icon at that side, and has its look with an icon. `ButtonStyleConfiguration` doesn't say whether the label has an icon, so the app says it. A field's label and error message are `Text?`, a select's icon an `Image?`.
 
-4. **Looks as data, laid over each other as on the web.** Each component has `PrismComponentLooks`: its own look and each part's for one choice of variants, flags, parts, values and states, as `PrismLook` values, which the style or view draws and an app can read for a view of its own. The generated code lays each node's look (with its `ios:` binding) over the others in the order the web's CSS makes them win (`Prism.Generator.Swift.Looks`): by the weight of the node's selector, then in the design's order. So iOS shows what the web shows where two looks set one property: a focused text field shows its focus border over its invalid one, because the web's `:focus` outweighs `--invalid`.
+4. **Looks as data, laid over each other as on the web.** Each component has `PrismComponentLooks`: its own look and each part's for one choice of variants, flags, parts, values and states, as `PrismLook` values, which the style or view draws and an app can read for a view of its own. The generated code lays each node's look (with its `ios:` binding) over the others in the order the web's CSS makes them win (`Prism.Generator.Swift.Looks`): by the weight of the node's selector, then in the design's order. So iOS shows what the web shows where two looks set one property. A state the app sets (`invalid`, `selected`, `loading`) outweighs `pressed`, `hovered` and `focused` for the properties both set ([ADR 0008](0008-app-state-over-interaction.md)): where the web adds a selector one class heavier than the pointer's or focus's rule, the Swift code adds a layer of those properties that holds while both states do and weighs the same, so a variant's own look for the state stays above the component's. A focused invalid text field keeps its warning border, on iOS as on the web.
 
 5. **Mechanics are the target's**, as the web's are in its CSS: the spinner draws its ring (a quarter of it, at a quarter's opacity around) and turns, and with a progress value a track and an arc from the top in the value's stroke; the checkbox draws its check mark; an inset shadow is drawn over the background and inside the border, as CSS draws it; a border is inside the box, so padding and size are CSS's border box; a select's list is the system's menu (its listbox and option looks are only in its looks), and its icon takes the text color around it, not the menu's tint; a spinner keeps the `ProgressView`'s label and value for VoiceOver; a text field's placeholder color is in `PrismTextFieldModifier.prompt(_:)`, since a modifier can't reach a `TextField`'s prompt. Lengths are points, rem times 16; a percentage is only a radius from 50% (a capsule) or a stroke. Sides are leading and trailing, so they follow the text's direction.
 
@@ -52,7 +52,7 @@ SwiftUI has its own forms for a control's look. A `ButtonStyle`, a `ProgressView
 | A view for every component, also the button (`PrismButton(action:)`) | A second action API beside SwiftUI's `Button`; a `ButtonStyle` keeps the action with SwiftUI and the look with Prism, as on the web. |
 | A `TextFieldStyle` or `PickerStyle` | Their only requirements are underscored, so no public extension point. |
 | Resolve each combination at generation time into a table | The button alone has thousands of combinations of variant, tone, flag, icon and states; laying the nodes' looks over each other at run time, in the web's order, keeps the code the size of the design. |
-| States in a fixed order of their own (invalid over focused) | iOS would show another look than the web for the same design; a change of precedence belongs in the design, for both. |
+| States in a fixed order of their own (the app's states always last) | It would also put `invalid` over `disabled` and over a variant's own look; ADR 0008's rule is narrower, and iOS follows the web's. |
 | Write into a `prism-swift` checkout directly from `mix prism.gen` | The Swift code would be outside Prism's review and `--check`. |
 | A Dynamic Type base style per typography in the design (`ios: [text_style: …]`) | A rule gives the same styles for every typography without a setting per token. |
 
@@ -61,5 +61,5 @@ SwiftUI has its own forms for a control's look. A `ButtonStyle`, a `ProgressView
 - An iOS app gets Prism's components from the design, with the same numbers as the web: it depends on `prism-swift` at the release's version and deletes its own copy of Prism's values.
 - The package's version is Prism's: every release mirrors `targets/swift/` to `prism-swift` and tags it, after the npm packages.
 - A new kind of component needs its SwiftUI form in `Prism.Generator.Swift.Components`; a new variant, part or state of a known component needs only the design.
-- A focused invalid text field shows the focus border, on iOS as on the web. Showing the warning border while focused is a design change, for both.
+- A focused invalid text field keeps its warning border, on iOS as on the web ([ADR 0008](0008-app-state-over-interaction.md)).
 - Bundling Nunito and Nunito Sans later is a change to the design's iOS binding and its `swift` declaration, with no change to the generator.

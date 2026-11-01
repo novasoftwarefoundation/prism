@@ -34,6 +34,12 @@ public struct PrismTextFieldLooks: Sendable, Hashable {
         if variant == .inverse && focused {
             root.apply(PrismLook(borderColor: Prism.Colors.tertiary))
         }
+        if focused && invalid {
+            root.apply(PrismLook(borderColor: Prism.Colors.warning))
+        }
+        if variant == .inverse && focused && invalid {
+            root.apply(PrismLook(borderColor: Prism.Colors.warning))
+        }
     }
 }
 

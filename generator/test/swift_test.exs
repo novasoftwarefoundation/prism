@@ -94,14 +94,59 @@ defmodule Prism.Generator.SwiftTest do
   end
 
   describe "the looks" do
-    test "a layer of a higher rank wins, as the web's selector does: focus over invalid" do
+    test "a state the app sets wins over the focus for the properties both set (ADR 0008)" do
       text_field = body(ExampleComponents.__schema__(), "Sources/Kit/TextField.swift")
 
-      [focused, invalid] =
-        for state <- ["if focused {", "if invalid {"], do: index(text_field, state)
+      # `.kit-text-field:focus` outweighs `.kit-text-field--invalid` on its own, and
+      # `.kit-text-field.kit-text-field--invalid:focus` outweighs both.
+      assert index(text_field, "if invalid {") < index(text_field, "if focused {")
+      assert index(text_field, "if focused {") < index(text_field, "if focused && invalid {")
 
-      # `.kit-text-field:focus` outweighs `.kit-text-field--invalid`.
-      assert invalid < focused
+      assert text_field =~
+               "if focused && invalid {\n            root.apply(KitLook(borderColor: Kit.Colors.alarm))"
+    end
+
+    test "under the focus, a variant's own look for the app's state wins, as on the web" do
+      design =
+        schema("""
+        component :text_field do
+          style border: [width: 1, color: :ink]
+          state :focused, border: [color: "#0000FF"], opacity: 0.9
+          state :invalid, border: [color: "#FF0000"]
+
+          variant :inverse do
+            state :focused, border: [color: "#FFFF00"]
+            state :invalid, border: [color: "#FF8800"]
+          end
+        end
+        """)
+
+      {_, css, _} = design |> Prism.Generator.Web.files() |> List.keyfind("css/components.css", 0)
+      {_, swift, _} = design |> Swift.files() |> List.keyfind("Sources/Only/TextField.swift", 0)
+
+      # The web's added selectors, and the Swift layers that hold when they match.
+      for {selector, layer} <- [
+            {".only-text-field.only-text-field--invalid:focus", "if focused && invalid {"},
+            {".only-text-field.only-text-field--inverse.only-text-field--invalid:focus",
+             "if variant == .inverse && focused && invalid {"}
+          ] do
+        assert css =~ selector
+        assert swift =~ layer
+      end
+
+      # Only the border: the focus keeps its opacity. The variant's own invalid look
+      # comes last, once.
+      assert swift =~
+               "if focused && invalid {\n            root.apply(OnlyLook(borderColor: Color(onlyHex: 0xFF0000)))"
+
+      assert index(swift, "if focused && invalid {") <
+               index(swift, "if variant == .inverse && focused && invalid {")
+
+      assert swift |> String.split("if variant == .inverse && focused && invalid {") |> length() ==
+               2
+
+      # Disabled stays outside the rule.
+      refute swift =~ "disabled && invalid"
     end
 
     test "a variant's state and a look with a variant weigh the same; the later wins, as in the CSS" do
