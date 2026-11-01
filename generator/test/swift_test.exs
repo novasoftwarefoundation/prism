@@ -149,6 +149,96 @@ defmodule Prism.Generator.SwiftTest do
       refute swift =~ "disabled && invalid"
     end
 
+    test "a variant's own look for the app's state takes only its own properties, as on the web" do
+      # The variant's own invalid look sets only the background, and its focus look
+      # the border: a focused invalid inverse field keeps the component's invalid
+      # border. With a background in the component's invalid look too, that stays the
+      # variant's.
+      for extra <- ["", ~s|, background: "#FFEEEE"|] do
+        design =
+          schema("""
+          component :text_field do
+            style border: [width: 1, color: :ink]
+            state :focused, border: [color: "#0000FF"]
+            state :invalid, border: [color: "#FF0000"]#{extra}
+
+            variant :inverse do
+              state :focused, border: [color: "#FFFF00"]
+              state :invalid, background: "#330000"
+            end
+          end
+          """)
+
+        {_, css, _} =
+          design |> Prism.Generator.Web.files() |> List.keyfind("css/components.css", 0)
+
+        {_, swift, _} =
+          design |> Swift.files() |> List.keyfind("Sources/Only/TextField.swift", 0)
+
+        # The web: the component's invalid border over the variant's focus, and nothing
+        # heavier than the variant's own invalid look for the background.
+        assert css =~
+                 ".only-text-field.only-text-field--invalid:focus,\n" <>
+                   ".only-text-field--inverse.only-text-field--invalid:focus {\n" <>
+                   "  border-color: #ff0000;\n}\n"
+
+        assert css =~
+                 "\n.only-text-field--inverse.only-text-field--invalid {\n" <>
+                   "  background-color: #330000;\n}\n"
+
+        refute css =~ ~r/invalid:focus[^{]*\{[^}]*background/
+
+        # iOS: the same layers.
+        assert swift =~
+                 "if variant == .inverse && focused && invalid {\n" <>
+                   "            root.apply(OnlyLook(borderColor: Color(onlyHex: 0xFF0000)))"
+
+        assert swift =~
+                 "if variant == .inverse && invalid {\n" <>
+                   "            root.apply(OnlyLook(background: Color(onlyHex: 0x330000)))"
+
+        assert index(swift, "if variant == .inverse && invalid {") <
+                 index(swift, "if variant == .inverse && focused && invalid {")
+      end
+
+      # On a part: the variant's own selected look doesn't change the label, so the
+      # component's selected label still outweighs the variant's hovered label.
+      design =
+        schema("""
+        component :tag do
+          part :label
+
+          state :hovered do
+            part :label, foreground: "#111111"
+          end
+
+          state :selected do
+            part :label, foreground: "#222222"
+          end
+
+          variant :accent do
+            state :hovered do
+              part :label, foreground: "#333333"
+            end
+
+            state :selected, background: "#444444"
+          end
+        end
+        """)
+
+      {_, css, _} = design |> Prism.Generator.Web.files() |> List.keyfind("css/components.css", 0)
+      {_, swift, _} = design |> Swift.files() |> List.keyfind("Sources/Only/Tag.swift", 0)
+
+      assert css =~
+               ".only-tag.only-tag--selected:hover .only-tag__label,\n" <>
+                 ".only-tag--accent.only-tag--selected:hover .only-tag__label {\n" <>
+                 "  color: #222222;\n}\n"
+
+      assert swift =~
+               "if variant == .accent && hovered && selected {\n" <>
+                 "            label.apply(OnlyLook(foreground: Color(onlyHex: 0x222222)))"
+    end
+
     test "a variant's state and a look with a variant weigh the same; the later wins, as in the CSS" do
       design =
         schema("""
