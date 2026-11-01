@@ -67,7 +67,10 @@ defmodule Prism.Generator.Schema.Components do
     Its own properties are its look on any variant, and its `with_variant`s
     its look with one.
   - A `state` changes the look while it holds. States have a fixed meaning that
-    every target knows; see `states/0`.
+    every target knows; see `states/0`. Where a state the app sets (such as
+    `:invalid`) and `:pressed`, `:hovered` or `:focused` change one property
+    of one element, the app's state wins (ADR 0008): an invalid field keeps
+    its border while it has the focus.
   - A `value` is a number the app gives, from 0 to 100, that the look
     follows, such as a spinner's progress (`value :progress, stroke: {16,
     :percent}, track: :grey4`). Its properties are the look while the app

@@ -60,6 +60,15 @@ defmodule Prism.Generator.Web.Components do
   `:hovered` is `:hover`. Any other state, such as `:loading`, `:invalid` or
   an option's `:selected`, is a modifier class the app sets.
 
+  A state the app sets (`:invalid`, `:selected`, `:loading`, by name)
+  outweighs `:pressed`, `:hovered` and `:focused` where both change one
+  property (ADR 0008): on its element, and on each part it changes. Its rule
+  also gets, for each such rule of a node that holds with it, the classes of
+  both selectors together (`.acme-text-field.acme-text-field--invalid:focus`),
+  at least one class heavier, so it wins wherever it stands in the file. A
+  variant's own look for the state is left to the variant, whose rule then
+  gets the variant's class too and outweighs the component's.
+
   ## The `web:` binding
 
   The web reads a node's `web:` binding before its shared look: a property in
@@ -164,6 +173,12 @@ defmodule Prism.Generator.Web.Components do
   # Properties without a CSS declaration of their own: each component writes them
   # where they belong (`transition: all …`, `::placeholder`).
   @placed [:transition, :rotation, :placeholder]
+
+  # The states the app sets that outweigh the pointer and the focus, and those
+  # states (ADR 0008, `outweighed/5`). They are picked by name: `:disabled` and
+  # `:checked` are not part of the rule, also where they are classes.
+  @winners [:selected, :loading, :invalid]
+  @interactions [:pressed, :hovered, :focused]
 
   @check_mark "url(\"data:image/svg+xml,%3csvg viewBox='0 0 16 16' fill='FILL' xmlns='http://www.w3.org/2000/svg'%3e%3cpath d='M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2-2a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z'/%3e%3c/svg%3e\")"
 
@@ -802,10 +817,21 @@ defmodule Prism.Generator.Web.Components do
       cursor = if s.name == :disabled, do: ["cursor: not-allowed"], else: []
 
       with_doc(state, [
-        rule(sel, lines ++ cursor) | Enum.map(s.parts, &state_part(sel, state, &1))
+        rule(heavier(sel, outweighed(path, s, sel, selectors)), lines ++ cursor)
+        | state_parts(path, s, sel, selectors)
       ])
     end
   end
+
+  # A state's changes to parts, each with the selectors that make it outweigh the
+  # pointer and the focus on that part.
+  defp state_parts(path, s, sel, selectors) do
+    for part <- s.parts,
+        do:
+          state_part(sel, path ++ [s.name], part, outweighed(path, s, sel, selectors, part.name))
+  end
+
+  defp heavier(sel, more), do: Enum.join([sel | more], ",\n")
 
   # A state's selector, or `nil` for a state the markup can't show, which is then
   # written nowhere, so generation fails.
@@ -819,6 +845,149 @@ defmodule Prism.Generator.Web.Components do
       {nil, _} -> selector(path, "." <> class(state))
       {suffix, _} -> selector(path, suffix)
     end
+  end
+
+  # The selectors that make state `s` of the node at `path` (its rule's selector is
+  # `sel`) outweigh the pointer and the focus where both change one property
+  # (ADR 0008): on the element itself, or with `part`, on that part. For each
+  # `:pressed`, `:hovered` or `:focused` of a node on the same element that changes
+  # one of the state's properties there, the browser's selector and the state's
+  # together, one compound per element (`.acme-text-field.acme-text-field--invalid:focus`,
+  # `.acme-text-field--dark.acme-text-field--invalid:focus`). That is at least one
+  # class heavier than the browser's rule, so it wins wherever it stands in the file.
+  #
+  # The nodes are the element's own (the component or the part), the node of the
+  # state, and those within it. A node within it that has a look of its own for the
+  # state is left to that look: a variant's own invalid look, with the variant's and
+  # the state's classes, then outweighs both the focus and the component's invalid
+  # look, as it does without the focus.
+  defp outweighed(path, s, sel, selectors, part \\ nil)
+
+  defp outweighed(path, %{name: name}, sel, selectors, part) when name in @winners do
+    keys = properties(path ++ [name], part)
+
+    for e <- candidates(path),
+        not Enum.any?(within(path, e), &state?(&1, name)),
+        b <- node!(e).states,
+        b.name in @interactions,
+        Enum.any?(properties(e ++ [b.name], part), &(&1 in keys)),
+        browser = state_selector(e, b, selectors) do
+      compound(descend(browser, part, path), descend(sel, part, path))
+    end
+    |> List.flatten()
+    |> Enum.uniq()
+    |> Enum.filter(&possible?(hd(path), &1))
+  end
+
+  defp outweighed(_path, _s, _sel, _selectors, _part), do: []
+
+  # A state's properties on its element, or on `part` (none when it doesn't change it).
+  defp properties(state, nil), do: Keyword.keys(style(state))
+
+  defp properties(state, part) do
+    if Enum.any?(node!(state).parts, &(&1.name == part)),
+      do: Keyword.keys(style(state ++ [part])),
+      else: []
+  end
+
+  defp descend(sel, nil, _path), do: sel
+  defp descend(sel, part, path), do: descend(sel, "." <> class([hd(path), part]))
+
+  # The nodes written on the element of `path` that hold whenever the node at `path`
+  # holds, or within it: the element's own node, the node itself and those within it.
+  # Every node on the element is within the element's own node.
+  defp candidates(path) do
+    case element_root(path) do
+      ^path -> element(path)
+      root -> for e <- element(root), e == root or prefix?(path, e) or prefix?(e, path), do: e
+    end
+  end
+
+  defp element_root(path) do
+    case Enum.find(nodes!(path), &match?({:part, _}, &1)) do
+      nil -> [hd(path)]
+      {:part, p} -> [hd(path), p.name]
+    end
+  end
+
+  defp prefix?(prefix, path), do: Enum.take(path, length(prefix)) == prefix
+
+  # The nodes on the element between the one at `path` and `e`, `e` included: those
+  # on `e`'s path below `path`, or a variant's change to a part below the part.
+  defp within(path, e) do
+    cond do
+      prefix?(path, e) -> for n <- (length(path) + 1)..length(e)//1, do: Enum.take(e, n)
+      path == element_root(path) -> [e]
+      true -> []
+    end
+  end
+
+  defp state?(path, name), do: Enum.any?(node!(path).states, &(&1.name == name))
+
+  # Whether a selector can match: no two variants of one axis (or two names of one
+  # variant) on the component at once.
+  defp possible?(name, sel) do
+    {:component, c} = hd(nodes!([name]))
+    classes = ~r/\.[\w-]+/ |> Regex.scan(sel) |> List.flatten() |> MapSet.new()
+
+    c.variants
+    |> Enum.group_by(& &1.axis, &names(c, &1.name))
+    |> Enum.all?(fn {_axis, names} ->
+      names
+      |> List.flatten()
+      |> Enum.count(&MapSet.member?(classes, "." <> Classes.modifier(prefix(), name, &1)))
+      |> Kernel.<=(1)
+    end)
+  end
+
+  # Two selectors of one element as one: for each pair of their alternatives, each
+  # compound (the element's, and the component's before it) with the classes and
+  # pseudo-classes of both.
+  defp compound(a, b) do
+    for x <- String.split(a, ",\n"), y <- String.split(b, ",\n") do
+      {xs, ys} = {String.split(x, " "), String.split(y, " ")}
+      n = max(length(xs), length(ys))
+      pad = &(List.duplicate("", n - length(&1)) ++ &1)
+
+      Enum.zip_with(pad.(xs), pad.(ys), fn p, q ->
+        classes = ~r/\.[\w-]+/ |> Regex.scan(p <> q) |> List.flatten() |> Enum.uniq()
+        pseudos = ~r/:[\w-]+/ |> Regex.scan(p <> q) |> List.flatten() |> Enum.uniq()
+        Enum.join(classes ++ pseudos)
+      end)
+      |> Enum.join(" ")
+    end
+  end
+
+  # The paths of the nodes whose rules are written on the element of `path`, a
+  # component or one of its parts: the component, its variants, flags and looks with
+  # a part or with a variant; or the part, and each variant's change to it.
+  defp element([name]) do
+    {:component, c} = hd(nodes!([name]))
+
+    variants =
+      Enum.flat_map(c.variants, fn v ->
+        path = [name, {:variant, v.name}]
+
+        [path] ++
+          for(w <- v.with_parts, do: path ++ [w.name]) ++
+          for(w <- v.with_variants, do: path ++ [{:with_variant, w.name}])
+      end)
+
+    flags =
+      Enum.flat_map(c.flags, fn f ->
+        [[name, f.name] | for(w <- f.with_variants, do: [name, f.name, {:with_variant, w.name}])]
+      end)
+
+    [[name]] ++ for(w <- c.with_parts, do: [name, w.name]) ++ variants ++ flags
+  end
+
+  defp element([name, part]) do
+    {:component, c} = hd(nodes!([name]))
+
+    [[name, part]] ++
+      for v <- c.variants,
+          Enum.any?(v.parts, &(&1.name == part)),
+          do: [name, {:variant, v.name}, part]
   end
 
   # A variant's part in a state the app sets: the part's modifier class inside the
@@ -842,13 +1011,12 @@ defmodule Prism.Generator.Web.Components do
   end
 
   # A part while its component is in a state: the part's class after each of the
-  # state's selectors (`.a:hover .acme-tag__label, .b:hover .acme-tag__label`).
-  defp state_part(sel, state, part) do
-    descendant = " ." <> class([hd(state), part.name])
-
+  # state's selectors (`.a:hover .acme-tag__label, .b:hover .acme-tag__label`), and
+  # the selectors that make it outweigh the pointer and the focus there (`more`).
+  defp state_part(sel, state, part, more) do
     sel
-    |> String.split(",\n")
-    |> Enum.map_join(",\n", &(&1 <> descendant))
+    |> descend("." <> class([hd(state), part.name]))
+    |> heavier(more)
     |> rule(declarations(state ++ [part.name]))
   end
 
@@ -884,9 +1052,12 @@ defmodule Prism.Generator.Web.Components do
             ]
           end
 
+        sel = "." <> class(state)
+        more = outweighed([c.name], s, sel, pseudo(c))
+
         [
-          rule(state, ".#{class(state)}", ["position: relative", declarations(state)])
-          | Enum.map(s.parts, &state_part(".#{class(state)}", state, &1))
+          rule(state, heavier(sel, more), ["position: relative", declarations(state)])
+          | state_parts([c.name], s, sel, pseudo(c))
         ] ++ spinners
     end
   end
