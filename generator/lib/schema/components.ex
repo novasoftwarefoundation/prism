@@ -76,7 +76,7 @@ defmodule Prism.Generator.Schema.Components do
     :percent}, track: :grey4`). Its properties are the look while the app
     gives it; without it, the component looks as it does without a value. A
     variant changes a value's look by naming it again (`value :progress,
-    track: {:white, 0.3}` in `variant :inverse`).
+    track: {:white, 0.2}` in `variant :inverse`).
     Each target knows the values of its components by name, and draws what
     follows the number (on the web, the length of a ring's arc).
 

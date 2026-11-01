@@ -245,7 +245,7 @@ Font classes: `font-title0` through `font-title7`, `font-body`, `font-button`, `
 | `prism-spinner` | Spinner (24px), in the text color around it |
 | `prism-spinner--16`, `--20`, `--32` | Spinner of 16, 20 or 32px; 24px has no class |
 | `prism-spinner--accent` | Accent colored |
-| `prism-spinner--inverse` | White, for colored backgrounds; with a progress value, its track is white at 30% |
+| `prism-spinner--inverse` | White, for colored backgrounds; with a progress value, its track is white at 20% |
 | `prism-spinner--progress` | With a progress value: a light grey ring with an arc in the spinner's color, as long as the value |
 | `prism-spinner__track`, `prism-spinner__indicator` | The progress ring's two circles |
 
@@ -351,7 +351,7 @@ Also:
 
 - **Spinner.** It is no longer a tinted image: use an empty element (`<span class="prism-spinner"></span>`, not an `<img>`). Its image is inline in `components.css` and drawn as a mask over its text color, so CSS that drew it as a mask in an app can go, and the app serves no image for it. In a button it shows only while the button has `prism-button--loading`.
 - **Spinner sizes by their pixels.** `--16`, `--20` and `--32` (24px has no class); there is no `--small` or `--large`. In Phoenix `size={16}`, in React `size={16}`. A loading button's spinner is 20px (it was 24px): the components render `prism-spinner prism-spinner--20` in it. **In markup you write yourself, add `prism-spinner--20` to a loading button's spinner** (`<span class="prism-spinner prism-spinner--20"></span>`): the button centers its spinner by half of 20px, so a plain `prism-spinner` (24px) sits 2px right of and below the center.
-- **Spinner progress** is new: `--progress` with an SVG ring, or `progress={40}` in the Phoenix and React components, which add `role="progressbar"` and the ARIA values. Name it with `aria-label` (or `aria-labelledby`). The track is light grey (`#eeeeee`), and white at 30% on the inverse spinner, so its white arc reads on a colored or dark background.
+- **Spinner progress** is new: `--progress` with an SVG ring, or `progress={40}` in the Phoenix and React components, which add `role="progressbar"` and the ARIA values. Name it with `aria-label` (or `aria-labelledby`). The track is light grey (`#eeeeee`), and white at 20% on the inverse spinner, so its white arc reads on a colored or dark background.
 - **Buttons with an icon** also take their variant's disabled look now.
 - **Tones color by variant.** A tone colors a primary button's background, and the text and border of the other variants: `.prism-button--primary.prism-button--danger`, `.prism-button--secondary.prism-button--danger`. A tone class without a variant class no longer colors anything. `--neutral` (dark grey) and `--highlight` (yellow) are new tones, and `--soft` and `--icon` new variants.
 - **Plain and text buttons fit their text** unless they have `prism-button--padded` (15px top and bottom, 16px at the sides, as tall as a primary button). Without it, a plain button is as in 0.1.7 (4px top and bottom, none at the sides); a text button keeps 0.1.7's label button's 1px top and bottom but has no padding at the sides (it had 16px). The Phoenix and React components add `--padded` by default (`padded={false}` leaves it off).
