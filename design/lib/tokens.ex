@@ -25,6 +25,9 @@ defmodule Prism.Design.Tokens do
       """,
       font_classes_doc: "Font weight overrides for Nunito/Nunito Sans variable fonts"
 
+  # The Swift package: `Prism`, its types `PrismButtonStyle`, `Prism.Colors`, ….
+  swift module: "Prism"
+
   group "Brand colors" do
     color :primary, "#4272EF"
     color :primarylight, "#E3EAFD"

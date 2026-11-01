@@ -2,6 +2,7 @@
 # in a design project (`import_deps: [:prism_generator]`).
 design_dsl = [
   web: 1,
+  swift: 1,
   color: 2,
   shadow: 2,
   shadow: 3,

@@ -4,7 +4,7 @@ A Tailwind-based UI framework for scientific software, published on npm as `@nov
 
 Part of the [Nova Software Foundation](https://novasf.org) - open source software for science.
 
-To use Prism in an app, see the package's README: [targets/web/README.md](targets/web/README.md) (install, Tailwind preset, CSS, classes). A Phoenix app also gets Prism's components as function components; see [Use it in a Phoenix app](#use-it-in-a-phoenix-app). A React app gets them from `@novasoftwarefoundation/prism-react`; see [Use it in a React app](#use-it-in-a-react-app). A design tool gets the tokens and an overview of the design; see [Use it in a design tool](#use-it-in-a-design-tool).
+To use Prism in an app, see the package's README: [targets/web/README.md](targets/web/README.md) (install, Tailwind preset, CSS, classes). A Phoenix app also gets Prism's components as function components; see [Use it in a Phoenix app](#use-it-in-a-phoenix-app). A React app gets them from `@novasoftwarefoundation/prism-react`; see [Use it in a React app](#use-it-in-a-react-app). An iOS app gets the tokens and the components in SwiftUI from the `prism-swift` package; see [Use it in a SwiftUI app](#use-it-in-a-swiftui-app). A design tool gets the tokens and an overview of the design; see [Use it in a design tool](#use-it-in-a-design-tool).
 
 ## Layout
 
@@ -15,19 +15,20 @@ Prism's look is written once, as a design in Elixir, and generated into code for
 | `design/` | Prism's design, a Mix project (`:prism_design`): `lib/tokens.ex` (`Prism.Design.Tokens`), `lib/components.ex` (`Prism.Design.Components`, which takes the tokens and is the whole design), `config/config.exs` (the design module and the folder of each target), and its checks: the 0.1.7 golden test, the version check, the font roles, the typography, the components. |
 | `generator/` | The generic part, a Mix project of its own (`:prism_generator`): the design format (`lib/schema.ex`, with components in `lib/schema/components.ex`), the header of generated files (`lib/header.ex`), the web target (`lib/web.ex`, its templates in `lib/web/`, the component mechanics in `lib/web/components.ex`, the class names in `lib/web/classes.ex`, and the components' markup in `lib/web/elements.ex`), the Phoenix components (`lib/phoenix.ex`, `Prism.Generator.Phoenix`), the React target (`lib/react.ex`, `Prism.Generator.React`), the design-tool target (`lib/design_tools.ex`, `Prism.Generator.DesignTools`, with the overview in `lib/design_tools/overview.ex`), and `mix prism.gen` (`lib/mix/tasks/prism.gen.ex`). It knows nothing about Prism's values. |
 | `targets/web/` | The npm package `@novasoftwarefoundation/prism`: `package.json`, the generated `tailwind.preset.js`, `css/base.css` and `css/components.css`, and `fonts/`. |
-| `targets/react/` | The npm package `@novasoftwarefoundation/prism-react`: `package.json`, `tsconfig.json`, the generated components in `src/`, and their tests in `test/`. Later `targets/swift/`. |
+| `targets/react/` | The npm package `@novasoftwarefoundation/prism-react`: `package.json`, `tsconfig.json`, the generated components in `src/`, and their tests in `test/`. |
+| `targets/swift/` | The Swift package `Prism`, released as the `prism-swift` repository: the generated `Package.swift` and `Sources/Prism/` (the tokens, the looks and one file per component), with a hand-written `README.md` and `LICENSE`. |
 | `targets/design-tools/` | Files for design tools, attached to each release: the generated `tokens.json` (DTCG), `tokens.css` (CSS custom properties) and `overview.svg`, and their checks (`package.json`, `test/`). |
 
-`design/` depends on `generator/` with `{:prism_generator, path: "../generator"}`; there is no Mix project at the root. Decisions are in `docs/adr/`: [0001: design format](docs/adr/0001-design-format.md), [0002: Prism's design](docs/adr/0002-prism-design.md), [0003: Phoenix components at compile time](docs/adr/0003-phoenix-components.md), [0004: React components](docs/adr/0004-react-components.md), [0005: files for design tools](docs/adr/0005-design-tools.md), [0006: button looks](docs/adr/0006-button-looks.md), [0007: spinner sizes and progress](docs/adr/0007-spinner-sizes-progress.md) and [0008: a state the app sets outweighs the pointer and the focus](docs/adr/0008-app-state-over-interaction.md).
+`design/` depends on `generator/` with `{:prism_generator, path: "../generator"}`; there is no Mix project at the root. Decisions are in `docs/adr/`: [0001: design format](docs/adr/0001-design-format.md), [0002: Prism's design](docs/adr/0002-prism-design.md), [0003: Phoenix components at compile time](docs/adr/0003-phoenix-components.md), [0004: React components](docs/adr/0004-react-components.md), [0005: files for design tools](docs/adr/0005-design-tools.md), [0006: button looks](docs/adr/0006-button-looks.md), [0007: spinner sizes and progress](docs/adr/0007-spinner-sizes-progress.md), [0008: a state the app sets outweighs the pointer and the focus](docs/adr/0008-app-state-over-interaction.md) and [0009: the Swift target](docs/adr/0009-swift-target.md).
 
 ## Change the design
 
-`targets/web/tailwind.preset.js`, `targets/web/css/base.css`, `targets/web/css/components.css`, `targets/react/src/` and the three files in `targets/design-tools/` are generated: don't edit them by hand. Change `design/lib/tokens.ex` (tokens) or `design/lib/components.ex` (components), then regenerate and commit the result. An app adjusts a component through the component's own API, never by editing a generated file.
+`targets/web/tailwind.preset.js`, `targets/web/css/base.css`, `targets/web/css/components.css`, `targets/react/src/`, the three files in `targets/design-tools/`, and `targets/swift/Package.swift` and `targets/swift/Sources/` are generated: don't edit them by hand. Change `design/lib/tokens.ex` (tokens) or `design/lib/components.ex` (components), then regenerate and commit the result. An app adjusts a component through the component's own API, never by editing a generated file.
 
 ```sh
 cd design
 mix deps.get
-mix prism.gen   # writes every target: ../targets/web (the preset and the CSS), ../targets/react/src and ../targets/design-tools
+mix prism.gen   # writes every target: ../targets/web (the preset and the CSS), ../targets/react/src, ../targets/design-tools and ../targets/swift
 mix test
 ```
 
@@ -115,6 +116,32 @@ import { Button, Field, Tag, TextField } from "@novasoftwarefoundation/prism-rea
 
 The props follow the same rules as the Phoenix components: axes are props typed from the design (TypeScript rejects `variant="primray"`), with the design's defaults; `padded` is a boolean prop (default `true`); a spinner's `size` is a number (`size={16}`) and `progress` a number from 0 to 100; the app's states are boolean props; parts come in the design's order (`children` is the label, `icon` adds `prism-button--with-icon` and goes at the start of the label, or at its end with `iconPosition="end"`, and any other value throws when it renders; the spinner shows while `loading`); `className` appends, and the other props and the ref go on the element. The package's README ([targets/react/README.md](targets/react/README.md)) has the details. The components are generated into `targets/react/src/` and built with `tsc` into ES modules and type declarations; React 18 and 19 work.
 
+## Use it in a SwiftUI app
+
+An iOS app (iOS 26 or later) depends on the Swift package `Prism`, from the `prism-swift` repository at Prism's version:
+
+```swift
+.package(url: "https://github.com/novasoftwarefoundation/prism-swift.git", exact: "0.2.0")
+```
+
+```swift
+import Prism
+
+Button("Save", action: save)
+    .buttonStyle(.prism(.primary, tone: .danger, loading: saving))
+
+PrismField(label: Text("Email"), errorMessage: error.map(Text.init)) {
+    TextField("", text: $email)
+        .focused($emailFocused)
+        .prismTextField(focused: emailFocused, invalid: error != nil)
+}
+
+ProgressView(value: 0.4).progressViewStyle(.prism(.accent, size: .size32))
+PrismTag(tone: .success) { Text("Done") }
+```
+
+Each component takes SwiftUI's own form ([ADR 0009](docs/adr/0009-swift-target.md)): a `ButtonStyle` for the button, a `ProgressViewStyle` for the spinner, a `ToggleStyle` for the checkbox, a modifier for the text field and the text area, and a view for the others. Axes are enums of the design's values (`.primary`, `.danger`, `.size32`) with the design's defaults; flags and the states the app sets are parameters; pressed, disabled and checked come from SwiftUI. A component's looks are data too (`PrismButtonLooks`), laid over each other as the web's CSS does. Type follows Dynamic Type. The package's README ([targets/swift/README.md](targets/swift/README.md)) has the details. The package is generated into `targets/swift/`; CI builds it with `xcodebuild` for the iOS Simulator.
+
 ## Use it in a design tool
 
 `targets/design-tools/` holds three files, generated from the design and attached to each release:
@@ -161,17 +188,17 @@ Each step is checked against the tool's documentation (October 2026), not tried 
 
 - The schema turns a design into plain data, `__schema__/0`, whose shape is documented in `Prism.Generator.Schema`. The targets read only that data, never the schema's internals; a test checks that no other file calls into the schema.
 - A component's look is shared by every target. Each target's mechanics (for the web: display, cursors, focus outlines, keyframes, the check mark) are in the generator, and a value that really differs per platform is a `web:`, `ios:` or `android:` binding in the design; see ADR 0001, decision 3.
-- `mix prism.gen` generates every target named in the config (today `web`, `react` and `design_tools`), puts a `Prism.Generator.Header` line on each file, and never overwrites a file that doesn't start with exactly that line. It removes a left-over file, which no target generates now (a renamed or removed component's), and `--check` fails on one. Only a regular file, not a link, of a type the targets write, in a folder a target writes into (not the folders below it), that starts with exactly the header is left over; everything else there stays, such as a `package.json` or a note that mentions the header. A later target adds a module and its templates, not a task.
+- `mix prism.gen` generates every target named in the config (today `web`, `react`, `design_tools` and `swift`), puts a `Prism.Generator.Header` line on each file, and never overwrites a file that doesn't start with exactly that line. It removes a left-over file, which no target generates now (a renamed or removed component's), and `--check` fails on one. Only a regular file, not a link, of a type the targets write, in a folder a target writes into (not the folders below it), that starts with exactly the header is left over; everything else there stays, such as a `package.json` or a note that mentions the header. A target may also copy a file (the Swift package's fonts, when the design binds iOS to named fonts): a copy has no header and is written byte for byte, and `--check` compares its bytes. In a folder a target copies into (it names them, also while it copies nothing), any file that no target copies now is left over too, and a linked copy folder fails the task. A later target adds a module and its templates, not a task.
 - `Prism.Generator.Phoenix` is no file target: an app's module `use`s it and gets its components at compile time (ADR 0003). Phoenix LiveView is an optional dependency of the generator; CI compiles the generator without it too (`mix compile --no-optional-deps`). The web target, the Phoenix components and the React target share `Prism.Generator.Web.Classes` for class names, and the two kinds of components share `Prism.Generator.Web.Elements` for their markup.
 - The generator gets the design only from the config, never by naming it. It compiles and tests on its own, without `design/`, so a reference to Prism's design fails its build. CI also checks that it mentions none of Prism's values.
-- Its tests use neutral example designs: `generator/test/support/example_design.ex`, whose files they compare with reviewed fixtures in `generator/test/fixtures/`, and `example_components.ex`, one component of every kind, which they render through `Prism.Generator.Phoenix` and check against its CSS. Its React components are a fixture package too, `generator/test/fixtures/react/`, whose `npm test` type-checks them and renders them against the example's CSS (`generator/test/fixtures/example_components/`).
+- Its tests use neutral example designs: `generator/test/support/example_design.ex`, whose files they compare with reviewed fixtures in `generator/test/fixtures/`, and `example_components.ex`, one component of every kind, which they render through `Prism.Generator.Phoenix` and check against its CSS. Its React components are a fixture package too, `generator/test/fixtures/react/`, whose `npm test` type-checks them and renders them against the example's CSS (`generator/test/fixtures/example_components/`). Its Swift packages are fixtures as well, `generator/test/fixtures/swift/components/` and `…/design/`, which CI builds with `xcodebuild`.
 - **Moving it to its own repository:** move `generator/` out as it is, and change one line in `design/mix.exs` from `path: "../generator"` to a git or Hex dependency.
 
 ## Publish
 
 Install Prism from npm. The repository root is no longer the package (it lives in `targets/web/`), so installing from git or linking to files at the root of the repository no longer works.
 
-Publishing is manual for now: the npm packages from `targets/web/` and `targets/react/`, with the same version for both, and the design-tool files as release assets:
+Publishing is manual for now: the npm packages from `targets/web/` and `targets/react/`, with the same version for both, the design-tool files as release assets, and the Swift package in the `prism-swift` repository, at the same version:
 
 1. Bump the version in `design/mix.exs`, `targets/web/package.json`, and in `targets/react/package.json` both its version and its peer dependency on `@novasoftwarefoundation/prism`. Then update the React package's lockfiles: `cd targets/react && npm install --package-lock-only && ../../.github/react18.sh --update` (the second writes CI's React 18 lockfile from the bumped files, and leaves them as they are). A test checks that all of them are equal. Merge it.
 2. Check the packages: `cd targets/web && npm pack --dry-run` lists the files in `.github/npm-files.txt`, and `cd targets/react && npm ci && npm pack --dry-run` (which builds `dist/`) those in `.github/npm-files-react.txt`.
@@ -182,7 +209,21 @@ Publishing is manual for now: the npm packages from `targets/web/` and `targets/
    2. Check that the tree is the tag's, with no local changes or untracked files, and that the files are the design's: `test -z "$(git status --porcelain)" && (cd design && mix prism.gen --check)`. The commands here run from the repository root.
    3. Create a GitHub release for the tag with `targets/design-tools/tokens.json`, `tokens.css` and `overview.svg` as its assets: `gh release create vX.Y.Z targets/design-tools/tokens.json targets/design-tools/tokens.css targets/design-tools/overview.svg`. If the release exists already (a rerun), upload them again instead: `gh release upload vX.Y.Z targets/design-tools/tokens.json targets/design-tools/tokens.css targets/design-tools/overview.svg --clobber`.
 
-   There is no release automation yet.
+6. Release the Swift package, still from the tag: mirror `targets/swift/` to the root of a clone of `prism-swift`, commit it, tag it `vX.Y.Z` and push the branch and the tag:
+
+   ```sh
+   git clone git@github.com:novasoftwarefoundation/prism-swift.git ../prism-swift
+   .github/swift-release.sh vX.Y.Z ../prism-swift
+   ```
+
+   - It mirrors only the files the tag tracks in `targets/swift/`, so no ignored or untracked file ships.
+   - Before it changes anything it checks Prism (the tag checked out, a clean tree, `design/mix.exs` at the version) and the clone (on a branch, clean, equal to `origin`, and without the tag, locally or on `origin`). `prism-swift` needs a first commit (a README) before the first release, so the clone has a branch.
+   - It pushes the branch and the tag in one atomic push: both or neither.
+   - **When it fails**, nothing is pushed and the clone is put back as it was (no commit, no tag): fix the cause (credentials, network, a pull) and run it again. With `SWIFT_RELEASE_PUSH=no` it commits and tags but pushes nothing, so the commit can be looked at first; to undo that, `git -C ../prism-swift tag -d vX.Y.Z && git -C ../prism-swift reset --hard origin/<branch>`.
+   - **A pushed release is never moved or deleted**: apps' `Package.resolved` point at it. Fix a broken release with a patch release (`vX.Y.Z+1`).
+   - SwiftPM resolves `exact: "X.Y.Z"` to the tag `vX.Y.Z`.
+
+There is no release automation yet.
 
 ## License
 

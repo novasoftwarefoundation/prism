@@ -3,11 +3,12 @@ defmodule Prism.Generator.Schema do
   The schema of a design, written as a DSL. A module that `use`s it is a
   design: it declares design tokens, components (`Prism.Generator.Schema.Components`)
   and how the web files are named. `use Prism.Generator.Schema, tokens: Other`
-  takes the tokens and the web declaration of the design `Other`, so the
-  components can live in a file of their own; such a design declares no tokens,
-  and its `web` declaration only adds `components_doc:`.
+  takes the tokens and the web and Swift declarations of the design `Other`, so
+  the components can live in a file of their own; such a design declares no
+  tokens and no `swift`, and its `web` declaration only adds `components_doc:`.
 
       web prefix: "acme", fonts_url: "../fonts"
+      swift module: "Acme"
       group "Brand colors" do
         color :accent, "#1A73E8"
         color :link, :accent               # an alias: same value, its own name
@@ -44,7 +45,7 @@ defmodule Prism.Generator.Schema do
   It returns
 
       %{tokens: [token], components: [component], web: web | nil,
-        file: file, tokens_file: file}
+        swift: swift | nil, file: file, tokens_file: file}
 
   - Every token is a map with `kind`, `name` (an atom) and `group` (its
     group's text or `nil`), in the order of the design, plus per kind:
@@ -112,6 +113,8 @@ defmodule Prism.Generator.Schema do
   - `web` is the `web` declaration as a map with every key (`prefix`,
     `fonts_url`, `line_clamps`, `preset_doc`, `base_doc`, `font_classes_doc`,
     `components_doc`), or `nil` without one.
+  - `swift` is the `swift` declaration as a map with every key (`module`,
+    `fonts`, `font_files`), or `nil` without one.
   """
 
   @platforms [:web, :ios, :android]
@@ -159,6 +162,7 @@ defmodule Prism.Generator.Schema do
       import Prism.Generator.Schema.Components
       Module.register_attribute(__MODULE__, :prism_tokens, accumulate: true)
       Module.register_attribute(__MODULE__, :prism_web, accumulate: true)
+      Module.register_attribute(__MODULE__, :prism_swift, accumulate: true)
       Module.register_attribute(__MODULE__, :prism_nodes, accumulate: true)
       Module.put_attribute(__MODULE__, :prism_group, nil)
       Module.put_attribute(__MODULE__, :prism_stack, [])
@@ -197,6 +201,34 @@ defmodule Prism.Generator.Schema do
       )
 
       @prism_web {unquote(opts), unquote(__CALLER__.line)}
+    end
+  end
+
+  @doc """
+  How the Swift package is named, and where its fonts come from. Once per
+  design; the Swift target needs it. A design that takes its tokens from
+  another takes that design's declaration.
+
+  - `module:` (required) the Swift package, its library and module, and the
+    prefix of its types, e.g. `"Acme"` gives `AcmeButtonStyle` and
+    `Acme.Colors`.
+  - `fonts:` the folder, relative to the design's project, that holds the
+    files of the fonts a family binds iOS to (`ios: [name:, faces: [[file:
+    "AcmeSans.woff2", …]]]`); the package bundles them. Required when a family
+    binds iOS to a named font.
+  - `font_files:` other files of that folder the package bundles with the
+    fonts, such as their licence (`["OFL.txt"]`).
+  """
+  defmacro swift(opts) do
+    quote do
+      Prism.Generator.Schema.Components.__top_level__!(
+        __MODULE__,
+        __ENV__.file,
+        unquote(__CALLER__.line),
+        "swift"
+      )
+
+      @prism_swift {unquote(opts), unquote(__CALLER__.line)}
     end
   end
 
@@ -335,16 +367,21 @@ defmodule Prism.Generator.Schema do
   defmacro __before_compile__(env) do
     own = env.module |> Module.get_attribute(:prism_tokens) |> Enum.reverse()
     web = env.module |> Module.get_attribute(:prism_web) |> Enum.reverse()
+    swift = env.module |> Module.get_attribute(:prism_swift) |> Enum.reverse()
 
-    {tokens, tokens_file, web} =
+    {tokens, tokens_file, web, swift} =
       case Module.get_attribute(env.module, :prism_import) do
         {nil, _} ->
           tokens = own |> validate!(env.file) |> Enum.map(&Map.delete(&1, :line))
-          {tokens, file(env.file), validate_web!(web, env.file, nil)}
+
+          {tokens, file(env.file), validate_web!(web, env.file, nil),
+           validate_swift!(swift, env.file, nil)}
 
         {module, line} ->
           imported = imported!(module, own, env.file, line)
-          {imported.tokens, imported.tokens_file, validate_web!(web, env.file, imported)}
+
+          {imported.tokens, imported.tokens_file, validate_web!(web, env.file, imported),
+           validate_swift!(swift, env.file, imported)}
       end
 
     nodes = env.module |> Module.get_attribute(:prism_nodes) |> Enum.reverse()
@@ -353,6 +390,7 @@ defmodule Prism.Generator.Schema do
       tokens: tokens,
       components: Prism.Generator.Schema.Components.validate!(nodes, tokens, env.file),
       web: web,
+      swift: swift,
       file: file(env.file),
       tokens_file: tokens_file
     }
@@ -602,6 +640,50 @@ defmodule Prism.Generator.Schema do
     is_binary(text) and String.valid?(text) and not String.contains?(text, "*/") and
       not Regex.match?(~r/[\x{0}-\x{9}\x{B}-\x{1F}\x{7F}\x{2028}\x{2029}]/u, text)
   end
+
+  # A design that takes its tokens from another takes that design's Swift declaration;
+  # either may declare it, not both.
+  defp validate_swift!([], _, imported), do: imported && imported.swift
+
+  defp validate_swift!([{opts, line} | rest], file, imported) do
+    fail = &__fail__(file, line, "swift#{&1}")
+    if rest != [], do: fail.(" is declared more than once")
+    unless Keyword.keyword?(opts), do: fail.(": options must be a keyword list")
+
+    case Keyword.keys(opts) -- [:module, :fonts, :font_files] do
+      [] -> :ok
+      extra -> fail.(": unknown option #{Enum.map_join(extra, ", ", &inspect/1)}")
+    end
+
+    if imported && imported.swift,
+      do: fail.(": it comes with the tokens; declare it once, in the design the tokens come from")
+
+    swift = Map.merge(%{module: nil, fonts: nil, font_files: []}, Map.new(opts))
+
+    checks = [
+      module:
+        {&(is_binary(&1) and Regex.match?(~r/\A[A-Z][A-Za-z0-9]*\z/, &1)),
+         "an upper camel case Swift name"},
+      fonts:
+        {&(is_nil(&1) or (is_binary(&1) and Regex.match?(~r/\A(?!\/)[A-Za-z0-9._\/-]+\z/, &1))),
+         "a relative path (no leading /)"},
+      font_files:
+        {&(is_list(&1) and Enum.all?(&1, fn name -> file_name?(name) end) and
+             &1 == Enum.uniq(&1)), "a list of file names (A-Z a-z 0-9 . _ -), each once"}
+    ]
+
+    for {key, {ok?, rule}} <- checks, not ok?.(swift[key]) do
+      fail.(": #{key} must be #{rule}, got #{inspect(swift[key])}")
+    end
+
+    if swift.font_files != [] and swift.fonts == nil,
+      do: fail.(": font_files: needs fonts:, the folder they are in")
+
+    swift
+  end
+
+  defp file_name?(name),
+    do: is_binary(name) and Regex.match?(~r/\A[A-Za-z0-9_-][A-Za-z0-9._-]*\z/, name)
 
   # A design that takes its tokens from another takes that design's web declaration
   # too; its own may only add the comment at the top of the component CSS.

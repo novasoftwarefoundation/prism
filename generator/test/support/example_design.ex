@@ -15,6 +15,8 @@ defmodule Prism.Generator.ExampleDesign do
       font_classes_doc: "Fonts",
       components_doc: "Acme - Components"
 
+  swift module: "Acme"
+
   group "Brand" do
     color :accent, "#1A73E8"
     color :link, :accent

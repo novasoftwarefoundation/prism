@@ -7,6 +7,7 @@ defmodule Prism.Generator.ExampleComponents do
   use Prism.Generator.Schema
 
   web prefix: "kit", fonts_url: "../fonts"
+  swift module: "Kit"
 
   color :accent, "#1A73E8"
   color :ink, "#101010"
