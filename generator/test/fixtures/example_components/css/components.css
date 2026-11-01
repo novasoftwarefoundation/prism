@@ -111,7 +111,8 @@
   cursor: not-allowed;
 }
 
-.kit-text-field--invalid {
+.kit-text-field--invalid,
+.kit-text-field.kit-text-field--invalid:focus {
   border-color: #c62828;
 }
 

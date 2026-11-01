@@ -426,6 +426,59 @@ defmodule Prism.Generator.Web.ComponentsTest do
     refute css =~ "\n.only-tag--invalid {"
   end
 
+  test "a state the app sets outweighs the pointer and the focus where both change one property" do
+    design =
+      compile("""
+        component :text_field do
+          style border: [width: 1, color: :ink]
+          state :hovered, background: :ink
+          state :focused, border: [color: :ink], opacity: 0.9
+          state :disabled, border: [color: :ink]
+          state :invalid, border: [color: :ink], opacity: 0.8
+
+          variant :dark, aliases: [:night] do
+            state :focused, border: [color: :ink]
+            state :pressed, background: :ink
+          end
+        end
+        component :select do
+          part :option do
+            state :hovered, foreground: :ink
+            state :selected, foreground: :ink
+          end
+
+          variant :dense do
+            part :option do
+              state :hovered, foreground: :ink
+            end
+          end
+        end
+      """)
+
+    css = css(design)
+
+    # The focus rules, the component's and each name of the variant's, with the
+    # state's class added: one class heavier, so the order in the file doesn't count.
+    # Not the hover or the press, which change none of its properties, nor
+    # `:disabled`, which isn't the pointer or the focus.
+    assert css =~
+             "\n.only-text-field--invalid,\n.only-text-field.only-text-field--invalid:focus,\n" <>
+               ".only-text-field--dark.only-text-field--invalid:focus,\n" <>
+               ".only-text-field--night.only-text-field--invalid:focus {\n" <>
+               "  border-color: #101010;\n  opacity: 0.8;\n}\n"
+
+    # A part's state, over the part's hover and a variant's hover of the part.
+    assert css =~
+             "\n.only-select__option--selected,\n" <>
+               ".only-select__option.only-select__option--selected:hover,\n" <>
+               ".only-select--dense .only-select__option.only-select__option--selected:hover {\n" <>
+               "  color: #101010;\n}\n"
+
+    # The browser's states keep their own selectors.
+    assert css =~ "\n.only-text-field:focus {\n"
+    assert css =~ "\n.only-text-field:disabled {\n"
+  end
+
   test "a variant's change to a part has the part's states, inside the variant" do
     design =
       compile("""

@@ -60,6 +60,12 @@ defmodule Prism.Generator.Web.Components do
   `:hovered` is `:hover`. Any other state, such as `:loading`, `:invalid` or
   an option's `:selected`, is a modifier class the app sets.
 
+  A state the app sets on a component or a part outweighs `:pressed`,
+  `:hovered` and `:focused` on the same element where both change one
+  property (ADR 0008): its rule also gets each such rule's selector with the
+  state's class added (`.acme-text-field.acme-text-field--invalid:focus`),
+  one class heavier, so it wins wherever it stands in the file.
+
   ## The `web:` binding
 
   The web reads a node's `web:` binding before its shared look: a property in
@@ -164,6 +170,10 @@ defmodule Prism.Generator.Web.Components do
   # Properties without a CSS declaration of their own: each component writes them
   # where they belong (`transition: all …`, `::placeholder`).
   @placed [:transition, :rotation, :placeholder]
+
+  # The browser's states while someone acts on an element, which a state the app
+  # sets outweighs (`outweighed/3`).
+  @interactions [:pressed, :hovered, :focused]
 
   @check_mark "url(\"data:image/svg+xml,%3csvg viewBox='0 0 16 16' fill='FILL' xmlns='http://www.w3.org/2000/svg'%3e%3cpath d='M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2-2a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z'/%3e%3c/svg%3e\")"
 
@@ -798,6 +808,7 @@ defmodule Prism.Generator.Web.Components do
   defp states(path, node, selectors, custom \\ %{}) do
     for s <- node.states, s.name != :loading, sel = state_selector(path, s, selectors) do
       state = path ++ [s.name]
+      sel = Enum.join([sel | outweighed(path, s, selectors)], ",\n")
       lines = Map.get(custom, s.name, &declarations/1).(state)
       cursor = if s.name == :disabled, do: ["cursor: not-allowed"], else: []
 
@@ -819,6 +830,63 @@ defmodule Prism.Generator.Web.Components do
       {nil, _} -> selector(path, "." <> class(state))
       {suffix, _} -> selector(path, suffix)
     end
+  end
+
+  # A state the app sets on a component or one of its parts outweighs the pointer
+  # and the focus where both change one property (ADR 0008):
+  # for each rule of `:pressed`, `:hovered` or `:focused` on the same element that
+  # changes a property the state changes, the state's rule also gets that rule's
+  # selector with the state's class added (`.acme-text-field.acme-text-field--invalid:focus`,
+  # `.acme-text-field--dark.acme-text-field--invalid:focus`). That is one class
+  # heavier than the browser's rule, so it wins wherever it stands in the file.
+  defp outweighed(path, s, selectors) do
+    own? = match?([_], path) or match?([_, {:part, _}], nodes!(path))
+
+    if own? and selectors_for(path, selectors)[s.name] == nil do
+      keys = Keyword.keys(style(path ++ [s.name]))
+      own = "." <> class(path ++ [s.name])
+
+      for e <- element(path),
+          b <- node!(e).states,
+          b.name in @interactions,
+          suffix = selectors_for(e, selectors)[b.name],
+          Enum.any?(Keyword.keys(style(e ++ [b.name])), &(&1 in keys)),
+          do: selector(e, own <> suffix)
+    else
+      []
+    end
+  end
+
+  # The paths of the nodes whose rules are written on the element of `path`, a
+  # component or one of its parts: the component, its variants, flags and looks with
+  # a part or with a variant; or the part, and each variant's change to it.
+  defp element([name]) do
+    {:component, c} = hd(nodes!([name]))
+
+    variants =
+      Enum.flat_map(c.variants, fn v ->
+        path = [name, {:variant, v.name}]
+
+        [path] ++
+          for(w <- v.with_parts, do: path ++ [w.name]) ++
+          for(w <- v.with_variants, do: path ++ [{:with_variant, w.name}])
+      end)
+
+    flags =
+      Enum.flat_map(c.flags, fn f ->
+        [[name, f.name] | for(w <- f.with_variants, do: [name, f.name, {:with_variant, w.name}])]
+      end)
+
+    [[name]] ++ for(w <- c.with_parts, do: [name, w.name]) ++ variants ++ flags
+  end
+
+  defp element([name, part]) do
+    {:component, c} = hd(nodes!([name]))
+
+    [[name, part]] ++
+      for v <- c.variants,
+          Enum.any?(v.parts, &(&1.name == part)),
+          do: [name, {:variant, v.name}, part]
   end
 
   # A variant's part in a state the app sets: the part's modifier class inside the

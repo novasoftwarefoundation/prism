@@ -371,7 +371,9 @@
 }
 
 /* Text field with an invalid value */
-.prism-text-field--invalid {
+.prism-text-field--invalid,
+.prism-text-field.prism-text-field--invalid:focus,
+.prism-text-field--inverse.prism-text-field--invalid:focus {
   border-color: #f28d15;
 }
 
