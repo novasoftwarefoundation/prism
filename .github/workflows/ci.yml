@@ -161,7 +161,8 @@ jobs:
             exit 1
           }
           sudo xcode-select -s "$app"
-          version=$(xcodebuild -version | head -1)
+          # sed reads all of the output: head would close the pipe on xcodebuild.
+          version=$(xcodebuild -version | sed -n 1p)
           echo "$version"
           [ "$version" = "Xcode $XCODE" ] || {
             echo "::error::$app is $version, not Xcode $XCODE"

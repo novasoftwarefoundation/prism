@@ -138,16 +138,21 @@ describe("axes", () => {
       ],
       [Kit.Button, { tone: "toString" }, 'tone: "toString" is not one of "accent", "danger"'],
       [Kit.Tag, { tone: "" }, 'tone: "" is not one of "neutral", "accent"'],
-      [Kit.StepIndicator, { status: null }, 'status: null is not one of "current"'],
+      [Kit.StepIndicator, { status: 1 }, 'status: 1 is not one of "current"'],
     ]) {
       assert.throws(() => html(h(component, props, "x")), { message }, message);
     }
 
-    // An axis without a default takes no value.
-    assert.equal(
-      html(h(Kit.StepIndicator, { status: undefined })),
-      norm('<span class="kit-step-indicator"></span>'),
-    );
+    // An axis without a default takes no value: undefined or null, as Phoenix's nil.
+    for (const status of [undefined, null]) {
+      assert.equal(
+        html(h(Kit.StepIndicator, { status })),
+        norm('<span class="kit-step-indicator"></span>'),
+        String(status),
+      );
+    }
+    assert.equal(html(h(Kit.Spinner, { variant: null })), norm('<span class="kit-spinner"></span>'));
+    assert.equal(html(h(Kit.TextField, { variant: null })), norm('<input class="kit-text-field"/>'));
   });
 });
 

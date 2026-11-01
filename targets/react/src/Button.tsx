@@ -96,7 +96,7 @@ export const Button = forwardRef<HTMLElement, ButtonProps>(function Button(
   // Typed as a button: ButtonProps has checked the props for the element the app picked.
   const Element = element as "button";
   if (
-    variant !== undefined &&
+    variant != null &&
     !["primary", "secondary", "plain", "link", "text", "soft", "icon"].includes(variant)
   ) {
     throw new Error(

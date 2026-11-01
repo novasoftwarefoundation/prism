@@ -39,7 +39,7 @@ export const Spinner = forwardRef<HTMLSpanElement, SpinnerProps>(function Spinne
   { variant, size = 24, progress, className, ...rest },
   ref,
 ) {
-  if (variant !== undefined && !["accent", "inverse"].includes(variant)) {
+  if (variant != null && !["accent", "inverse"].includes(variant)) {
     throw new Error(`variant: ${JSON.stringify(variant)} is not one of "accent", "inverse"`);
   }
   if (![16, 20, 24, 32].includes(size)) {

@@ -20,7 +20,7 @@ defmodule Prism.Generator.React do
     its own, so TypeScript rejects any other value: strings, or numbers when
     the design names them by numbers (`size={16}`). Any other value, from
     code TypeScript doesn't check, throws when it renders; an axis without a
-    default also takes `undefined`. Its default is the
+    default also takes `null` and `undefined`, as Phoenix's `nil`. Its default is the
     design's; a default that is one of the variants adds that variant's
     class, one without a look adds none. An axis without a default adds no
     class until the app picks a variant.
@@ -444,8 +444,8 @@ defmodule Prism.Generator.React do
           ""
       end
 
-    # An axis's value is one of the design's, or undefined for an axis without a
-    # default; any other value would add no class.
+    # An axis's value is one of the design's, or null or undefined for an axis without
+    # a default (Phoenix's nil); any other value would add no class.
     axes = Enum.map(spec.axes, &axis_check/1)
 
     # A part's side is "start" or "end"; any other value would drop the part.
@@ -481,7 +481,7 @@ defmodule Prism.Generator.React do
     prop = camel(a.name)
     values = Enum.map_join(a.values, ", ", &js_value/1)
     known = "[#{values}].includes(#{prop})"
-    test = if a.default, do: ["!" <> known], else: ["#{prop} !== undefined", "!" <> known]
+    test = if a.default, do: ["!" <> known], else: ["#{prop} != null", "!" <> known]
     message = "`#{prop}: ${JSON.stringify(#{prop})} is not one of #{values}`"
 
     condition =
