@@ -8,17 +8,17 @@ defmodule Prism.Generator.Swift.Components do
   | `button` | `MButtonStyle: ButtonStyle` | `.buttonStyle(.m(.primary, tone: .danger))` |
   | `spinner` | `MSpinnerStyle: ProgressViewStyle` | `.progressViewStyle(.m(.accent, size: .size16))` |
   | `checkbox` | `MCheckboxStyle: ToggleStyle` | `.toggleStyle(.m())` |
-  | `text_field`, `text_area` | a `ViewModifier` | `.mTextField(focused: focused, invalid: invalid)` on a `TextField`, `.mTextArea()` on a `TextEditor` |
+  | `text_field`, `text_area` | a `ViewModifier` | `.mTextField(focused: focused, invalid: invalid)` on a `TextField` (`{ Text("€") }` after it for a prefix), `.mTextArea()` on a `TextEditor` |
   | `select` | `MSelect`, a `Menu` | `MSelect { items } label: { Text(choice) }` |
   | `image_picker` | `MImagePicker`, a view | `MImagePicker(shape: .round) { image } button: { Button(…) }` |
   | `field`, `radio_group`, `radio`, `tag`, `message_bar`, `step_indicator` | a view each | `MTag(tone: .success) { Text("Done") }` |
 
   Like the web target, it knows the components by name, and their parts: the
-  button's `label` and `icon`, the field's `label` and `error_message`, the
-  radio's `control` and `label`, the select's `field`, `icon`, `listbox` and
-  `option`, the tag's `label`, the image picker's `preview` and `button` (the
-  app's own button), a part that is a spinner, and the spinner's `progress`
-  value. A component, part or value it doesn't know fails
+  button's `label` and `icon`, the text field's `prefix`, the field's `label`
+  and `error_message`, the radio's `control` and `label`, the select's
+  `field`, `icon`, `listbox` and `option`, the tag's `label`, the image
+  picker's `preview` and `button` (the app's own button), a part that is a
+  spinner, and the spinner's `progress` value. A component, part or value it doesn't know fails
   generation.
 
   ## Looks
@@ -92,6 +92,7 @@ defmodule Prism.Generator.Swift.Components do
 
   @parts %{
     button: [:label, :icon],
+    text_field: [:prefix],
     field: [:label, :error_message],
     radio: [:control, :label],
     select: [:field, :icon, :listbox, :option],
@@ -359,7 +360,7 @@ defmodule Prism.Generator.Swift.Components do
   defp condition(state, spec), do: Enum.find(spec.states, &(&1.kind == state)).name
 
   # A look as `MLook(…)`, its fields in the struct's order.
-  @order ~w(background foreground placeholder borderWidth borderColor outlineWidth outlineColor
+  @order ~w(background foreground placeholder borderWidth borderColor borderSides outlineWidth outlineColor
             outlineOffset radius padding margin inset gap size width height minHeight maxHeight
             typography weight decoration shadow opacity transition rotation stroke track)
 
@@ -796,25 +797,80 @@ defmodule Prism.Generator.Swift.Components do
         """,
         else: ""
 
+    # A text field with a prefix: the prefix at the start, filling the height, and the
+    # text in the field's padding after it, in the field's box.
+    prefix? = k == :text_field and Enum.any?(c.parts, &(&1.name == :prefix))
+    stored_prefix = if prefix?, do: "    public var prefix: AnyView?\n", else: ""
+    prefix_param = if prefix?, do: ["prefix: AnyView? = nil"], else: []
+    prefix_assign = if prefix?, do: "        self.prefix = prefix\n", else: ""
+
+    body =
+      if prefix? do
+        """
+                if let prefix {
+                    HStack(spacing: 0) {
+                        // Its own width, so a picker's label stays on one line at any
+                        // text size; the text takes the rest.
+                        prefix
+                            .fixedSize(horizontal: true, vertical: false)
+                            .frame(maxHeight: .infinity)
+                            .#{ctx.lower}Box(looks.prefix)
+                        content
+                            .padding(looks.root.padding.edgeInsets())
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .#{ctx.lower}Text(looks.root)
+                    .#{ctx.lower}Box(looks.root.withoutPadding)
+                    .animation(looks.root.transition?.animation, value: looks)
+                } else {
+                    content
+                        .#{ctx.lower}Text(looks.root)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .#{ctx.lower}Box(looks.root)
+                        .animation(looks.root.transition?.animation, value: looks)
+                }
+        """
+      else
+        """
+                content#{hidden}
+                    .#{ctx.lower}Text(looks.root)#{line}
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .#{ctx.lower}Box(looks.root)
+                    .animation(looks.root.transition?.animation, value: looks)
+        """
+      end
+
+    overload =
+      if prefix? do
+        "\n" <>
+          """
+
+              /// #{String.capitalize(article(c.name))}'s look, with a prefix before its text: a currency symbol, or the app's picker.
+              public func #{ctx.lower}#{pascal}<Prefix: View>(
+          #{wrap(params(args), "        ", ",")},
+                  @ViewBuilder prefix: () -> Prefix
+              ) -> some View {
+          #{Swift.fill("        ", "modifier(#{type}(", forward(args) ++ ["prefix: AnyView(prefix())"], "))")}
+              }
+          """
+      else
+        ""
+      end
+
     """
     /// #{String.capitalize(article(c.name))}'s look on a `#{on}`:
     /// `#{on}(…).#{ctx.lower}#{pascal}(#{example(spec)})`. Disabled comes from
     /// `.disabled(_:)`; the app gives focused from its `@FocusState`.
     public struct #{type}: ViewModifier {
-    #{stored(args)}#{env(c, spec)}#{size}
+    #{stored(args)}#{stored_prefix}#{env(c, spec)}#{size}
         public init(
-    #{wrap(params(args), "        ", ",")}
+    #{wrap(params(args) ++ prefix_param, "        ", ",")}
         ) {
-    #{assigns(args)}    }
+    #{assigns(args)}#{prefix_assign}    }
 
         public func body(content: Content) -> some View {
             #{let_looks(ctx, c, spec, %{}, "        ")}
-            content#{hidden}
-                .#{ctx.lower}Text(looks.root)#{line}
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .#{ctx.lower}Box(looks.root)
-                .animation(looks.root.transition?.animation, value: looks)
-        }
+    #{body}    }
     #{least}
 
         /// A prompt in the placeholder's color of `looks`, for the `#{on}`'s `prompt:`.
@@ -831,7 +887,7 @@ defmodule Prism.Generator.Swift.Components do
     #{wrap(params(args), "        ", ",")}
         ) -> some View {
     #{Swift.fill("        ", "modifier(#{type}(", forward(args), "))")}
-        }
+        }#{overload}
     }
     """
   end

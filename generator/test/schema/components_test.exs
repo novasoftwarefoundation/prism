@@ -162,7 +162,12 @@ defmodule Prism.Generator.Schema.ComponentsTest do
       {"padding: [x: -1]", "every side is a length"},
       {"gap: \"4px\"", "is not a length"},
       {"width: -1", "is not a length"},
-      {"border: [width: 1, style: :dashed]", "is not a keyword list of width:, color:"},
+      {"border: [width: 1, style: :dashed]", "is not a keyword list of width:, color:, sides:"},
+      {"border: [width: 1, sides: :right]", "sides: :right is not a list of sides, each once"},
+      {"border: [width: 1, sides: [:start]]",
+       "sides: [:start] is not a list of sides, each once"},
+      {"border: [width: 1, sides: [:x, :left]]", "is not a list of sides, each once"},
+      {"border: [width: 1, sides: []]", "sides: [] is not a list of sides, each once"},
       {"border: [color: :nope]", "unknown color :nope"},
       {"outline: [offset: :x]", "must be lengths"},
       {"typography: :nope", "unknown typography :nope"},
@@ -190,6 +195,17 @@ defmodule Prism.Generator.Schema.ComponentsTest do
       """).components
 
     assert c.style == [background: :transparent, foreground: "#666666", radius: {50, :percent}]
+  end
+
+  test "a border may be on some sides only" do
+    [c] =
+      compile("""
+        component :c do
+          style border: [width: 1, color: :ink, sides: [:right, :y]]
+        end
+      """).components
+
+    assert c.style == [border: [width: 1, color: :ink, sides: [:right, :y]]]
   end
 
   test "a color token can't be named :transparent, which components use for no color" do

@@ -293,6 +293,18 @@ defmodule Prism.Generator.SwiftTest do
       assert spinner =~ "stroke: .fraction(0.12)"
     end
 
+    test "a text field with a prefix lays it out before the text, in the field's box" do
+      text_field = body(ExampleComponents.__schema__(), "Sources/Kit/TextField.swift")
+      assert text_field =~ "borderSides: [.trailing]"
+      assert text_field =~ "    public var prefix: AnyView?\n"
+      assert text_field =~ ".kitBox(looks.root.withoutPadding)"
+      assert text_field =~ "@ViewBuilder prefix: () -> Prefix"
+
+      look = body(ExampleComponents.__schema__(), "Sources/Kit/Look.swift")
+      assert look =~ "public struct KitSides: OptionSet, Sendable, Hashable {"
+      assert look =~ "KitBorderSides(color: color, width: border, sides: sides)"
+    end
+
     test "an image picker: the app's preview in its box and shape, and the app's button" do
       picker = body(ExampleComponents.__schema__(), "Sources/Kit/ImagePicker.swift")
       assert picker =~ "public struct KitImagePicker<Preview: View, ButtonContent: View>: View {"

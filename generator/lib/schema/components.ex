@@ -107,7 +107,9 @@ defmodule Prism.Generator.Schema.Components do
     background: {:color, "the fill"},
     foreground: {:color, "text and icons"},
     placeholder: {:color, "the placeholder text of a field"},
-    border: {:border, "[width: length, color: color], either may be left out"},
+    border:
+      {:border,
+       "[width: length, color: color, sides: [side]], any may be left out; without sides:, every side"},
     outline: {:outline, "[width: length, color: color, offset: length], any may be left out"},
     radius: {:radius, "corner radius: a radius token or a length"},
     padding: {:insets, "space inside"},
@@ -1075,7 +1077,7 @@ defmodule Prism.Generator.Schema.Components do
   end
 
   defp check(type, value, known) when type in [:border, :outline] do
-    keys = if type == :border, do: [:width, :color], else: [:width, :color, :offset]
+    keys = if type == :border, do: [:width, :color, :sides], else: [:width, :color, :offset]
 
     cond do
       not Keyword.keyword?(value) or value == [] or Keyword.keys(value) -- keys != [] or
@@ -1083,8 +1085,12 @@ defmodule Prism.Generator.Schema.Components do
         {:error,
          "#{inspect(value)} is not a keyword list of #{Enum.map_join(keys, ", ", &"#{&1}:")}"}
 
-      not Enum.all?(Keyword.delete(value, :color), fn {_, v} -> length?(v) end) ->
-        {:error, "#{Enum.map_join(keys -- [:color], " and ", &"#{&1}:")} must be lengths"}
+      Keyword.has_key?(value, :sides) and not border_sides?(value[:sides]) ->
+        {:error,
+         "sides: #{inspect(value[:sides])} is not a list of sides, each once (#{Enum.map_join(@sides, ", ", &inspect/1)}; :x is left and right, :y top and bottom)"}
+
+      not Enum.all?(Keyword.drop(value, [:color, :sides]), fn {_, v} -> length?(v) end) ->
+        {:error, "#{Enum.map_join(keys -- [:color, :sides], " and ", &"#{&1}:")} must be lengths"}
 
       Keyword.has_key?(value, :color) ->
         check(:color, value[:color], known)
@@ -1153,6 +1159,19 @@ defmodule Prism.Generator.Schema.Components do
         {:error,
          "#{inspect(value)} is not {milliseconds, easing}, easing one of #{Enum.map_join(@easings, ", ", &inspect/1)}"}
     end
+  end
+
+  # A border's sides: some of the four, each once, with :x for left and right and :y
+  # for top and bottom.
+  defp border_sides?(sides) do
+    expanded =
+      Enum.flat_map(
+        List.wrap(sides),
+        &Map.get(%{x: [:left, :right], y: [:top, :bottom]}, &1, [&1])
+      )
+
+    is_list(sides) and sides != [] and Enum.all?(sides, &(&1 in @sides)) and
+      expanded == Enum.uniq(expanded)
   end
 
   defp token(known, kind, ref) do

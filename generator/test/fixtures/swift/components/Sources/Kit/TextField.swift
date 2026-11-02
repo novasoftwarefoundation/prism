@@ -10,13 +10,20 @@ public enum KitTextFieldVariant: Sendable, Hashable, CaseIterable {
 /// variants, flags, parts and states, laid over each other as on the web.
 public struct KitTextFieldLooks: Sendable, Hashable {
     public var root = KitLook()
+    public var prefix = KitLook()
+
     public init(
         _ variant: KitTextFieldVariant? = nil,
         focused: Bool = false,
         disabled: Bool = false,
         invalid: Bool = false
     ) {
-        root.apply(KitLook(borderWidth: 1, borderColor: Kit.Colors.ink, height: 40))
+        root.apply(KitLook(
+            borderWidth: 1, borderColor: Kit.Colors.ink, padding: .init(leading: 8, trailing: 8),
+            height: 40))
+        prefix.apply(KitLook(
+            background: Kit.Colors.paper, borderWidth: 1, borderColor: Kit.Colors.ink,
+            borderSides: [.trailing], padding: .init(leading: 8, trailing: 8)))
         if invalid {
             root.apply(KitLook(borderColor: Kit.Colors.alarm))
         }
@@ -42,26 +49,46 @@ public struct KitTextFieldModifier: ViewModifier {
     public var variant: KitTextFieldVariant?
     public var focused: Bool
     public var invalid: Bool
+    public var prefix: AnyView?
     @Environment(\.isEnabled) private var isEnabled
 
     public init(
         _ variant: KitTextFieldVariant? = nil,
         focused: Bool = false,
-        invalid: Bool = false
+        invalid: Bool = false,
+        prefix: AnyView? = nil
     ) {
         self.variant = variant
         self.focused = focused
         self.invalid = invalid
+        self.prefix = prefix
     }
 
     public func body(content: Content) -> some View {
         let looks = KitTextFieldLooks(
             variant, focused: focused, disabled: !isEnabled, invalid: invalid)
-        content
+        if let prefix {
+            HStack(spacing: 0) {
+                // Its own width, so a picker's label stays on one line at any
+                // text size; the text takes the rest.
+                prefix
+                    .fixedSize(horizontal: true, vertical: false)
+                    .frame(maxHeight: .infinity)
+                    .kitBox(looks.prefix)
+                content
+                    .padding(looks.root.padding.edgeInsets())
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
             .kitText(looks.root)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .kitBox(looks.root)
+            .kitBox(looks.root.withoutPadding)
             .animation(looks.root.transition?.animation, value: looks)
+        } else {
+            content
+                .kitText(looks.root)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .kitBox(looks.root)
+                .animation(looks.root.transition?.animation, value: looks)
+        }
     }
 
     /// A prompt in the placeholder's color of `looks`, for the `TextField`'s `prompt:`.
@@ -80,5 +107,16 @@ extension View {
         invalid: Bool = false
     ) -> some View {
         modifier(KitTextFieldModifier(variant, focused: focused, invalid: invalid))
+    }
+
+    /// A text field's look, with a prefix before its text: a currency symbol, or the app's picker.
+    public func kitTextField<Prefix: View>(
+        _ variant: KitTextFieldVariant? = nil,
+        focused: Bool = false,
+        invalid: Bool = false,
+        @ViewBuilder prefix: () -> Prefix
+    ) -> some View {
+        modifier(KitTextFieldModifier(
+            variant, focused: focused, invalid: invalid, prefix: AnyView(prefix())))
     }
 }

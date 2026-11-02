@@ -202,6 +202,32 @@ describe("states", () => {
     );
   });
 
+  test("with a prefix, a text field is a wrapper; its input takes the props and states", () => {
+    assert.equal(
+      html(
+        h(Kit.TextField, {
+          variant: "inverse",
+          invalid: true,
+          disabled: true,
+          name: "amount",
+          className: "w-1/2",
+          prefix: "€",
+          prefixProps: { className: "x" },
+        }),
+      ),
+      norm(
+        '<div class="kit-text-field kit-text-field--inverse kit-text-field--invalid kit-text-field--with-prefix w-1/2">' +
+          '<span class="kit-text-field__prefix x">€</span>' +
+          '<input disabled="" name="amount" class="kit-text-field__input"/></div>',
+      ),
+    );
+    // Without one, it is the input.
+    assert.equal(
+      html(h(Kit.TextField, { disabled: true, name: "amount" })),
+      norm('<input disabled="" name="amount" class="kit-text-field"/>'),
+    );
+  });
+
   test("an image picker: the app's image in its preview, and the app's own button", () => {
     assert.equal(
       html(
@@ -471,6 +497,7 @@ test("every class a component renders is a class of the web target's CSS", () =>
     h(Kit.Button, { variant: "quiet", tone: "danger", loading: true, icon: "i" }, "x"),
     h(Kit.Button, { variant: "subtle" }, "x"),
     h(Kit.TextField, { variant: "inverse", invalid: true, disabled: true }),
+    h(Kit.TextField, { variant: "inverse", invalid: true, disabled: true, prefix: "€" }),
     h(Kit.TextArea, { variant: "inverse", invalid: true, disabled: true, defaultValue: "x" }),
     h(Kit.Field, { variant: "inverse", invalid: true, label: "x", errorMessage: "x" }, "x"),
     h(Kit.RadioGroup, null, h(Kit.Radio, { checked: true, disabled: true, onChange }, "x")),

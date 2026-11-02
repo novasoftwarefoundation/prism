@@ -32,11 +32,12 @@ public struct PrismInsets: Sendable, Hashable {
         trailing = other.trailing ?? trailing
     }
 
-    /// The insets, `extra` added on every side.
-    public func edgeInsets(adding extra: CGFloat = 0) -> EdgeInsets {
-        EdgeInsets(
-            top: (top ?? 0) + extra, leading: (leading ?? 0) + extra,
-            bottom: (bottom ?? 0) + extra, trailing: (trailing ?? 0) + extra)
+    /// The insets, `extra` added on each of `sides`.
+    public func edgeInsets(adding extra: CGFloat = 0, on sides: PrismSides = .all) -> EdgeInsets {
+        func on(_ side: PrismSides) -> CGFloat { sides.contains(side) ? extra : 0 }
+        return EdgeInsets(
+            top: (top ?? 0) + on(.top), leading: (leading ?? 0) + on(.leading),
+            bottom: (bottom ?? 0) + on(.bottom), trailing: (trailing ?? 0) + on(.trailing))
     }
 
     /// Where a part placed by these insets sits in what holds it: at the sides they set.
@@ -47,6 +48,18 @@ public struct PrismInsets: Sendable, Hashable {
             bottom != nil && top == nil ? .bottom : top != nil ? .top : .center
         return Alignment(horizontal: horizontal, vertical: vertical)
     }
+}
+
+/// Some of a box's sides, in the text's direction: where a border is drawn.
+public struct PrismSides: OptionSet, Sendable, Hashable {
+    public let rawValue: Int
+    public init(rawValue: Int) { self.rawValue = rawValue }
+
+    public static let top = Self(rawValue: 1)
+    public static let leading = Self(rawValue: 2)
+    public static let bottom = Self(rawValue: 4)
+    public static let trailing = Self(rawValue: 8)
+    public static let all: Self = [.top, .leading, .bottom, .trailing]
 }
 
 /// A corner radius: a length, or a capsule (half the shorter side, a circle on a square).
@@ -266,6 +279,8 @@ public struct PrismLook: Sendable, Hashable {
     public var placeholder: Color?
     public var borderWidth: CGFloat?
     public var borderColor: Color?
+    /// The sides the border is on; `nil` for every side.
+    public var borderSides: PrismSides?
     public var outlineWidth: CGFloat?
     public var outlineColor: Color?
     public var outlineOffset: CGFloat?
@@ -296,6 +311,7 @@ public struct PrismLook: Sendable, Hashable {
         placeholder: Color? = nil,
         borderWidth: CGFloat? = nil,
         borderColor: Color? = nil,
+        borderSides: PrismSides? = nil,
         outlineWidth: CGFloat? = nil,
         outlineColor: Color? = nil,
         outlineOffset: CGFloat? = nil,
@@ -324,6 +340,7 @@ public struct PrismLook: Sendable, Hashable {
         self.placeholder = placeholder
         self.borderWidth = borderWidth
         self.borderColor = borderColor
+        self.borderSides = borderSides
         self.outlineWidth = outlineWidth
         self.outlineColor = outlineColor
         self.outlineOffset = outlineOffset
@@ -356,6 +373,7 @@ public struct PrismLook: Sendable, Hashable {
         placeholder = other.placeholder ?? placeholder
         borderWidth = other.borderWidth ?? borderWidth
         borderColor = other.borderColor ?? borderColor
+        borderSides = other.borderSides ?? borderSides
         outlineWidth = other.outlineWidth ?? outlineWidth
         outlineColor = other.outlineColor ?? outlineColor
         outlineOffset = other.outlineOffset ?? outlineOffset
@@ -378,6 +396,13 @@ public struct PrismLook: Sendable, Hashable {
         rotation = other.rotation ?? rotation
         stroke = other.stroke ?? stroke
         track = other.track ?? track
+    }
+
+    /// The look without its padding, for a box whose content is padded on its own.
+    public var withoutPadding: PrismLook {
+        var look = self
+        look.padding = PrismInsets()
+        return look
     }
 
     /// The typography with the look's weight on top.
@@ -449,6 +474,30 @@ struct PrismTextModifier: ViewModifier {
     }
 }
 
+/// A border on some sides only: a line of its width along each of them, inside the box.
+struct PrismBorderSides: View {
+    var color: Color
+    var width: CGFloat
+    var sides: PrismSides
+
+    var body: some View {
+        ZStack {
+            if sides.contains(.top) {
+                color.frame(height: width).frame(maxHeight: .infinity, alignment: .top)
+            }
+            if sides.contains(.bottom) {
+                color.frame(height: width).frame(maxHeight: .infinity, alignment: .bottom)
+            }
+            if sides.contains(.leading) {
+                color.frame(width: width).frame(maxWidth: .infinity, alignment: .leading)
+            }
+            if sides.contains(.trailing) {
+                color.frame(width: width).frame(maxWidth: .infinity, alignment: .trailing)
+            }
+        }
+    }
+}
+
 /// A look's box. The border is inside the box, as CSS's border box: the padding is
 /// from its inner edge, and the size and height include it.
 ///
@@ -463,6 +512,7 @@ struct PrismBoxModifier: ViewModifier {
     func body(content: Content) -> some View {
         let shape = PrismShape(radius: look.radius)
         let border = look.borderColor == nil ? 0 : look.borderWidth ?? 0
+        let sides = look.borderSides ?? .all
         let size = scaled(look.size)
         // With text, the height is the least: the box grows with its text.
         let text = look.typography != nil
@@ -470,7 +520,7 @@ struct PrismBoxModifier: ViewModifier {
         let minHeight = [text ? scaled(look.height) : nil, scaled(look.minHeight)]
             .compactMap { $0 }.max()
         content
-            .padding(look.padding.edgeInsets(adding: border))
+            .padding(look.padding.edgeInsets(adding: border, on: sides))
             .frame(width: size ?? scaled(look.width), height: size ?? height)
             .frame(minHeight: minHeight, maxHeight: scaled(look.maxHeight))
             // Its text's height even where less is offered, so none of it is cut off.
@@ -478,7 +528,11 @@ struct PrismBoxModifier: ViewModifier {
             .background { PrismSurface(look: look, shape: shape, border: border) }
             .overlay {
                 if let color = look.borderColor, border > 0 {
-                    shape.strokeBorder(color, lineWidth: border)
+                    if sides == .all {
+                        shape.strokeBorder(color, lineWidth: border)
+                    } else {
+                        PrismBorderSides(color: color, width: border, sides: sides)
+                    }
                 }
             }
             .overlay {
