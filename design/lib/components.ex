@@ -414,4 +414,20 @@ defmodule Prism.Design.Components do
         web: [doc: "Complete step"]
     end
   end
+
+  # A preview of the picked image, or of the app's placeholder, and the app's own
+  # button to choose one: primary while there is no image, secondary with one. The
+  # image covers the preview; the file input is the app's.
+  component :image_picker, web: [section: "Image pickers"] do
+    style gap: 24
+    part :preview, width: 120, height: 90, background: :grey4, border: [width: 2, color: :grey4]
+    part :button, component: :button
+
+    # A profile photo is round; any other image is rectangular, which has no class.
+    variants :shape, default: :rectangular do
+      variant :round, web: [doc: "Round image picker, for a profile photo"] do
+        part :preview, height: 120, radius: :full
+      end
+    end
+  end
 end

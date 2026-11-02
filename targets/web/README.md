@@ -229,6 +229,26 @@ Font classes: `font-title0` through `font-title7`, `font-body`, `font-button`, `
 | `prism-field--inverse` | A field on a dark background: a tertiary label while its control has focus |
 | `prism-field__error-message` | Error message |
 
+### Image pickers
+
+| Class | Description |
+| --- | --- |
+| `prism-image-picker` | A preview and the app's button beside it |
+| `prism-image-picker--round` | A round preview, for a profile photo (rectangular has no class) |
+| `prism-image-picker__preview` | The preview; an `<img>` in it covers it |
+
+```html
+<div class="prism-image-picker prism-image-picker--round">
+  <div class="prism-image-picker__preview"><img src="/photo.jpg" alt="" /></div>
+  <label>
+    <span class="prism-button prism-button--secondary"><span class="prism-button__label">Change</span></span>
+    <input type="file" accept="image/*" class="sr-only" />
+  </label>
+</div>
+```
+
+The file input is the app's. Keep it focusable, visually hidden (`sr-only`), not `hidden`, so a keyboard reaches the picker through it; its focus style (on the label around it, with `focus-within:`) is the app's too.
+
 ### Radio Buttons
 
 | Class | Description |
@@ -375,10 +395,12 @@ Also:
 - **A rich-text area** is new: `prism-text-area prism-text-area--rich-text` on the editor's element gives it the field's border, focus and invalid looks with 16px on every side; combine it with `--inverse` on a dark background.
 - **A select's field** takes `disabled` and `prism-select__field--invalid`, and the select `prism-select--inverse`, as the text field does.
 - **A field's label follows its control.** Put the label and the control in a `prism-field`: its label is primary while the control has focus (tertiary with `prism-field--inverse`), and warning with `prism-field--invalid`, also while focused. Its own `color` beats a text-color utility on the label (two classes, or one and `:focus-within`); use the important modifier for another color.
+- **An image picker** is new (`prism-image-picker`, `--round`, `__preview`); the button in it is the app's own `prism-button`.
 - **Two classes beat one utility.** These rules are two classes together, which is more specific than one Tailwind utility, so a utility on such a button no longer wins as it did on 0.1.7's single classes; use Tailwind's important modifier (`!px-4`, `!text-grey1`) or your own CSS for it:
   - a button with an icon (`.prism-button--primary.prism-button--with-icon`): its padding and gap, where 0.1.7's `prism-btn-primary-icon` was one class;
   - a tone (`.prism-button--secondary.prism-button--danger`): its text, border and background colors, where 0.1.7's `prism-btn-danger` was one class;
-  - `--padded` with a variant (`.prism-button--text.prism-button--padded`): its padding, so a padding utility on a padded plain or text button doesn't win either.
+  - `--padded` with a variant (`.prism-button--text.prism-button--padded`): its padding, so a padding utility on a padded plain or text button doesn't win either;
+  - a round image picker's preview (`.prism-image-picker--round .prism-image-picker__preview`): its height, so `h-[150px]` on it alone leaves a 120px-high oval; use `!h-[150px]`.
 - `prism-max-lines-*` and `prism-text-shadow*` (in `css/base.css`) keep their names.
 
 ## License

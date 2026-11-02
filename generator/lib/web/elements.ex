@@ -25,6 +25,7 @@ defmodule Prism.Generator.Web.Elements do
   | `tag` | `<span>` | `label` holds the content |
   | `message_bar` | `<div>` | the content |
   | `step_indicator` | `<span>` | the content |
+  | `image_picker` | `<div>` | `preview` (a `<div>`) holds the app's image; `button` is the app's own button component |
 
   ## The data
 
@@ -63,6 +64,9 @@ defmodule Prism.Generator.Web.Elements do
     - `%{as: :list, name, element, class, item, item_element, item_class,
       item_states}`: a list of items the app gives, such as a select's
       options; `item_states` are `[%{name, class}]`;
+    - `%{as: :given, name, component}`: a part that is another component
+      the app renders itself, in the part's place (an image picker's button,
+      whose variant the app picks);
     - `%{as: :inner_block}`: the app's content where no part holds it;
     - `%{as: :value}`: a text area's value.
   - `withs`: `%{part => class}`, the class of the look with each part, added
@@ -132,7 +136,14 @@ defmodule Prism.Generator.Web.Elements do
     checkbox: %{element: "input", attrs: [type: "checkbox"], parts: [], content: nil},
     tag: %{element: "span", parts: [label: {:content, "span"}], content: :end},
     message_bar: %{element: "div", parts: [], content: :end},
-    step_indicator: %{element: "span", parts: [], content: :end}
+    step_indicator: %{element: "span", parts: [], content: :end},
+    # The preview holds the app's image; the button is the app's own button component,
+    # whose variant the app picks.
+    image_picker: %{
+      element: "div",
+      parts: [preview: {:slot, "div"}, button: :given],
+      content: nil
+    }
   }
 
   @void ["input"]
@@ -311,7 +322,17 @@ defmodule Prism.Generator.Web.Elements do
   # what it is.
   # A part that is another component has that component's element and class, with
   # the classes of its axes' defaults that are variants.
-  defp part(c, _kind, %{component: ref} = p, prefix, components) when ref != nil do
+  # A part that is another component the app renders itself (an image picker's
+  # button): its markup is the app's, in the part's place.
+  defp part(c, kind, %{component: ref} = p, prefix, components) when ref != nil do
+    if Keyword.get(kind.parts, p.name) == :given,
+      do: %{name: p.name, as: :given, component: ref},
+      else: component_part(c, p, ref, prefix, components)
+  end
+
+  defp part(c, kind, p, prefix, _components), do: own_part(c, kind, p, prefix)
+
+  defp component_part(c, p, ref, prefix, components) do
     element =
       case @kinds[ref] do
         %{element: {:as, default}} -> default
@@ -335,10 +356,15 @@ defmodule Prism.Generator.Web.Elements do
     }
   end
 
-  defp part(c, kind, p, prefix, _components) do
+  defp own_part(c, kind, p, prefix) do
     class = Classes.part(prefix, c, p.name)
 
     case kind.parts[p.name] do
+      # The app renders this part with another component, which the design names.
+      :given ->
+        raise ArgumentError,
+              "#{inspect(c.name)}'s #{inspect(p.name)} is the app's own component, in the part's place; give it component: (part #{inspect(p.name)}, component: …)"
+
       {:list, element, item} ->
         unless Enum.any?(c.parts, &(&1.name == item)),
           do:

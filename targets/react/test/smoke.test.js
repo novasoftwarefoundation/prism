@@ -137,6 +137,11 @@ test("every axis value and state of every component renders a class of the CSS",
     ...["incomplete", "current", "complete"].map((status) =>
       h(Prism.StepIndicator, { status }, "1"),
     ),
+    h(Prism.ImagePicker, {
+      shape: "round",
+      preview: "x",
+      button: h(Prism.Button, { variant: "primary" }, "x"),
+    }),
   ];
 
   const rendered = classes(elements.map((element) => renderToStaticMarkup(element)).join(""));

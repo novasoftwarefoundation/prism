@@ -12,7 +12,7 @@ SwiftUI has its own forms for a control's look. A `ButtonStyle`, a `ProgressView
 
 1. **A file target, `swift`.** `Prism.Generator.Swift` writes `targets/swift/`: `Package.swift`, and in `Sources/Prism/` the tokens (`Tokens.swift`), the types a look is made of (`Look.swift`) and one file per component. The files are committed, carry the `Prism.Generator.Header` line (`//`, also above `// swift-tools-version`), `mix prism.gen --check` covers them, and they are reviewed in Prism's pull requests, as every other target. The design names the package: `swift module: "Prism"` in `Prism.Design.Tokens`, the module and the prefix of its types (`PrismButtonStyle`, `Prism.Colors`). The package is `swift-tools-version: 6.2`, `.iOS(.v26)`, one library `Prism`. `README.md`, `LICENSE` and `.gitignore` in `targets/swift/` are hand-written.
 
-2. **The tokens and all twelve components, each in SwiftUI's own form** (`Prism.Generator.Swift.Components`):
+2. **The tokens and all components, each in SwiftUI's own form** (`Prism.Generator.Swift.Components`):
 
    | Component | Swift |
    |---|---|
@@ -21,9 +21,10 @@ SwiftUI has its own forms for a control's look. A `ButtonStyle`, a `ProgressView
    | `checkbox` | `PrismCheckboxStyle: ToggleStyle`, `.toggleStyle(.prism())` |
    | `text_field`, `text_area` | a `ViewModifier`: `.prismTextField(focused:invalid:)` on a `TextField`, `.prismTextArea()` on a `TextEditor` |
    | `select` | `PrismSelect`, a view on `Menu` |
+   | `image_picker` | `PrismImagePicker(shape:) { preview } button: { the app's Button }` ([ADR 0011](0011-image-picker.md)) |
    | `field`, `radio_group`, `radio`, `tag`, `message_bar`, `step_indicator` | a view each: `PrismTag(tone: .success) { Text("Done") }` |
 
-   The target must know every component of the design (ADR 0001, decision 3.2), so it knows all twelve, not only those an app uses today. Like the web target, it knows them and their parts by name, and fails generation for one it doesn't know.
+   The target must know every component of the design (ADR 0001, decision 3.2), so it knows all of them (thirteen since [ADR 0011](0011-image-picker.md)'s image picker), not only those an app uses today. Like the web target, it knows them and their parts by name, and fails generation for one it doesn't know.
 
 3. **The API, by the same rules as the Phoenix and React components:**
    - **Each axis is an enum** of the design's values (`PrismButtonVariant`, `PrismButtonTone`, `PrismSpinnerSize`), with the design's default; a default without a look of its own is a case too (`.accent`), an alias a static property. A variant named by a number has its axis's name in front (`.size16`, [ADR 0007](0007-spinner-sizes-progress.md)). The `:variant` axis is the first argument, without a label; an axis without a default is optional.

@@ -86,6 +86,7 @@ describe("every component", () => {
       "Button",
       "Checkbox",
       "Field",
+      "ImagePicker",
       "MessageBar",
       "Radio",
       "RadioGroup",
@@ -197,6 +198,23 @@ describe("states", () => {
     assert.ok(
       html(h(Kit.Radio, { checked: true, onChange }, "One")).includes(
         norm('<input type="radio" checked="" class="kit-radio__control"/>'),
+      ),
+    );
+  });
+
+  test("an image picker: the app's image in its preview, and the app's own button", () => {
+    assert.equal(
+      html(
+        h(Kit.ImagePicker, {
+          shape: "round",
+          preview: "PHOTO",
+          button: h(Kit.Button, { variant: "quiet" }, "Change"),
+        }),
+      ),
+      norm(
+        '<div class="kit-image-picker kit-image-picker--round">' +
+          '<div class="kit-image-picker__preview">PHOTO</div>' +
+          '<button class="kit-button kit-button--quiet kit-button--roomy"><span class="kit-button__label">Change</span></button></div>',
       ),
     );
   });

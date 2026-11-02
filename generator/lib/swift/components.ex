@@ -10,13 +10,15 @@ defmodule Prism.Generator.Swift.Components do
   | `checkbox` | `MCheckboxStyle: ToggleStyle` | `.toggleStyle(.m())` |
   | `text_field`, `text_area` | a `ViewModifier` | `.mTextField(focused: focused, invalid: invalid)` on a `TextField`, `.mTextArea()` on a `TextEditor` |
   | `select` | `MSelect`, a `Menu` | `MSelect { items } label: { Text(choice) }` |
+  | `image_picker` | `MImagePicker`, a view | `MImagePicker(shape: .round) { image } button: { Button(…) }` |
   | `field`, `radio_group`, `radio`, `tag`, `message_bar`, `step_indicator` | a view each | `MTag(tone: .success) { Text("Done") }` |
 
   Like the web target, it knows the components by name, and their parts: the
   button's `label` and `icon`, the field's `label` and `error_message`, the
   radio's `control` and `label`, the select's `field`, `icon`, `listbox` and
-  `option`, the tag's `label`, a part that is a spinner, and the spinner's
-  `progress` value. A component, part or value it doesn't know fails
+  `option`, the tag's `label`, the image picker's `preview` and `button` (the
+  app's own button), a part that is a spinner, and the spinner's `progress`
+  value. A component, part or value it doesn't know fails
   generation.
 
   ## Looks
@@ -84,7 +86,8 @@ defmodule Prism.Generator.Swift.Components do
     :checkbox,
     :tag,
     :message_bar,
-    :step_indicator
+    :step_indicator,
+    :image_picker
   ]
 
   @parts %{
@@ -92,8 +95,12 @@ defmodule Prism.Generator.Swift.Components do
     field: [:label, :error_message],
     radio: [:control, :label],
     select: [:field, :icon, :listbox, :option],
-    tag: [:label]
+    tag: [:label],
+    image_picker: [:preview]
   }
+
+  # The parts that are another component the app draws itself, in the part's place.
+  @given %{image_picker: [:button]}
 
   @values %{spinner: [:progress]}
 
@@ -131,6 +138,13 @@ defmodule Prism.Generator.Swift.Components do
         cond do
           p.component == :spinner ->
             :ok
+
+          p.name in Map.get(@given, c.name, []) and p.component != nil ->
+            :ok
+
+          p.name in Map.get(@given, c.name, []) ->
+            raise ArgumentError,
+                  "#{inspect(c.name)}'s #{inspect(p.name)} is the app's own component, in the part's place; give it component: (part #{inspect(p.name)}, component: …)"
 
           p.component != nil ->
             raise ArgumentError,
@@ -288,7 +302,12 @@ defmodule Prism.Generator.Swift.Components do
 
   defp looks_struct(ctx, c, spec) do
     type = "#{ctx.m}#{Swift.pascal(c.name)}Looks"
-    parts = for p <- c.parts, do: "    public var #{Swift.ident(p.name)} = #{ctx.m}Look()\n"
+    # A part the app draws with its own component has no look here.
+    parts =
+      for p <- c.parts,
+          p.name not in Map.get(@given, c.name, []),
+          do: "    public var #{Swift.ident(p.name)} = #{ctx.m}Look()\n"
+
     params = spec.args |> Enum.map(&param/1) |> wrap("        ", ",")
 
     statements =
@@ -341,7 +360,7 @@ defmodule Prism.Generator.Swift.Components do
 
   # A look as `MLook(…)`, its fields in the struct's order.
   @order ~w(background foreground placeholder borderWidth borderColor outlineWidth outlineColor
-            outlineOffset radius padding margin inset gap size height minHeight maxHeight
+            outlineOffset radius padding margin inset gap size width height minHeight maxHeight
             typography weight decoration shadow opacity transition rotation stroke track)
 
   defp look_fields(ctx, c, layer) do
@@ -926,6 +945,48 @@ defmodule Prism.Generator.Swift.Components do
             .#{ctx.lower}Look(looks.root)
             .animation(looks.control.transition?.animation, value: looks)
             .accessibilityElement(children: .combine)#{selected}
+        }
+    }
+    """
+  end
+
+  # A preview of the app's image, clipped to its shape, and the app's own button
+  # beside it, whose style the app picks (primary while empty, secondary with an image).
+  defp kind(ctx, _design, %{name: :image_picker} = c, spec) do
+    m = ctx.m
+    args = own(c, spec, [])
+    preview? = Enum.any?(c.parts, &(&1.name == :preview))
+
+    preview =
+      if preview?,
+        do: """
+                    preview
+                        .#{ctx.lower}Box(looks.preview)
+                        .clipShape(#{m}Shape(radius: looks.preview.radius))
+        """,
+        else: "            preview\n"
+
+    """
+    /// An image picker: a preview of the app's image (or its placeholder) and the app's
+    /// button to choose one, whose style the app picks. The file input is the app's.
+    /// `#{m}ImagePicker(#{example(spec)}) { Image(…).resizable().scaledToFill() } button: { … }`
+    public struct #{m}ImagePicker<Preview: View, ButtonContent: View>: View {
+    #{stored(args)}    var preview: Preview
+        var button: ButtonContent
+    #{env(c, spec)}
+        public init(
+    #{wrap(params(args, ["@ViewBuilder preview: () -> Preview", "@ViewBuilder button: () -> ButtonContent"]), "        ", ",")}
+        ) {
+    #{assigns(args)}        self.preview = preview()
+            self.button = button()
+        }
+
+        public var body: some View {
+            #{let_looks(ctx, c, spec, %{}, "        ")}
+            HStack(spacing: looks.root.gap) {
+    #{preview}            button
+            }
+            .#{ctx.lower}Look(looks.root)
         }
     }
     """

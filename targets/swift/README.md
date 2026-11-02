@@ -73,6 +73,7 @@ PrismSelect(icon: Image(systemName: "chevron.down")) {
 | Field | `PrismField(focused:invalid:label:errorMessage:) { control }` |
 | Radio group, radio | `PrismRadioGroup { … }`, `PrismRadio(checked:) { label }` |
 | Select | `PrismSelect { menu items } label: { … }`, on a `Menu` |
+| Image picker | `PrismImagePicker(shape:) { image } button: { Button(…).buttonStyle(.prism(.primary)) }` |
 | Tag, message bar, step indicator | `PrismTag(tone:)`, `PrismMessageBar(tone:)`, `PrismStepIndicator(status:)` |
 
 - **Variants** are enums of the design's values (`PrismButtonVariant.primary`, `PrismButtonTone.danger`, `PrismSpinnerSize.size16`), with the design's defaults: a button's tone is `.accent`, a spinner's size `.size24`, a tag's tone `.accent`, a message bar's `.info`, a step indicator's `.incomplete`. A button's variant and a spinner's color have none.
