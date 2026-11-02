@@ -790,7 +790,10 @@ defmodule Prism.Generator.Swift.Components do
         """
                 if let prefix {
                     HStack(spacing: 0) {
+                        // Its own width, so a picker's label stays on one line at any
+                        // text size; the text takes the rest.
                         prefix
+                            .fixedSize(horizontal: true, vertical: false)
                             .frame(maxHeight: .infinity)
                             .#{ctx.lower}Box(looks.prefix)
                         content

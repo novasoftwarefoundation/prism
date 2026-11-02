@@ -237,6 +237,13 @@ describe("states", () => {
     );
   });
 
+  test("a field's invalid adds its class; its focus is its control's", () => {
+    assert.equal(
+      html(h(Kit.Field, { variant: "inverse", invalid: true }, "CONTROL")),
+      norm('<div class="kit-field kit-field--inverse kit-field--invalid">CONTROL</div>'),
+    );
+  });
+
   test("a state the app doesn't set adds nothing, and leaves a control uncontrolled", () => {
     assert.equal(
       html(h(Kit.Checkbox, { defaultChecked: true })),
@@ -474,7 +481,7 @@ test("every class a component renders is a class of the web target's CSS", () =>
     h(Kit.TextField, { variant: "inverse", invalid: true, disabled: true }),
     h(Kit.TextField, { variant: "inverse", invalid: true, disabled: true, prefix: "€" }),
     h(Kit.TextArea, { variant: "inverse", invalid: true, disabled: true, defaultValue: "x" }),
-    h(Kit.Field, { label: "x", errorMessage: "x" }, "x"),
+    h(Kit.Field, { variant: "inverse", invalid: true, label: "x", errorMessage: "x" }, "x"),
     h(Kit.RadioGroup, null, h(Kit.Radio, { checked: true, disabled: true, onChange }, "x")),
     h(Kit.Select, { icon: "v", options: [{ selected: true, children: "x" }] }, "x"),
     h(Kit.Select, { variant: "inverse", invalid: true, disabled: true }, "x"),
@@ -492,10 +499,10 @@ test("every class a component renders is a class of the web target's CSS", () =>
   const rendered = classes(markup);
   assert.ok(rendered.length > 30);
 
-  // Without a look of their own, the button's icon and the field have a class but no
-  // rule: a hook for the app.
+  // Without a look of its own, the button's icon has a class but no rule: a hook for
+  // the app.
   assert.deepEqual(
     rendered.filter((name) => !inCss(name)),
-    ["kit-button__icon", "kit-field"],
+    ["kit-button__icon"],
   );
 });

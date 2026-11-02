@@ -39,6 +39,8 @@ The owner decided that an invalid field keeps its warning border while it has fo
 
 In Prism's design, the text field, the text area and the select's field have both an invalid look and a focus look (the text area and the select since Flux 10465599977), and this rule covers each of them with no further change.
 
+The field's label has both too (Flux 10465599953): primary while the field's control has focus, warning while the field is invalid. The rule covers it as a state's change to a part, so an invalid field keeps its warning label while its control has focus.
+
 ## Alternatives
 
 | Option | Why not |

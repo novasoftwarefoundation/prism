@@ -63,7 +63,7 @@ end
   <:icon><span class="hero-check"></span></:icon>
 </MyAppWeb.Prism.button>
 
-<MyAppWeb.Prism.field>
+<MyAppWeb.Prism.field invalid={@errors != []}>
   <:label for="email">Email</:label>
   <MyAppWeb.Prism.text_field id="email" name="email" invalid={@errors != []} />
   <:error_message :for={error <- @errors}>{error}</:error_message>
@@ -81,7 +81,7 @@ end
 - **Spinners** ([ADR 0007](docs/adr/0007-spinner-sizes-progress.md)): `size` is an integer, the spinner's px: `16`, `20`, `24` (the default) or `32` (`size={16}`). `progress`, a number from 0 to 100 or `nil`, shows a light grey ring (white at 20% on the inverse spinner) with an arc in the spinner's color as long as the value (clamped to 0..100), with `role="progressbar"` and the ARIA values; the spinner keeps turning. Name it with `aria-label` (or `aria-labelledby`): `<MyAppWeb.Prism.spinner progress={@upload.progress} aria-label="Uploading" />`. A loading button's spinner is 20px.
 - **Buttons** ([ADR 0006](docs/adr/0006-button-looks.md)): the variants are `:primary`, `:secondary`, `:plain`, `:link`, `:text`, `:soft` (the tone's light color behind its color) and `:icon` (an icon only, 24×24; give it an `aria-label`). A tone (`:success`, `:warning`, `:danger`, `:neutral`, `:highlight`) colors a primary button's background and the others' text and border; `:soft` has no look with `:neutral` or `:highlight`. `padded` (default `true`) makes a plain or text button as tall as a primary one beside it; `padded={false}` fits it to its text.
 - **States the app sets** are boolean attributes: `loading`, `invalid`, `disabled`, `checked`. On a form control, `disabled` and `checked` set the element's own attribute; elsewhere a state adds its class (`prism-radio--disabled`). The browser's states (pressed, hovered, focused) need nothing.
-- **Parts** follow the design's order: the label is the inner block, the icon a `<:icon>` slot (with it, the button gets `prism-button--with-icon`), and the spinner shows while `loading`. The icon goes at the start of the label, or at its end with `icon_position={:end}`; start and end follow the text's direction. Any other value warns at compile time and fails when it renders, as `as` does. A text field takes a `<:prefix>` before its text, a currency symbol or the app's own picker ([ADR 0010](docs/adr/0010-text-field-prefix.md)): it is then a `<div>` with the text field's classes around the prefix and the `<input>`, which gets the other attributes (`name`, `phx-*`) and `disabled`.
+- **Parts** follow the design's order: the label is the inner block, the icon a `<:icon>` slot (with it, the button gets `prism-button--with-icon`), and the spinner shows while `loading`. The icon goes at the start of the label, or at its end with `icon_position={:end}`; start and end follow the text's direction. Any other value warns at compile time and fails when it renders, as `as` does. A text field takes a `<:prefix>` before its text, a currency symbol or the app's own picker ([ADR 0010](docs/adr/0010-text-field-prefix.md)): it is then a `<div>` with the text field's classes around the prefix and the `<input>`, which gets the other attributes (`name`, `phx-*`) and `disabled`. Adding or removing the prefix on a field that is on screen swaps its element, so the input loses its focus: give a field that may get a prefix one from its first render.
 - **Adjusting**: `class` adds the app's classes after the component's own, and other attributes (`id`, `phx-*`, `type`, `name`, …) go on the element. A button's element is `as`: `"button"` by default, or `"a"`, `"span"` or `"div"` when the app wraps it in its own action; any other value warns at compile time and fails when it renders. What a component does stays in the app.
 
 `Prism.Generator.Phoenix` exists only when the app has Phoenix LiveView (`~> 1.1`); the design itself has no Phoenix. The class names come from the same functions as `components.css`, so the components and the CSS can't drift apart, and a design change reaches the app with the dependency bump: Mix recompiles the module. Its moduledoc lists each component's element and slots.
@@ -107,7 +107,7 @@ import { Button, Field, Tag, TextField } from "@novasoftwarefoundation/prism-rea
   Save
 </Button>
 
-<Field label="Email" labelProps={{ htmlFor: "email" }} errorMessage={errors[0]}>
+<Field label="Email" labelProps={{ htmlFor: "email" }} errorMessage={errors[0]} invalid={errors.length > 0}>
   <TextField id="email" name="email" invalid={errors.length > 0} />
 </Field>
 
@@ -130,7 +130,7 @@ import Prism
 Button("Save", action: save)
     .buttonStyle(.prism(.primary, tone: .danger, loading: saving))
 
-PrismField(label: Text("Email"), errorMessage: error.map(Text.init)) {
+PrismField(focused: emailFocused, invalid: error != nil, label: Text("Email"), errorMessage: error.map(Text.init)) {
     TextField("", text: $email)
         .focused($emailFocused)
         .prismTextField(focused: emailFocused, invalid: error != nil)

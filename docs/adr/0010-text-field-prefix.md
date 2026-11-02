@@ -50,3 +50,5 @@ Prism's `text_field` is a single `<input>` on the web, and an `<input>` holds no
 - `components.css`: Prism's text field rules use `:focus-within` and `:is(:disabled, :has(> :disabled))` instead of `:focus` and `:disabled`, with the same weight and the same look on an `<input>`. The prefix, the input and the wrapper are new rules. The golden diff (`design/test/golden/0.1.7.diff`) holds them.
 - An app that styles `.prism-text-field:focus` or `.prism-text-field:disabled` itself, at the same weight, may need its rule after Prism's CSS, or to match the new selectors, for the wrapper.
 - The format's `border` takes `sides:` on any component.
+- Adding or removing the prefix on a field that is on screen swaps its element (React remounts the input, LiveView patches in a new one), so the input loses its focus and an uncontrolled value. A field that may get a prefix has one from its first render; the READMEs say so.
+- An app's own focus color on an invalid field uses `:focus-within` (`focus-within:` in Tailwind), which holds on the plain input and on the wrapper.

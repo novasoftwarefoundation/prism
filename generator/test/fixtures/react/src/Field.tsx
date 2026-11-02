@@ -2,7 +2,18 @@
 import { forwardRef, type ComponentPropsWithoutRef, type ReactNode } from "react";
 import { classNames, present } from "./helpers.js";
 
+/** The field's variant. */
+export type FieldVariant = "inverse";
+
+const variantClasses: Record<FieldVariant, string> = {
+  inverse: "kit-field--inverse",
+};
+
 export interface FieldOwnProps {
+  /** No default: without one, it adds no class. */
+  variant?: FieldVariant;
+  /** Adds `kit-field--invalid`. */
+  invalid?: boolean;
   /** The label part. */
   label?: ReactNode;
   /** Attributes of the label part's `<label>`. */
@@ -21,11 +32,33 @@ export type FieldProps = FieldOwnProps & Omit<ComponentPropsWithoutRef<"div">, k
 
 /** The design's `field` component. */
 export const Field = forwardRef<HTMLDivElement, FieldProps>(function Field(
-  { label, labelProps, errorMessage, errorMessageProps, className, children, ...rest },
+  {
+    variant,
+    invalid,
+    label,
+    labelProps,
+    errorMessage,
+    errorMessageProps,
+    className,
+    children,
+    ...rest
+  },
   ref,
 ) {
+  if (variant != null && !["inverse"].includes(variant)) {
+    throw new Error(`variant: ${JSON.stringify(variant)} is not one of "inverse"`);
+  }
   return (
-    <div ref={ref} {...rest} className={classNames("kit-field", className)}>
+    <div
+      ref={ref}
+      {...rest}
+      className={classNames(
+        "kit-field",
+        variant && variantClasses[variant],
+        invalid && "kit-field--invalid",
+        className,
+      )}
+    >
       {present(label) && (
         <label {...labelProps} className={classNames("kit-field__label", labelProps?.className)}>
           {label}

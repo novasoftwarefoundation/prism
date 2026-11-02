@@ -362,6 +362,7 @@
 }
 
 .prism-text-field--with-prefix {
+  box-sizing: border-box;
   display: flex;
   align-items: stretch;
   padding: 0;
@@ -479,6 +480,23 @@
   line-height: 18px;
   color: #f28d15;
   margin-top: 4px;
+}
+
+/* Field whose control has focus */
+.prism-field:focus-within .prism-field__label {
+  color: #4272ef;
+}
+
+/* Field with an invalid value */
+.prism-field--invalid .prism-field__label,
+.prism-field.prism-field--invalid:focus-within .prism-field__label,
+.prism-field--inverse.prism-field--invalid:focus-within .prism-field__label {
+  color: #f28d15;
+}
+
+/* Field on a dark background */
+.prism-field--inverse:focus-within .prism-field__label {
+  color: #ffcf60;
 }
 
 /* ==========================================================================
