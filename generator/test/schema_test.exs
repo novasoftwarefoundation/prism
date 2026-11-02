@@ -1,0 +1,504 @@
+defmodule Prism.Generator.SchemaTest do
+  use ExUnit.Case, async: true
+
+  @faces ~s([[file: "F", weights: {200, 900}, style: :normal]])
+
+  # A one-line family :f; an option set to nil is left out.
+  defp family(opts \\ []) do
+    [
+      doc: ~s("F"),
+      web: ~s([name: "F", fallback: "serif", faces: #{@faces}]),
+      ios: ":system",
+      android: ":system"
+    ]
+    |> Keyword.merge(opts)
+    |> Enum.reject(fn {_, v} -> is_nil(v) end)
+    |> Enum.map_join(", ", fn {k, v} -> "#{k}: #{v}" end)
+    |> then(&"  family :f, #{&1}")
+  end
+
+  defp compile(body) do
+    module = "Design#{System.unique_integer([:positive])}"
+
+    Code.compile_string(
+      "defmodule #{module} do\n  use Prism.Generator.Schema\n#{body}\nend\n",
+      "design.ex"
+    )
+  end
+
+  defp assert_compile_error(body, message, line) do
+    error = assert_raise CompileError, fn -> compile(body) end
+    assert Exception.message(error) =~ message
+    assert error.line == line
+  end
+
+  test "the tokens compile into plain data" do
+    %{tokens: tokens, web: web, file: file} = Prism.Generator.ExampleDesign.__schema__()
+    assert file == "test/support/example_design.ex"
+    assert %{kind: :color, name: :accent, value: "#1A73E8", group: "Brand"} in tokens
+    assert %{kind: :color, name: :link, value: :accent, group: "Brand"} in tokens
+    assert %{prefix: "acme", fonts_url: "../fonts", line_clamps: 2} = web
+  end
+
+  test "a name that isn't a snake_case atom fails" do
+    assert_compile_error(~s(  color :Primary, "#1A73E8"), "name must be a snake_case atom", 3)
+  end
+
+  test "a duplicate fails at the second one" do
+    assert_compile_error(
+      ~s(  color :primary, "#1A73E8"\n  color :primary, "#1A73E8"),
+      "color :primary is defined twice",
+      4
+    )
+  end
+
+  test "an unknown option fails and names it" do
+    assert_compile_error(
+      ~s(  shadow :card, [y: 5, color: {:black, 0.1}], deprecatd: true),
+      "unknown option :deprecatd",
+      3
+    )
+  end
+
+  test "colors are upper-case #RRGGBB" do
+    assert_compile_error(~s(  color :primary, "#1a73e8"), "write colors as #RRGGBB", 3)
+  end
+
+  test "an alias of an unknown color fails" do
+    assert_compile_error("  color :x, :nope", "alias of unknown color :nope", 3)
+  end
+
+  test "a shadow color must be a color" do
+    assert_compile_error(
+      "  shadow :card, y: 5, color: {:ink, 0.1}",
+      "shadow color :ink is not a color",
+      3
+    )
+  end
+
+  test "a font of an unknown family fails" do
+    assert_compile_error("  font :button, :display, 700", "unknown family :display", 3)
+  end
+
+  test "a font weight is one of 100, 200, …, 1000" do
+    compile(family() <> ~s(\n  font :b, :f, 100\n  font :c, :f, 1000))
+
+    for weight <- [0, 450, 750, 1100] do
+      assert_compile_error(
+        family() <> ~s(\n  font :b, :f, #{weight}),
+        "weight #{weight} is not one of 100, 200, …, 1000",
+        4
+      )
+    end
+  end
+
+  test "a typography is a font and a text size, by name" do
+    %{tokens: tokens} = Prism.Generator.ExampleDesign.__schema__()
+    assert %{kind: :typography, name: :note, font: :hint, text: :body, group: nil} in tokens
+  end
+
+  # A family :f, a font :b and a text size :t, so a typography on line 6 can name them.
+  defp typography(opts),
+    do: family() <> "\n  font :b, :f, 700\n  text :t, 16, 20\n  typography :x, #{opts}"
+
+  test "a typography names a font and a text size" do
+    compile(typography("font: :b, text: :t"))
+    assert_compile_error(typography("text: :t"), "typography :x: missing font:", 6)
+    assert_compile_error(typography("font: :b"), "typography :x: missing text:", 6)
+
+    assert_compile_error(
+      typography("font: :b, text: :t, weight: 300"),
+      "typography :x: unknown option :weight",
+      6
+    )
+  end
+
+  test "a typography's font and text size must exist, with that kind" do
+    assert_compile_error(typography("font: :nope, text: :t"), "unknown font :nope", 6)
+    assert_compile_error(typography("font: :b, text: :nope"), "unknown text :nope", 6)
+    # Each reference is looked up in its own list: :t is a text size, not a font.
+    assert_compile_error(typography("font: :t, text: :t"), "unknown font :t", 6)
+    assert_compile_error(typography("font: :b, text: :b"), "unknown text :b", 6)
+  end
+
+  test "a typography comes after the font and text size it names" do
+    assert_compile_error(
+      family() <> "\n  typography :x, font: :b, text: :t\n  font :b, :f, 700\n  text :t, 16, 20",
+      "typography :x: unknown font :b",
+      4
+    )
+  end
+
+  test "a typography is defined once, but may share its name with a font and a text size" do
+    compile(
+      family() <> "\n  font :x, :f, 700\n  text :x, 16, 20\n  typography :x, font: :x, text: :x"
+    )
+
+    assert_compile_error(
+      typography("font: :b, text: :t") <> "\n  typography :x, font: :b, text: :t",
+      "typography :x is defined twice",
+      7
+    )
+  end
+
+  test "a family needs a doc and a web fallback" do
+    assert_compile_error(family(doc: nil), "family :f: doc: must be a one-line string", 3)
+
+    assert_compile_error(
+      family(web: ~s([name: "F", fallback: 42, faces: #{@faces}])),
+      "family :f: web: fallback: must be a CSS family name",
+      3
+    )
+  end
+
+  test "a family names every platform" do
+    compile(family())
+
+    for platform <- [:web, :ios, :android] do
+      assert_compile_error(
+        family([{platform, nil}]),
+        "family :f: missing #{platform}: (every family names web, ios, android)",
+        3
+      )
+    end
+
+    assert_compile_error(family(windows: ":system"), "unknown option :windows", 3)
+  end
+
+  test "a platform binds :system or a named font with its faces" do
+    compile(
+      family(
+        ios: ~s([name: "Brand", faces: #{@faces}]),
+        android: ~s([name: "Brand", faces: #{@faces}])
+      )
+    )
+
+    assert_compile_error(
+      family(ios: ~s("SF Pro")),
+      "family :f: ios: is :system or [name:, faces: [...]]",
+      3
+    )
+
+    assert_compile_error(
+      family(android: ~s([name: "Brand"])),
+      "family :f: android: is :system or",
+      3
+    )
+
+    assert_compile_error(
+      family(ios: ~s([name: "Brand", fallback: "serif", faces: #{@faces}])),
+      "family :f: ios: is :system or",
+      3
+    )
+
+    assert_compile_error(
+      family(ios: ~s([name: "Brand", faces: []])),
+      "family :f: ios: a face is",
+      3
+    )
+
+    assert_compile_error(
+      family(web: ":system"),
+      "web: :system is not supported on the web yet",
+      3
+    )
+  end
+
+  test "design text can't break out of a JS or CSS string or comment" do
+    assert_compile_error(
+      family(web: ~s([name: "F\\"oo", fallback: "serif", faces: #{@faces}])),
+      "web: name: must be a CSS family name",
+      3
+    )
+
+    assert_compile_error(family(doc: ~s("F */ x")), "doc: must be a one-line string", 3)
+
+    assert_compile_error(
+      family(
+        web:
+          ~s|[name: "F", fallback: "serif", faces: [[file: "F\\")", weights: {200, 900}, style: :normal]]]|
+      ),
+      "file in A-Z a-z 0-9 . _ -",
+      3
+    )
+
+    assert_compile_error(
+      ~s|  group "Brand colors\\n  pwn: require(\\"child_process\\")," do\n    color :a, "#111111"\n  end|,
+      "must be a one-line string",
+      3
+    )
+  end
+
+  test "groups don't nest" do
+    assert_compile_error(
+      ~s(  group "Outer" do\n    group "Inner" do\n      color :a, "#111111"\n    end\n  end),
+      ~s(group "Inner" inside group "Outer": groups don't nest),
+      4
+    )
+  end
+
+  test "deprecated is a boolean" do
+    assert_compile_error(
+      ~s(  shadow :card, [y: 5, color: {:black, 0.1}], deprecated: "yes"),
+      "deprecated is a boolean",
+      3
+    )
+  end
+
+  test "an option can't replace an argument or be given twice" do
+    assert_compile_error(
+      ~s(  shadow :card, [y: 5, color: {:black, 0.1}], value: [y: 9, color: {:black, 0.1}]),
+      ":value is an argument, not an option",
+      3
+    )
+
+    assert_compile_error(
+      ~s(  shadow :card, [y: 5, color: {:black, 0.1}], deprecated: true, deprecated: false),
+      "option :deprecated is given twice",
+      3
+    )
+
+    assert_compile_error(
+      family() <> ~s(\n  font :b, :f, 700, weight: 300),
+      ":weight is an argument, not an option",
+      4
+    )
+  end
+
+  # The keys every token has besides its kind's own; options must not set them.
+  @reserved [:name, :group, :kind, :line]
+
+  # `declaration` ends in a token that takes options, on line 3 + `offset`.
+  defp assert_reserved_refused(declaration, offset) do
+    for key <- @reserved do
+      assert_compile_error(
+        "#{declaration}, #{key}: :x",
+        "unknown option #{inspect(key)}",
+        3 + offset
+      )
+    end
+  end
+
+  test "a shadow's options can't set its name, group, kind or line" do
+    assert_reserved_refused(
+      ~s(  color :ink, "#101010"\n  shadow :card, [y: 6, color: {:ink, 0.08}]),
+      1
+    )
+  end
+
+  test "a family's options can't set its name, group, kind or line" do
+    assert_reserved_refused(family(), 0)
+  end
+
+  test "a font's options can't set its name, group, kind or line" do
+    assert_reserved_refused(family() <> "\n  font :hint, :f, 300, italic: true", 1)
+  end
+
+  test "a typography's options can't set its name, group, kind or line" do
+    # `name: :x` used to compile into a second typography :x.
+    assert_reserved_refused(
+      typography("font: :b, text: :t") <> "\n  typography :y, font: :b, text: :t",
+      4
+    )
+  end
+
+  test "lengths that can't be negative" do
+    assert_compile_error("  text :t, -16, 20", "greater than 0", 3)
+    assert_compile_error("  radius :r, -4", "is not a length", 3)
+
+    assert_compile_error(
+      "  shadow :s, y: 5, blur: -20, color: {:black, 0.1}",
+      "blur is not negative",
+      3
+    )
+  end
+
+  test "offsets and spread may be negative" do
+    compile(
+      ~s(  color :black, "#000000"\n  shadow :s, x: -2, y: -5, spread: -3, color: {:black, 0.1})
+    )
+  end
+
+  test "font names and fallbacks are plain CSS family names" do
+    assert_compile_error(
+      family(
+        web:
+          ~s([name: "F", fallback: "sans-serif; color: red } body { display: none", faces: #{@faces}])
+      ),
+      "web: fallback: must be a CSS family name",
+      3
+    )
+
+    assert_compile_error(
+      family(web: ~s([name: "F", fallback: "", faces: #{@faces}])),
+      "web: fallback: must be a CSS family name",
+      3
+    )
+
+    assert_compile_error(
+      family(ios: ~s([name: "Brand;", faces: #{@faces}])),
+      "ios: name: must be a CSS family name",
+      3
+    )
+  end
+
+  test "a trailing newline doesn't pass a name, color or file check" do
+    assert_compile_error(~s(  color :primary, "#1A73E8\\n"), "write colors as #RRGGBB", 3)
+
+    assert_compile_error(
+      ~s(  color :"primary\\n", "#1A73E8"),
+      "name must be a snake_case atom",
+      3
+    )
+
+    assert_compile_error(
+      family(
+        web:
+          ~s([name: "F", fallback: "serif", faces: [[file: "F\\n", weights: {200, 900}, style: :normal]]])
+      ),
+      "file in A-Z a-z 0-9 . _ -",
+      3
+    )
+  end
+
+  test "face weights are 1..1000, lowest first" do
+    for weights <- ["{0, 900}", "{200, 5000}", "{900, 200}"] do
+      assert_compile_error(
+        family(
+          web:
+            ~s([name: "F", fallback: "serif", faces: [[file: "F", weights: #{weights}, style: :normal]]])
+        ),
+        "web: weights: {from, to} with 1 <= from <= to <= 1000",
+        3
+      )
+    end
+  end
+
+  test "the web declaration is checked" do
+    compile(~s(  web prefix: "acme", fonts_url: "../fonts"))
+
+    assert_compile_error(
+      ~s(  web prefix: "acme", fonts_url: "../fonts"\n  web prefix: "acme", fonts_url: "../fonts"),
+      "web is declared more than once",
+      3
+    )
+
+    assert_compile_error(
+      ~s(  web prefix: "acme", fonts_url: "f", colour: 1),
+      "unknown option :colour",
+      3
+    )
+
+    assert_compile_error(
+      ~s(  web fonts_url: "../fonts"),
+      "prefix must be a lower-case CSS class prefix",
+      3
+    )
+
+    assert_compile_error(~s(  web prefix: "Acme {", fonts_url: "f"), "prefix must be", 3)
+
+    assert_compile_error(
+      ~s|  web prefix: "acme", fonts_url: "f\\"), x"|,
+      "fonts_url must be a relative path",
+      3
+    )
+
+    for url <- ["/fonts", "//fonts.example/x"] do
+      assert_compile_error(
+        ~s(  web prefix: "acme", fonts_url: "#{url}"),
+        "fonts_url must be a relative path (no leading /)",
+        3
+      )
+    end
+
+    assert_compile_error(
+      ~s(  web prefix: "acme", fonts_url: "f", base_doc: "a */ b"),
+      "base_doc must be text without */",
+      3
+    )
+
+    assert_compile_error(
+      ~s(  web prefix: "acme", fonts_url: "f", font_classes_doc: "a\\nb"),
+      "font_classes_doc must be one line",
+      3
+    )
+
+    assert_compile_error(
+      ~s(  web prefix: "acme", fonts_url: "f", line_clamps: -1),
+      "line_clamps must be a number >= 0",
+      3
+    )
+  end
+
+  test "the swift declaration is checked" do
+    [{module, _}] =
+      compile(~s(  swift module: "Acme", fonts: "../fonts", font_files: ["OFL.txt"]))
+
+    assert module.__schema__().swift == %{
+             module: "Acme",
+             fonts: "../fonts",
+             font_files: ["OFL.txt"]
+           }
+
+    assert_compile_error(
+      ~s(  swift module: "Acme"\n  swift module: "Acme"),
+      "swift is declared more than once",
+      3
+    )
+
+    assert_compile_error(~s(  swift module: "Acme", name: "A"), "unknown option :name", 3)
+
+    for name <- ["acme", "Acme Kit", "1Acme", nil] do
+      assert_compile_error(
+        "  swift module: #{inspect(name)}",
+        "module must be an upper camel case Swift name",
+        3
+      )
+    end
+
+    assert_compile_error(
+      ~s(  swift module: "Acme", fonts: "/fonts"),
+      "fonts must be a relative path (no leading /)",
+      3
+    )
+
+    assert_compile_error(
+      ~s(  swift module: "Acme", fonts: "f", font_files: ["../OFL.txt"]),
+      "font_files must be a list of file names",
+      3
+    )
+
+    assert_compile_error(
+      ~s(  swift module: "Acme", font_files: ["OFL.txt"]),
+      "font_files: needs fonts:",
+      3
+    )
+  end
+
+  test "a design that takes its tokens from another takes its swift declaration" do
+    [{tokens, _}] =
+      compile(
+        ~s(  web prefix: "acme", fonts_url: "f"\n  swift module: "Acme"\n  color :ink, "#101010")
+      )
+
+    module = "Design#{System.unique_integer([:positive])}"
+
+    [{components, _}] =
+      Code.compile_string(
+        "defmodule #{module} do\n  use Prism.Generator.Schema, tokens: #{inspect(tokens)}\nend\n",
+        "design.ex"
+      )
+
+    assert components.__schema__().swift.module == "Acme"
+
+    error =
+      assert_raise CompileError, fn ->
+        Code.compile_string(
+          "defmodule #{module}B do\n  use Prism.Generator.Schema, tokens: #{inspect(tokens)}\n  swift module: \"Other\"\nend\n",
+          "design.ex"
+        )
+      end
+
+    assert Exception.message(error) =~ "swift: it comes with the tokens"
+  end
+end

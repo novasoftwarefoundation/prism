@@ -1,0 +1,215 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop, spec]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  generator:
+    name: Generator on its own
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: generator
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
+        with:
+          version-file: .tool-versions
+          version-type: strict
+      - name: The generator mentions none of Prism's values
+        run: |
+          if grep -rniE 'nunito|novasoftwarefoundation|0\.1\.7|Prism\.Design|4272EF|\.\./design|design/lib' .; then
+            echo "::error::generator/ mentions Prism's design or package. Keep Prism-specific values in design/."
+            exit 1
+          fi
+      - run: mix format --check-formatted
+      # Phoenix is optional: before it is fetched, the generator compiles without it
+      # (and without Prism.Generator.Phoenix).
+      - run: mix compile --no-optional-deps --warnings-as-errors
+      - run: mix deps.get
+      # Compiled without design/, so a reference to Prism's design fails here.
+      - run: mix compile --warnings-as-errors
+      # The test env also compiles test/support/; mix test's flag covers the test files.
+      - run: mix compile --warnings-as-errors
+        env:
+          MIX_ENV: test
+      - run: mix test --warnings-as-errors
+
+  design:
+    name: Prism's design and generated files
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: design
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
+        with:
+          version-file: .tool-versions
+          version-type: strict
+      - run: mix deps.get
+      - run: mix compile --warnings-as-errors
+      - run: mix format --check-formatted
+      # Fails when a committed file in targets/ differs from what the design generates.
+      - run: mix prism.gen --check
+      # The 0.1.7 golden test, the version check, the font roles, the typography, and
+      # Prism's components rendered through Prism.Generator.Phoenix.
+      - run: mix test --warnings-as-errors
+
+  react:
+    name: React components (React ${{ matrix.react }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # The peer range of the React package. 19 is the lockfiles'; 18 has a lockfile
+        # of its own in each package, test/react18/package-lock.json, which
+        # .github/react18.sh puts in place.
+        react: ["19", "18"]
+    env:
+      REACT: ${{ matrix.react }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .tool-versions
+      # sh is dash here, which runs no EXIT trap when a signal ends it.
+      - name: An interrupted React 18 update puts the package back
+        if: matrix.react == '18'
+        run: .github/react18-test.sh
+      # The example design's components, as the generator's fixtures: a type check (an
+      # unknown variant must fail to compile) and render tests against the example's CSS.
+      - name: The example design's components
+        working-directory: generator/test/fixtures/react
+        run: |
+          if [ "$REACT" = 18 ]; then "$GITHUB_WORKSPACE/.github/react18.sh"; fi
+          npm ci
+          npm run check
+          # The lockfile's TypeScript is 7; the types must hold on 5.9 too.
+          npx --yes --package typescript@5.9.3 tsc --noEmit -p test
+          npm test
+      # Prism's package: built, type-checked, and rendered against the components.css
+      # of @novasoftwarefoundation/prism.
+      - name: Prism's React package
+        working-directory: targets/react
+        run: |
+          if [ "$REACT" = 18 ]; then "$GITHUB_WORKSPACE/.github/react18.sh"; fi
+          npm ci
+          npm run check
+          # The lockfile's TypeScript is 7; the types must hold on 5.9 too.
+          npx --yes --package typescript@5.9.3 tsc --noEmit -p test
+          npm test
+      - name: The package ships exactly the reviewed files
+        working-directory: targets/react
+        run: |
+          rm -rf dist
+          npm pack --dry-run --json | jq -r '.[0].files[].path' | LC_ALL=C sort > "$RUNNER_TEMP/npm-files-react.txt"
+          diff -u ../../.github/npm-files-react.txt "$RUNNER_TEMP/npm-files-react.txt" || {
+            echo "::error::npm would publish a different file list. Update targets/react/package.json 'files' or .github/npm-files-react.txt."
+            exit 1
+          }
+      - name: The package's LICENSE is the repository's
+        run: cmp LICENSE targets/react/LICENSE
+
+  design-tools:
+    name: Design-tool files
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: targets/design-tools
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .tool-versions
+      # Prism's files and the generator's fixtures: tokens.json against the DTCG 2025.10
+      # schema and through Terrazzo and Style Dictionary, tokens.css with the same names,
+      # overview.svg as standalone SVG.
+      - run: npm ci
+      - run: npm test
+
+  swift:
+    name: Swift package (iOS Simulator)
+    # SwiftUI builds only on macOS. Its Xcode has Swift 6.2 or later and the iOS 26 SDK,
+    # which the packages' tools version and platform need.
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # One exact Xcode, not the image's default or its newest, which change with the
+      # image. The step fails when the image no longer has it: pick another it lists.
+      - name: Select Xcode
+        env:
+          XCODE: "26.6"
+        run: |
+          app="/Applications/Xcode_$XCODE.app"
+          [ -d "$app" ] || {
+            echo "::error::Xcode $XCODE is not on this image; it has: $(ls -d /Applications/Xcode_*.app | xargs)"
+            exit 1
+          }
+          sudo xcode-select -s "$app"
+          # sed reads all of the output: head would close the pipe on xcodebuild.
+          version=$(xcodebuild -version | sed -n 1p)
+          echo "$version"
+          [ "$version" = "Xcode $XCODE" ] || {
+            echo "::error::$app is $version, not Xcode $XCODE"
+            exit 1
+          }
+      # Prism's package, and the generator's fixtures: the example design with a
+      # component of every kind, and the one with a token of every kind. A warning fails
+      # the build, as the generator's own do.
+      - name: Build the packages
+        run: |
+          for package in targets/swift:Prism generator/test/fixtures/swift/components:Kit \
+                         generator/test/fixtures/swift/design:Acme; do
+            (cd "${package%%:*}" && xcodebuild build -quiet -scheme "${package##*:}" \
+              -destination 'generic/platform=iOS Simulator' \
+              -derivedDataPath "$RUNNER_TEMP/${package##*:}" \
+              SWIFT_TREAT_WARNINGS_AS_ERRORS=YES)
+          done
+      # Every component rendered on a simulator at the default and the largest text
+      # size: a box that holds text grows with it and cuts none of it off.
+      - name: Render Prism's components
+        working-directory: design/test/swiftui
+        run: |
+          udid=$(xcrun simctl list devices available iPhone |
+            grep -m1 -oE '\([0-9A-F-]{36}\)' | tr -d '()')
+          [ -n "$udid" ] || { echo "::error::no iPhone simulator on this image"; exit 1; }
+          # No warnings-as-errors here: Xcode builds the package as a dependency with its
+          # warnings suppressed, which the flag conflicts with; the step above checks them.
+          xcodebuild test -quiet -scheme PrismChecks-Package -destination "id=$udid" \
+            -derivedDataPath "$RUNNER_TEMP/PrismChecks"
+
+  npm-package:
+    name: npm file list
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .tool-versions
+      - name: The package ships exactly the reviewed files
+        working-directory: targets/web
+        run: |
+          npm pack --dry-run --json | jq -r '.[0].files[].path' | LC_ALL=C sort > "$RUNNER_TEMP/npm-files.txt"
+          diff -u ../../.github/npm-files.txt "$RUNNER_TEMP/npm-files.txt" || {
+            echo "::error::npm would publish a different file list. Update targets/web/package.json 'files' or .github/npm-files.txt."
+            exit 1
+          }
+      - name: The package's LICENSE is the repository's
+        run: cmp LICENSE targets/web/LICENSE

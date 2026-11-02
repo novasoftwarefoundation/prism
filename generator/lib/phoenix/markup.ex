@@ -1,0 +1,349 @@
+if Code.ensure_loaded?(Phoenix.Component) do
+  defmodule Prism.Generator.Phoenix.Markup do
+    @moduledoc false
+    # Renders a component of `Prism.Generator.Phoenix` from its data and the app's
+    # assigns: the element with its classes, then its children in the design's order.
+    use Phoenix.Component
+
+    # While an axis has the variant the component wraps (a text area's rich text), the
+    # element is a wrapper with the component's classes around the app's content, its
+    # editor, whose own states are the editor's: the wrapper gets no `disabled`.
+    def render(%{wrap: %{variant: variant, axis: axis} = wrap} = spec, assigns) do
+      a = Enum.find(spec.axes, &(&1.name == axis))
+
+      if a.classes[assigns[axis]] == a.classes[variant] do
+        axis!(a, assigns[axis])
+        refuse!(spec, wrap, assigns)
+        attrs = root_attrs(spec, assigns, [])
+
+        assigns =
+          assign(assigns,
+            prism_wrap: wrap.element,
+            prism_attrs: attrs,
+            prism_children: [{:slot, assigns[:inner_block] || []}]
+          )
+
+        ~H"""
+        <.dynamic_tag tag_name={@prism_wrap} {@prism_attrs}><.child
+            :for={child <- @prism_children}
+            child={child}
+          /></.dynamic_tag>
+        """
+      else
+        if Map.get(assigns, :inner_block, []) != [],
+          do:
+            raise(
+              ArgumentError,
+              "inner_block: a #{words(spec.name)} without #{axis}={#{inspect(variant)}} has no content; give its value with value=, or set #{axis}={#{inspect(variant)}} for the app's editor"
+            )
+
+        render(%{spec | wrap: nil}, assigns)
+      end
+    end
+
+    # While the app gives the part the component wraps (a text field's prefix), the
+    # element is a wrapper with the component's classes around the part and the form
+    # control, which takes the app's attributes and the element's own states.
+    def render(%{wrap: %{part: part} = wrap} = spec, assigns) when wrap != nil do
+      if Map.get(assigns, part, []) != [] do
+        natives = for {:native, nil, name} <- effects(spec, assigns), do: {name, true}
+        root = %{spec | rest: :control}
+        control = %{as: :control} = List.last(wrap.children)
+        attrs = root_attrs(root, assigns, [])
+
+        assigns =
+          assign(assigns,
+            prism_wrap: wrap.element,
+            prism_attrs: attrs,
+            prism_children:
+              Enum.flat_map(Enum.drop(wrap.children, -1), &child(&1, root, assigns)) ++
+                [
+                  {:void, control.element,
+                   natives ++ Map.to_list(assigns.rest) ++ [class: [control.class]]}
+                ]
+          )
+
+        ~H"""
+        <.dynamic_tag tag_name={@prism_wrap} {@prism_attrs}><.child
+            :for={child <- @prism_children}
+            child={child}
+          /></.dynamic_tag>
+        """
+      else
+        render(%{spec | wrap: nil}, assigns)
+      end
+    end
+
+    def render(spec, assigns) do
+      tag =
+        case spec.element do
+          {:as, _} -> as!(assigns.as)
+          element -> element
+        end
+
+      for a <- spec.axes, do: axis!(a, assigns[a.name])
+      for p <- spec.positions, do: position!(p.name, assigns[p.name])
+      values = values(spec, assigns)
+
+      assigns =
+        assign(assigns,
+          prism_tag: tag,
+          prism_void: spec.void,
+          prism_attrs: root_attrs(spec, assigns, values),
+          prism_children:
+            Enum.flat_map(spec.children, &child(&1, spec, assigns)) ++
+              for({v, n} <- values, tree <- v.children, drawn <- tree(tree, v, n), do: drawn)
+        )
+
+      ~H"""
+      <.dynamic_tag :if={@prism_void} tag_name={@prism_tag} {@prism_attrs} />
+      <.dynamic_tag :if={!@prism_void} tag_name={@prism_tag} {@prism_attrs}><.child
+          :for={child <- @prism_children}
+          child={child}
+        /></.dynamic_tag>
+      """
+    end
+
+    # The wrapper takes its own attributes only: the element's own states and
+    # attributes (its value, those of typing) are the app's editor's.
+    defp refuse!(spec, wrap, assigns) do
+      editor = "the app's editor (its #{wrap.editor_class} element)"
+      variant = "#{wrap.axis}={#{inspect(wrap.variant)}}"
+
+      for {:native, nil, name} <- effects(spec, assigns) do
+        raise ArgumentError,
+              "#{name}: a #{words(spec.name)} with #{variant} is #{name} by its editor's surface; set #{name} on #{editor} instead"
+      end
+
+      given =
+        for key <- wrap.refuses,
+            (key == "value" and assigns[:value] != nil) or
+              Map.has_key?(assigns.rest, String.to_atom(key)),
+            do: key
+
+      for key <- Enum.take(given, 1) do
+        raise ArgumentError,
+              "#{key}: a #{words(spec.name)} with #{variant} takes the wrapper's attributes only; give #{key} to #{editor}"
+      end
+    end
+
+    defp words(name), do: name |> Atom.to_string() |> String.replace("_", " ")
+
+    defp as!(tag) do
+      if tag in Prism.Generator.Web.Elements.as(),
+        do: tag,
+        else:
+          raise(
+            ArgumentError,
+            "as: #{inspect(tag)} is not one of #{Enum.map_join(Prism.Generator.Web.Elements.as(), ", ", &inspect/1)}"
+          )
+    end
+
+    # An axis's value is one of the design's, or nil for an axis without a default;
+    # any other value would add no class. `values:` warns only about a literal.
+    defp axis!(%{default: nil}, nil), do: :ok
+
+    defp axis!(a, value) do
+      unless value in a.values,
+        do:
+          raise(
+            ArgumentError,
+            "#{a.name}: #{inspect(value)} is not one of #{Enum.map_join(a.values, ", ", &inspect/1)}"
+          )
+    end
+
+    # A part's side is `:start` or `:end`; any other value would drop the part.
+    defp position!(_name, side) when side in [:start, :end], do: :ok
+
+    defp position!(name, side),
+      do: raise(ArgumentError, "#{name}: #{inspect(side)} is not one of :start, :end")
+
+    # One child: an element with its attributes and the slot entries it renders, an
+    # element without content, or text.
+    defp child(assigns) do
+      ~H"""
+      <%= case @child do %>
+        <% {:element, tag, attrs, entries} -> %><.dynamic_tag tag_name={tag} {attrs}>{render_slot(
+            entries
+          )}</.dynamic_tag>
+        <% {:tree, tag, attrs, items} -> %><.dynamic_tag tag_name={tag} {attrs}><.child
+            :for={item <- items}
+            child={item}
+          /></.dynamic_tag>
+        <% {:empty, tag, attrs} -> %><.dynamic_tag tag_name={tag} {attrs}>{""}</.dynamic_tag>
+        <% {:void, tag, attrs} -> %><.dynamic_tag tag_name={tag} {attrs} />
+        <% {:slot, entries} -> %>{render_slot(entries)}
+        <% {:text, text} -> %>{text}
+      <% end %>
+      """
+    end
+
+    # The values the app gives, each with its number clamped to the value's range.
+    defp values(spec, assigns) do
+      for v <- spec.values, n = assigns[v.name], n != nil do
+        unless is_number(n),
+          do:
+            raise(
+              ArgumentError,
+              "#{v.name}: #{inspect(n)} is not a number from #{v.min} to #{v.max}, or nil"
+            )
+
+        {v, n |> max(v.min) |> min(v.max)}
+      end
+    end
+
+    # A markup tree of a value, with its number in the attributes that take it.
+    defp tree({:above_min, tree}, v, n), do: if(n > v.min, do: tree(tree, v, n), else: [])
+
+    defp tree({tag, attrs, children}, v, n) do
+      attrs = for {name, value} <- attrs, do: {name, fill(value, n)}
+
+      case children do
+        [] -> [{:empty, tag, attrs}]
+        _ -> [{:tree, tag, attrs, Enum.flat_map(children, &tree(&1, v, n))}]
+      end
+    end
+
+    defp fill({:value, suffix}, n), do: "#{n}#{suffix}"
+    defp fill(text, _n), do: text
+
+    defp root_attrs(spec, assigns, values) do
+      axes = for a <- spec.axes, do: a.classes[assigns[a.name]]
+      states = for {:class, nil, class} <- effects(spec, assigns), do: class
+      withs = for {part, class} <- spec.withs, present?(spec, part, assigns), do: class
+      flags = for f <- spec.flags, assigns[f.name] and with_only?(f, assigns), do: f.class
+
+      native =
+        if spec.rest == :root,
+          do: for({:native, nil, name} <- effects(spec, assigns), do: {name, true}),
+          else: []
+
+      value_attrs = for {v, n} <- values, {name, value} <- v.attrs, do: {name, fill(value, n)}
+      value_classes = for {v, _} <- values, do: v.class
+      rest = if spec.rest == :root, do: Map.to_list(assigns.rest), else: []
+
+      spec.attrs ++
+        native ++
+        value_attrs ++
+        rest ++
+        [
+          class:
+            [spec.class | axes ++ flags ++ states ++ value_classes ++ withs] ++
+              List.wrap(assigns.class)
+        ]
+    end
+
+    # A flag whose only looks are with some variants is on only with them.
+    defp with_only?(%{only: nil}, _assigns), do: true
+
+    defp with_only?(%{only: only}, assigns),
+      do: Enum.any?(only, fn {axis, values} -> assigns[axis] in values end)
+
+    # What the states the app has set do: `{:class | :native, part | nil, …}`.
+    defp effects(spec, assigns),
+      do: for(s <- spec.states, assigns[s.name], e <- s.effects, do: e)
+
+    # The element's own attributes the states set on a part (`disabled: true`).
+    defp natives(spec, part, assigns),
+      do: for({:native, ^part, name} <- effects(spec, assigns), do: {name, true})
+
+    defp part_classes(spec, part, assigns),
+      do: for({:class, ^part, class} <- effects(spec, assigns), do: class)
+
+    defp child(%{as: :inner_block}, _spec, assigns), do: [{:slot, assigns.inner_block}]
+
+    defp child(%{as: :value}, _spec, assigns),
+      do: [{:text, Phoenix.HTML.Form.normalize_value("textarea", assigns.value)}]
+
+    defp child(%{as: :content} = p, spec, assigns) do
+      case assigns.inner_block do
+        [] ->
+          []
+
+        entries ->
+          [
+            {:element, p.element,
+             p.attrs ++
+               natives(spec, p.name, assigns) ++
+               [class: [p.class | part_classes(spec, p.name, assigns)]], entries}
+          ]
+      end
+    end
+
+    # A part whose side the app picks renders only on that side.
+    defp child(%{as: :slot, side: side} = p, spec, assigns) do
+      if assigns[p.position] == side,
+        do: child(Map.delete(p, :side), spec, assigns),
+        else: []
+    end
+
+    # One element per slot entry, with the entry's attributes.
+    defp child(%{as: :slot} = p, spec, assigns) do
+      for entry <- Map.get(assigns, p.name, []) do
+        {:element, p.element,
+         p.attrs ++ entry_attrs(entry, [p.class | part_classes(spec, p.name, assigns)]), [entry]}
+      end
+    end
+
+    defp child(%{as: :control} = p, spec, assigns) do
+      native = natives(spec, p.name, assigns)
+      rest = if spec.rest == :control, do: Map.to_list(assigns.rest), else: []
+      class = [p.class | part_classes(spec, p.name, assigns)]
+      [{:void, p.element, [type: p.type] ++ native ++ rest ++ [class: class]}]
+    end
+
+    # A part the app renders itself: its slot's content, as it is.
+    defp child(%{as: :given} = p, _spec, assigns), do: [{:slot, Map.get(assigns, p.name, [])}]
+
+    defp child(%{as: :component} = p, _spec, assigns) do
+      if p.while_loading and not assigns[:loading],
+        do: [],
+        else: [{:empty, p.element, [class: p.class]}]
+    end
+
+    defp child(%{as: :list} = p, _spec, assigns) do
+      case Map.get(assigns, p.item, []) do
+        [] ->
+          []
+
+        entries ->
+          items =
+            for entry <- entries do
+              selected = for s <- p.item_states, entry[s.name], do: s.class
+
+              aria =
+                if Map.has_key?(entry, :selected),
+                  do: [{"aria-selected", to_string(!!entry.selected)}],
+                  else: []
+
+              {:element, p.item_element,
+               [role: "option"] ++
+                 aria ++
+                 entry_attrs(Map.drop(entry, Enum.map(p.item_states, & &1.name)), [
+                   p.item_class | selected
+                 ]), [entry]}
+            end
+
+          [{:tree, p.element, [role: "listbox", class: [p.class]], items}]
+      end
+    end
+
+    # A slot entry's attributes on its part's element, its class after the part's.
+    defp entry_attrs(entry, classes) do
+      attrs = Map.drop(entry, [:__slot__, :inner_block, :class])
+      Map.to_list(attrs) ++ [class: classes ++ List.wrap(entry[:class])]
+    end
+
+    defp present?(spec, part, assigns) do
+      children = spec.children ++ ((spec[:wrap] && spec.wrap.children) || [])
+
+      case Enum.find(children, &(&1[:name] == part)) do
+        %{as: :content} -> assigns.inner_block != []
+        %{as: as} when as in [:slot, :given] -> Map.get(assigns, part, []) != []
+        %{as: :list, item: item} -> Map.get(assigns, item, []) != []
+        %{as: :component} = p -> not p.while_loading or assigns[:loading] == true
+        _ -> false
+      end
+    end
+  end
+end

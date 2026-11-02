@@ -1,0 +1,50 @@
+{
+  "name": "@novasoftwarefoundation/prism-react",
+  "version": "0.2.0",
+  "description": "Prism's components for React, generated from Prism's design",
+  "keywords": [
+    "react",
+    "components",
+    "ui",
+    "scientific"
+  ],
+  "license": "MIT",
+  "author": "Nova Software Foundation",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "sideEffects": false,
+  "files": [
+    "dist/"
+  ],
+  "scripts": {
+    "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
+    "build": "npm run clean && tsc",
+    "check": "tsc --noEmit -p test",
+    "test": "npm run build && node --test",
+    "prepack": "npm run build"
+  },
+  "peerDependencies": {
+    "@novasoftwarefoundation/prism": "0.2.0",
+    "react": "^18.0.0 || ^19.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/novasoftwarefoundation/prism.git",
+    "directory": "targets/react"
+  },
+  "devDependencies": {
+    "@novasoftwarefoundation/prism": "file:../web",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "typescript": "7.0.2"
+  }
+}
