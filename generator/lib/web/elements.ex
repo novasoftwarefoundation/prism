@@ -360,6 +360,11 @@ defmodule Prism.Generator.Web.Elements do
     class = Classes.part(prefix, c, p.name)
 
     case kind.parts[p.name] do
+      # The app renders this part with another component, which the design names.
+      :given ->
+        raise ArgumentError,
+              "#{inspect(c.name)}'s #{inspect(p.name)} is the app's own component, in the part's place; give it component: (part #{inspect(p.name)}, component: …)"
+
       {:list, element, item} ->
         unless Enum.any?(c.parts, &(&1.name == item)),
           do:

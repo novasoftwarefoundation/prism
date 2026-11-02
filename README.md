@@ -63,7 +63,7 @@ end
   <:icon><span class="hero-check"></span></:icon>
 </MyAppWeb.Prism.button>
 
-<MyAppWeb.Prism.field>
+<MyAppWeb.Prism.field invalid={@errors != []}>
   <:label for="email">Email</:label>
   <MyAppWeb.Prism.text_field id="email" name="email" invalid={@errors != []} />
   <:error_message :for={error <- @errors}>{error}</:error_message>
@@ -82,16 +82,17 @@ end
 - **Buttons** ([ADR 0006](docs/adr/0006-button-looks.md)): the variants are `:primary`, `:secondary`, `:plain`, `:link`, `:text`, `:soft` (the tone's light color behind its color) and `:icon` (an icon only, 24×24; give it an `aria-label`). A tone (`:success`, `:warning`, `:danger`, `:neutral`, `:highlight`) colors a primary button's background and the others' text and border; `:soft` has no look with `:neutral` or `:highlight`. `padded` (default `true`) makes a plain or text button as tall as a primary one beside it; `padded={false}` fits it to its text.
 - **States the app sets** are boolean attributes: `loading`, `invalid`, `disabled`, `checked`. On a form control, `disabled` and `checked` set the element's own attribute; elsewhere a state adds its class (`prism-radio--disabled`). The browser's states (pressed, hovered, focused) need nothing.
 - **Parts** follow the design's order: the label is the inner block, the icon a `<:icon>` slot (with it, the button gets `prism-button--with-icon`), and the spinner shows while `loading`. The icon goes at the start of the label, or at its end with `icon_position={:end}`; start and end follow the text's direction. Any other value warns at compile time and fails when it renders, as `as` does.
-- **Image pickers** ([ADR 0011](docs/adr/0011-image-picker.md)): `shape` is `:rectangular` (the default) or `:round`. The app puts its image (or its placeholder) in `<:preview>` and its own button in `<:button>`, with the variant it picks: primary while there is no image, secondary with one. The file input is the app's.
+- **Image pickers** ([ADR 0011](docs/adr/0011-image-picker.md)): `shape` is `:rectangular` (the default) or `:round`. The app puts its image (or its placeholder) in `<:preview>` and its own button in `<:button>`, with the variant it picks: primary while there is no image, secondary with one. The file input is the app's: keep it focusable and visually hidden (`sr-only`, not `hidden`), so a keyboard reaches the picker, and give it the focus style you want.
 
   ```heex
   <MyAppWeb.Prism.image_picker shape={:round}>
     <:preview><img src={@photo_url || ~p"/images/placeholder.svg"} alt="" /></:preview>
     <:button>
-      <label for={@uploads.photo.ref}>
+      <label>
         <MyAppWeb.Prism.button as="span" variant={if @photo_url, do: :secondary, else: :primary}>
           Choose
         </MyAppWeb.Prism.button>
+        <.live_file_input upload={@uploads.photo} class="sr-only" />
       </label>
     </:button>
   </MyAppWeb.Prism.image_picker>
@@ -121,7 +122,7 @@ import { Button, Field, Tag, TextField } from "@novasoftwarefoundation/prism-rea
   Save
 </Button>
 
-<Field label="Email" labelProps={{ htmlFor: "email" }} errorMessage={errors[0]}>
+<Field label="Email" labelProps={{ htmlFor: "email" }} errorMessage={errors[0]} invalid={errors.length > 0}>
   <TextField id="email" name="email" invalid={errors.length > 0} />
 </Field>
 
@@ -144,7 +145,7 @@ import Prism
 Button("Save", action: save)
     .buttonStyle(.prism(.primary, tone: .danger, loading: saving))
 
-PrismField(label: Text("Email"), errorMessage: error.map(Text.init)) {
+PrismField(focused: emailFocused, invalid: error != nil, label: Text("Email"), errorMessage: error.map(Text.init)) {
     TextField("", text: $email)
         .focused($emailFocused)
         .prismTextField(focused: emailFocused, invalid: error != nil)

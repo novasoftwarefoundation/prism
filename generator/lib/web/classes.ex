@@ -20,7 +20,9 @@ defmodule Prism.Generator.Web.Classes do
     (`acme-select__option--selected`).
 
   A state is the browser's on a form control: a pseudo-class
-  (`pseudo_classes/2`). Any other state is a modifier class the app sets.
+  (`pseudo_classes/2`). A field holds its control, so its `focused` is the
+  control's focus, `:focus-within`. Any other state is a modifier class the
+  app sets.
   """
 
   # The components whose own element is a form control, and the parts that are one.
@@ -36,6 +38,9 @@ defmodule Prism.Generator.Web.Classes do
   }
 
   @element %{hovered: ":hover"}
+
+  # A field is focused while its control has focus.
+  @within %{hovered: ":hover", focused: ":focus-within"}
 
   @doc "The class of a component: `component(\"acme\", :text_field)` is `\"acme-text-field\"`."
   def component(prefix, name), do: "#{prefix}-#{key(name)}"
@@ -67,6 +72,7 @@ defmodule Prism.Generator.Web.Classes do
   or on one of its parts, with their pseudo-classes: `%{pressed: ":active", …}`.
   A state not in the map is a modifier class.
   """
+  def pseudo_classes(:field, nil), do: @within
   def pseudo_classes(component, nil), do: if(component in @controls, do: @control, else: @element)
 
   def pseudo_classes(component, part),

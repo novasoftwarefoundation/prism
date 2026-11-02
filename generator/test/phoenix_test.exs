@@ -291,6 +291,18 @@ defmodule Prism.Generator.PhoenixTest do
                )
     end
 
+    test "a field's invalid is an attribute; its focus is its control's, with none" do
+      assigns = %{}
+      attrs = for %{name: name} <- Kit.__components__()[:field].attrs, do: name
+      assert :invalid in attrs
+      refute :focused in attrs
+
+      assert html(~H"<Kit.field variant={:inverse} invalid>CONTROL</Kit.field>") ==
+               norm(
+                 ~s(<div class="kit-field kit-field--inverse kit-field--invalid">CONTROL</div>)
+               )
+    end
+
     test "a select's option takes selected, which adds its class" do
       assigns = %{}
 
@@ -600,7 +612,7 @@ defmodule Prism.Generator.PhoenixTest do
       <Kit.button variant={:subtle}>x</Kit.button>
       <Kit.text_field variant={:inverse} invalid disabled />
       <Kit.text_area variant={:inverse} invalid disabled value="x" />
-      <Kit.field><:label>x</:label>x<:error_message>x</:error_message></Kit.field>
+      <Kit.field variant={:inverse} invalid><:label>x</:label>x<:error_message>x</:error_message></Kit.field>
       <Kit.radio_group><Kit.radio checked disabled>x</Kit.radio></Kit.radio_group>
       <Kit.select>x<:icon>v</:icon><:option selected>x</:option></Kit.select>
       <Kit.select variant={:inverse} invalid disabled>x</Kit.select>
@@ -624,7 +636,7 @@ defmodule Prism.Generator.PhoenixTest do
     assert length(classes) > 30
 
     # A component or part without a look of its own may have a class but no rule
-    # (the button's icon, the field): a hook for the app.
+    # (the button's icon): a hook for the app.
     design = ExampleComponents.__schema__()
 
     changed = fn c, part ->

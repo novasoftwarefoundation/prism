@@ -101,11 +101,16 @@ Classes follow BEM: `prism-<component>`, `__<part>` for a part, `--<name>` for a
   <span class="prism-spinner prism-spinner--20"></span>
 </button>
 
-<!-- Fields -->
-<label class="prism-field__label" for="name">Name</label>
-<input id="name" type="text" class="prism-text-field" placeholder="Enter text" />
-<input type="text" class="prism-text-field prism-text-field--invalid" aria-invalid="true" />
-<span class="prism-field__error-message">Required</span>
+<!-- Fields: the label follows its control's focus, and the field's invalid state -->
+<div class="prism-field">
+  <label class="prism-field__label" for="name">Name</label>
+  <input id="name" type="text" class="prism-text-field" placeholder="Enter text" />
+</div>
+<div class="prism-field prism-field--invalid">
+  <label class="prism-field__label" for="email">Email</label>
+  <input id="email" type="text" class="prism-text-field prism-text-field--invalid" aria-invalid="true" />
+  <p class="prism-field__error-message">Required</p>
+</div>
 <textarea class="prism-text-area" rows="4" placeholder="Enter description"></textarea>
 
 <!-- Radio buttons -->
@@ -217,7 +222,10 @@ Font classes: `font-title0` through `font-title7`, `font-body`, `font-button`, `
 | `prism-text-area` | Multi-line text field; its height is the app's (`rows`, or a height class) |
 | `prism-text-area--invalid` | A text area with an invalid value; it keeps its warning border while it has focus |
 | `prism-text-area--inverse` | A text area on a dark background |
-| `prism-field__label` | Form label |
+| `prism-field` | A label and an error message around a control |
+| `prism-field__label` | Form label; primary while the field's control has focus |
+| `prism-field--invalid` | A field with an invalid value: a warning label, also while its control has focus |
+| `prism-field--inverse` | A field on a dark background: a tertiary label while its control has focus |
 | `prism-field__error-message` | Error message |
 
 ### Image pickers
@@ -231,10 +239,14 @@ Font classes: `font-title0` through `font-title7`, `font-body`, `font-button`, `
 ```html
 <div class="prism-image-picker prism-image-picker--round">
   <div class="prism-image-picker__preview"><img src="/photo.jpg" alt="" /></div>
-  <label for="photo"><span class="prism-button prism-button--secondary"><span class="prism-button__label">Change</span></span></label>
-  <input id="photo" type="file" accept="image/*" hidden />
+  <label>
+    <span class="prism-button prism-button--secondary"><span class="prism-button__label">Change</span></span>
+    <input type="file" accept="image/*" class="sr-only" />
+  </label>
 </div>
 ```
+
+The file input is the app's. Keep it focusable, visually hidden (`sr-only`), not `hidden`, so a keyboard reaches the picker through it; its focus style (on the label around it, with `focus-within:`) is the app's too.
 
 ### Radio Buttons
 
@@ -380,11 +392,13 @@ Also:
 - **An invalid text field keeps its warning border while it has focus**, on the inverse field too: `prism-text-field--invalid` now outweighs `:focus`, where 0.1.7's focus border replaced it. CSS that an app wrote for this can go. These selectors also beat an app's own focus border on an invalid field, a `focus:border-*` utility or a rule such as `.prism-text-field--invalid:focus`; for another color there, use the important modifier (`focus:!border-…`) or `.prism-text-field.prism-text-field--invalid:focus` after Prism's CSS.
 - **A text area's height is the app's.** 0.1.7's `prism-textarea` had a minimum height of 256px; `prism-text-area` has none, so without `rows` or a height class it is the browser's default (two rows). Give it its height per use (`rows="8"`, `h-64`). It has the text field's states and variant too: `prism-text-area--invalid`, `disabled`, `prism-text-area--inverse`.
 - **A select's field** takes `disabled` and `prism-select__field--invalid`, and the select `prism-select--inverse`, as the text field does.
+- **A field's label follows its control.** Put the label and the control in a `prism-field`: its label is primary while the control has focus (tertiary with `prism-field--inverse`), and warning with `prism-field--invalid`, also while focused. Its own `color` beats a text-color utility on the label (two classes, or one and `:focus-within`); use the important modifier for another color.
 - **An image picker** is new (`prism-image-picker`, `--round`, `__preview`); the button in it is the app's own `prism-button`.
 - **Two classes beat one utility.** These rules are two classes together, which is more specific than one Tailwind utility, so a utility on such a button no longer wins as it did on 0.1.7's single classes; use Tailwind's important modifier (`!px-4`, `!text-grey1`) or your own CSS for it:
   - a button with an icon (`.prism-button--primary.prism-button--with-icon`): its padding and gap, where 0.1.7's `prism-btn-primary-icon` was one class;
   - a tone (`.prism-button--secondary.prism-button--danger`): its text, border and background colors, where 0.1.7's `prism-btn-danger` was one class;
-  - `--padded` with a variant (`.prism-button--text.prism-button--padded`): its padding, so a padding utility on a padded plain or text button doesn't win either.
+  - `--padded` with a variant (`.prism-button--text.prism-button--padded`): its padding, so a padding utility on a padded plain or text button doesn't win either;
+  - a round image picker's preview (`.prism-image-picker--round .prism-image-picker__preview`): its height, so `h-[150px]` on it alone leaves a 120px-high oval; use `!h-[150px]`.
 - `prism-max-lines-*` and `prism-text-shadow*` (in `css/base.css`) keep their names.
 
 ## License

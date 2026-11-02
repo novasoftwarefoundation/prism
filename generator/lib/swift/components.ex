@@ -139,8 +139,12 @@ defmodule Prism.Generator.Swift.Components do
           p.component == :spinner ->
             :ok
 
-          p.name in Map.get(@given, c.name, []) ->
+          p.name in Map.get(@given, c.name, []) and p.component != nil ->
             :ok
+
+          p.name in Map.get(@given, c.name, []) ->
+            raise ArgumentError,
+                  "#{inspect(c.name)}'s #{inspect(p.name)} is the app's own component, in the part's place; give it component: (part #{inspect(p.name)}, component: …)"
 
           p.component != nil ->
             raise ArgumentError,

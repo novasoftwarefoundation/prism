@@ -23,9 +23,9 @@ Prism has the button and the typography, but not the preview's look.
 5. **Prism's values:**
    - the preview is 120×90 on `grey4` with a 2px `grey4` border;
    - round, it is 120×120 with the full radius;
-   - the button is 24px from the preview, and the two are centered on one row.
+   - the button is 24px from the preview, and the two are centered on one row, for both shapes. The consumer app's rectangular image input puts its button at the top of the preview instead, by accident: its row asks for `items-top`, which is no Tailwind class, so its default stretch leaves the button at the top. Centered, the rectangular picker reads as the round one does; its button moves from the top to the middle compared with that app's image input.
 
-   The consumer app makes both larger from its small breakpoint (200×150, 150×150). The format has no breakpoints, so an app that wants that sets the preview's size with its own classes.
+   The consumer app makes both larger from its small breakpoint (200×150, 150×150). The format has no breakpoints, so an app that wants that sets the preview's size with its own classes. A size utility on the preview wins for the rectangular shape. The round shape's height is two classes (`.prism-image-picker--round .prism-image-picker__preview`), which outweighs one utility, so `h-[150px]` alone leaves it 120px high, an oval with `w-[150px]`: the app uses the important modifier (`!h-[150px]`) or its own CSS.
 
 6. **The format gets `width`**, a length, beside `size` and `height`, for a box that isn't square. The web writes `width`, iOS the frame's width, the overview the box's width.
 

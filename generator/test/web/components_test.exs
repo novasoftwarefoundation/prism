@@ -463,6 +463,35 @@ defmodule Prism.Generator.Web.ComponentsTest do
     refute css =~ "only-image-picker__button"
   end
 
+  # A field holds its control, so its focus is its control's: `:focus-within`. Its
+  # invalid state still outweighs it on the label.
+  test "a field is focused while its control has focus" do
+    design =
+      compile("""
+        component :field do
+          part :label, foreground: :ink
+
+          state :focused do
+            part :label, foreground: :ink
+          end
+
+          state :invalid do
+            part :label, foreground: :ink
+          end
+        end
+      """)
+
+    css = css(design)
+    assert css =~ "\n.only-field:focus-within .only-field__label {\n"
+
+    assert css =~
+             "\n.only-field--invalid .only-field__label,\n" <>
+               ".only-field.only-field--invalid:focus-within .only-field__label {\n"
+
+    refute css =~ "--focused"
+    assert Prism.Generator.Web.Classes.pseudo_classes(:field, nil)[:focused] == ":focus-within"
+  end
+
   test "a state the app sets outweighs the pointer and the focus where both change one property" do
     design =
       compile("""

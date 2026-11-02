@@ -338,6 +338,16 @@ defmodule Prism.Generator.SwiftTest do
   end
 
   describe "fails" do
+    test "on an image picker's button without component:, which the app draws itself" do
+      assert_raise ArgumentError,
+                   ~r/:image_picker's :button is the app's own component, in the part's place; give it component:/,
+                   fn ->
+                     files(
+                       "component :image_picker do\n  part :preview, width: 80\n  part :button, radius: 4\nend"
+                     )
+                   end
+    end
+
     test "without a swift declaration" do
       assert_raise ArgumentError, ~r/needs the design's swift declaration/, fn ->
         Swift.files(Prism.Generator.TokensOnly.__schema__())

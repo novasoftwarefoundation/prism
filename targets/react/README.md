@@ -35,7 +35,12 @@ import { Button, Field, Tag, TextField } from "@novasoftwarefoundation/prism-rea
 export function Profile({ saving, errors, onSave }) {
   return (
     <form>
-      <Field label="Email" labelProps={{ htmlFor: "email" }} errorMessage={errors[0]}>
+      <Field
+        label="Email"
+        labelProps={{ htmlFor: "email" }}
+        errorMessage={errors[0]}
+        invalid={errors.length > 0}
+      >
         <TextField id="email" name="email" invalid={errors.length > 0} />
       </Field>
 

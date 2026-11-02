@@ -42,7 +42,8 @@ if Code.ensure_loaded?(Phoenix.Component) do
       `disabled`); `disabled` and `checked` on a form control set the element's
       own attribute, which the CSS's pseudo-class reads. A disabled component
       also disables the form controls among its parts. States the browser sets
-      (`pressed`, `hovered`, `focused` on a form control) need no attribute.
+      (`pressed`, `hovered`, `focused` on a form control, a field's `focused`)
+      need no attribute.
     - **Parts**, in the design's order: the part that holds the content is the
       inner block (a button's or a tag's `label`), a part such as an icon is a
       slot of its own name (`<:icon>`), and a part that is another component (a

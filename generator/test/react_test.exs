@@ -97,6 +97,22 @@ defmodule Prism.Generator.ReactTest do
     body
   end
 
+  # The image picker's button is the app's own component; without `component:` the
+  # design gives a look nothing would draw.
+  test "an image picker's button without component: fails, naming the fix" do
+    picker =
+      design("""
+        component :image_picker do
+          part :preview, width: 80, height: 60
+          part :button, radius: 4
+        end
+      """)
+
+    assert_raise ArgumentError,
+                 ~r/:image_picker's :button is the app's own component, in the part's place; give it component:/,
+                 fn -> React.files(picker) end
+  end
+
   describe "designs Prism's doesn't have" do
     test "a state of a slot part is a prop that adds the part's class" do
       field =
