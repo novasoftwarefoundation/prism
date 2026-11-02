@@ -2,7 +2,20 @@
 import { forwardRef, type ComponentPropsWithoutRef } from "react";
 import { classNames } from "./helpers.js";
 
+/** The text area's variant. */
+export type TextAreaVariant = "inverse";
+
+const variantClasses: Record<TextAreaVariant, string> = {
+  inverse: "prism-text-area--inverse",
+};
+
 export interface TextAreaOwnProps {
+  /** No default: without one, it adds no class. */
+  variant?: TextAreaVariant;
+  /** Sets the element's `disabled`. */
+  disabled?: boolean;
+  /** Adds `prism-text-area--invalid`. */
+  invalid?: boolean;
   /** Classes after the component's own. */
   className?: string;
 }
@@ -12,10 +25,23 @@ export type TextAreaProps = TextAreaOwnProps &
 
 /** The design's `text_area` component. */
 export const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(function TextArea(
-  { className, ...rest },
+  { variant, disabled, invalid, className, ...rest },
   ref,
 ) {
+  if (variant != null && !["inverse"].includes(variant)) {
+    throw new Error(`variant: ${JSON.stringify(variant)} is not one of "inverse"`);
+  }
   return (
-    <textarea ref={ref} {...rest} className={classNames("prism-text-area", className)} />
+    <textarea
+      ref={ref}
+      disabled={disabled}
+      {...rest}
+      className={classNames(
+        "prism-text-area",
+        variant && variantClasses[variant],
+        invalid && "prism-text-area--invalid",
+        className,
+      )}
+    />
   );
 });

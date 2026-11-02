@@ -201,6 +201,16 @@ describe("states", () => {
     );
   });
 
+  test("a select's disabled and invalid go on its field", () => {
+    assert.equal(
+      html(h(Kit.Select, { variant: "inverse", disabled: true, invalid: true }, "Pick")),
+      norm(
+        '<div class="kit-select kit-select--inverse"><button type="button" disabled="" ' +
+          'class="kit-select__field kit-select__field--invalid">Pick</button></div>',
+      ),
+    );
+  });
+
   test("a field's invalid adds its class; its focus is its control's", () => {
     assert.equal(
       html(h(Kit.Field, { variant: "inverse", invalid: true }, "CONTROL")),
@@ -443,10 +453,11 @@ test("every class a component renders is a class of the web target's CSS", () =>
     h(Kit.Button, { variant: "quiet", tone: "danger", loading: true, icon: "i" }, "x"),
     h(Kit.Button, { variant: "subtle" }, "x"),
     h(Kit.TextField, { variant: "inverse", invalid: true, disabled: true }),
-    h(Kit.TextArea, { defaultValue: "x" }),
+    h(Kit.TextArea, { variant: "inverse", invalid: true, disabled: true, defaultValue: "x" }),
     h(Kit.Field, { variant: "inverse", invalid: true, label: "x", errorMessage: "x" }, "x"),
     h(Kit.RadioGroup, null, h(Kit.Radio, { checked: true, disabled: true, onChange }, "x")),
     h(Kit.Select, { icon: "v", options: [{ selected: true, children: "x" }] }, "x"),
+    h(Kit.Select, { variant: "inverse", invalid: true, disabled: true }, "x"),
     h(Kit.Spinner, { size: 16, variant: "accent" }),
     h(Kit.Spinner, { size: 32, progress: 40 }),
     h(Kit.Spinner, { variant: "inverse", progress: 40 }),
