@@ -39,7 +39,7 @@ defmodule Prism.Design.ComponentsTest do
                variant: [:primary, :secondary, :plain, :link, :text, :soft, :icon]
              ],
              text_field: [variant: [:inverse]],
-             text_area: [format: [:rich_text], variant: [:inverse]],
+             text_area: [editor: [:rich_text], variant: [:inverse]],
              field: [],
              radio_group: [],
              radio: [],
@@ -77,11 +77,11 @@ defmodule Prism.Design.ComponentsTest do
 
   # Rich text in the app's editor: 16px on every side, a height of the app's, and plain
   # text without a class. The editor's toolbar and content styles are not Prism's.
-  test "the text area's rich-text look is a format, which combines with inverse" do
+  test "the text area's rich-text look is an editor, which combines with inverse" do
     text_area = Enum.find(@design.components, &(&1.name == :text_area))
-    assert [%{name: :format, default: :plain}] = text_area.axes
+    assert [%{name: :editor, default: :plain}] = text_area.axes
     rich = Enum.find(text_area.variants, &(&1.name == :rich_text))
-    assert rich.axis == :format
+    assert rich.axis == :editor
     assert rich.style == [padding: [y: 16, x: 16]]
     assert rich.states == []
   end

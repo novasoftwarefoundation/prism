@@ -203,9 +203,9 @@ defmodule Prism.Design.Components do
       state :focused, border: [color: :tertiary]
     end
 
-    # What it holds: plain text (no class), or rich text in the app's editor, whose
-    # toolbar and content styles are the editor's own. Combines with inverse.
-    variants :format, default: :plain do
+    # The editor in it: the plain text area (no class), or the app's rich-text editor,
+    # whose toolbar and content styles are the editor's own. Combines with inverse.
+    variants :editor, default: :plain do
       variant :rich_text, padding: [y: 16, x: 16], web: [doc: "Text area with rich text"]
     end
   end

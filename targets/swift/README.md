@@ -75,7 +75,7 @@ PrismSelect(icon: Image(systemName: "chevron.down")) {
 - **States SwiftUI knows come from SwiftUI:** pressed from the button, checked from the toggle, disabled from `.disabled(_:)`, hovered from the pointer. The app gives the others: `loading`, `invalid`, a text field's, a text area's and a select's `focused` (from its `@FocusState`), a radio's `checked`. A select is disabled with `.disabled(_:)` too.
 - **A button with an icon** gets `icon: .start` or `icon: .end` and a `Label` as its label; the icon goes at that side of the title, and the button takes its look with an icon.
 - **A spinner** keeps the `ProgressView`'s label for VoiceOver: `ProgressView("Uploading", value: 0.4)`.
-- **A text area's format** is `.plain` or `.richText` (16pt on every side), on a `TextEditor` with an `AttributedString`: `.prismTextArea(format: .richText)`.
+- **A text area's editor** is `.plain` or `.richText` (16pt on every side), on a `TextEditor` with an `AttributedString`: `.prismTextArea(editor: .richText)`.
 - **A text area's height** is the app's (`.frame(height: 128)`); it is at least one line of its text, so that line is never cut off.
 - **A select's list** is the system's menu. Its looks are in `PrismSelectLooks().listbox` and `.option`, for an app that draws its own list.
 - **Each component's looks** are data too: `PrismButtonLooks(.primary, pressed: true).root` is the `PrismLook` the style draws, for a view of the app's own. `.prismText(_:)`, `.prismBox(_:)` and `.prismLook(_:)` draw a look on any view.
