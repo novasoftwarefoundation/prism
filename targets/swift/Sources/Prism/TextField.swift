@@ -10,6 +10,8 @@ public enum PrismTextFieldVariant: Sendable, Hashable, CaseIterable {
 /// variants, flags, parts and states, laid over each other as on the web.
 public struct PrismTextFieldLooks: Sendable, Hashable {
     public var root = PrismLook()
+    public var prefix = PrismLook()
+
     public init(
         _ variant: PrismTextFieldVariant? = nil,
         focused: Bool = false,
@@ -22,6 +24,9 @@ public struct PrismTextFieldLooks: Sendable, Hashable {
             radius: Prism.Radii.default, padding: .init(leading: 12, trailing: 12), height: 44,
             typography: Prism.Typography.body,
             transition: PrismMotion(duration: 0.15, easing: .easeInOut)))
+        prefix.apply(PrismLook(
+            background: Prism.Colors.grey6, borderWidth: 1, borderColor: Prism.Colors.grey3,
+            borderSides: [.trailing], padding: .init(leading: 12, trailing: 12)))
         if invalid {
             root.apply(PrismLook(borderColor: Prism.Colors.warning))
         }
@@ -50,26 +55,43 @@ public struct PrismTextFieldModifier: ViewModifier {
     public var variant: PrismTextFieldVariant?
     public var focused: Bool
     public var invalid: Bool
+    public var prefix: AnyView?
     @Environment(\.isEnabled) private var isEnabled
 
     public init(
         _ variant: PrismTextFieldVariant? = nil,
         focused: Bool = false,
-        invalid: Bool = false
+        invalid: Bool = false,
+        prefix: AnyView? = nil
     ) {
         self.variant = variant
         self.focused = focused
         self.invalid = invalid
+        self.prefix = prefix
     }
 
     public func body(content: Content) -> some View {
         let looks = PrismTextFieldLooks(
             variant, focused: focused, disabled: !isEnabled, invalid: invalid)
-        content
+        if let prefix {
+            HStack(spacing: 0) {
+                prefix
+                    .frame(maxHeight: .infinity)
+                    .prismBox(looks.prefix)
+                content
+                    .padding(looks.root.padding.edgeInsets())
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
             .prismText(looks.root)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .prismBox(looks.root)
+            .prismBox(looks.root.withoutPadding)
             .animation(looks.root.transition?.animation, value: looks)
+        } else {
+            content
+                .prismText(looks.root)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .prismBox(looks.root)
+                .animation(looks.root.transition?.animation, value: looks)
+        }
     }
 
     /// A prompt in the placeholder's color of `looks`, for the `TextField`'s `prompt:`.
@@ -88,5 +110,16 @@ extension View {
         invalid: Bool = false
     ) -> some View {
         modifier(PrismTextFieldModifier(variant, focused: focused, invalid: invalid))
+    }
+
+    /// A text field's look, with a prefix before its text: a currency symbol, or the app's picker.
+    public func prismTextField<Prefix: View>(
+        _ variant: PrismTextFieldVariant? = nil,
+        focused: Bool = false,
+        invalid: Bool = false,
+        @ViewBuilder prefix: () -> Prefix
+    ) -> some View {
+        modifier(PrismTextFieldModifier(
+            variant, focused: focused, invalid: invalid, prefix: AnyView(prefix())))
     }
 }

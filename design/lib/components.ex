@@ -181,6 +181,15 @@ defmodule Prism.Design.Components do
 
   component :text_field, web: [section: "Text fields", doc: "Base text field styles"] do
     style [height: 44, padding: [x: 12]] ++ @field ++ [transition: @motion, placeholder: :grey2]
+
+    # Before the text: a currency symbol, or the app's own picker. It fills the field's
+    # height, with a line at its end.
+    part :prefix,
+      background: :grey6,
+      padding: [x: 12],
+      border: [width: 1, color: :grey3, sides: [:right]],
+      web: [doc: "Text field with a prefix"]
+
     state :focused, border: [color: :primary]
     state :disabled, foreground: :grey3, background: :grey5
     state :invalid, border: [color: :warning], web: [doc: "Text field with an invalid value"]

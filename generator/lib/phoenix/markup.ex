@@ -5,6 +5,39 @@ if Code.ensure_loaded?(Phoenix.Component) do
     # assigns: the element with its classes, then its children in the design's order.
     use Phoenix.Component
 
+    # While the app gives the part the component wraps (a text field's prefix), the
+    # element is a wrapper with the component's classes around the part and the form
+    # control, which takes the app's attributes and the element's own states.
+    def render(%{wrap: %{part: part} = wrap} = spec, assigns) when wrap != nil do
+      if Map.get(assigns, part, []) != [] do
+        natives = for {:native, nil, name} <- effects(spec, assigns), do: {name, true}
+        root = %{spec | rest: :control}
+        control = %{as: :control} = List.last(wrap.children)
+        attrs = root_attrs(root, assigns, [])
+
+        assigns =
+          assign(assigns,
+            prism_wrap: wrap.element,
+            prism_attrs: attrs,
+            prism_children:
+              Enum.flat_map(Enum.drop(wrap.children, -1), &child(&1, root, assigns)) ++
+                [
+                  {:void, control.element,
+                   natives ++ Map.to_list(assigns.rest) ++ [class: [control.class]]}
+                ]
+          )
+
+        ~H"""
+        <.dynamic_tag tag_name={@prism_wrap} {@prism_attrs}><.child
+            :for={child <- @prism_children}
+            child={child}
+          /></.dynamic_tag>
+        """
+      else
+        render(%{spec | wrap: nil}, assigns)
+      end
+    end
+
     def render(spec, assigns) do
       tag =
         case spec.element do
@@ -120,7 +153,9 @@ if Code.ensure_loaded?(Phoenix.Component) do
       flags = for f <- spec.flags, assigns[f.name] and with_only?(f, assigns), do: f.class
 
       native =
-        for {:native, nil, name} <- effects(spec, assigns), do: {name, true}
+        if spec.rest == :root,
+          do: for({:native, nil, name} <- effects(spec, assigns), do: {name, true}),
+          else: []
 
       value_attrs = for {v, n} <- values, {name, value} <- v.attrs, do: {name, fill(value, n)}
       value_classes = for {v, _} <- values, do: v.class
@@ -236,7 +271,9 @@ if Code.ensure_loaded?(Phoenix.Component) do
     end
 
     defp present?(spec, part, assigns) do
-      case Enum.find(spec.children, &(&1[:name] == part)) do
+      children = spec.children ++ ((spec[:wrap] && spec.wrap.children) || [])
+
+      case Enum.find(children, &(&1[:name] == part)) do
         %{as: :content} -> assigns.inner_block != []
         %{as: :slot} -> Map.get(assigns, part, []) != []
         %{as: :list, item: item} -> Map.get(assigns, item, []) != []

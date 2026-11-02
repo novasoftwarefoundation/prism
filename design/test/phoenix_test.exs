@@ -146,6 +146,7 @@ defmodule Prism.Design.PhoenixTest do
       end,
       ~H"""
       <UI.text_field variant={:inverse} invalid disabled />
+      <UI.text_field variant={:inverse} invalid disabled><:prefix>€</:prefix></UI.text_field>
       <UI.text_area value="x" />
       <UI.field><:label>x</:label>x<:error_message>x</:error_message></UI.field>
       <UI.radio_group><UI.radio checked disabled>x</UI.radio></UI.radio_group>

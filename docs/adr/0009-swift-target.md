@@ -19,7 +19,7 @@ SwiftUI has its own forms for a control's look. A `ButtonStyle`, a `ProgressView
    | `button` | `PrismButtonStyle: ButtonStyle`, `.buttonStyle(.prism(.primary, tone: .danger, loading: saving))` |
    | `spinner` | `PrismSpinnerStyle: ProgressViewStyle`, `.progressViewStyle(.prism(.accent, size: .size20))` |
    | `checkbox` | `PrismCheckboxStyle: ToggleStyle`, `.toggleStyle(.prism())` |
-   | `text_field`, `text_area` | a `ViewModifier`: `.prismTextField(focused:invalid:)` on a `TextField`, `.prismTextArea()` on a `TextEditor` |
+   | `text_field`, `text_area` | a `ViewModifier`: `.prismTextField(focused:invalid:)` on a `TextField` (with `{ Text("€") }` after it for a prefix, [ADR 0010](0010-text-field-prefix.md)), `.prismTextArea()` on a `TextEditor` |
    | `select` | `PrismSelect`, a view on `Menu` |
    | `field`, `radio_group`, `radio`, `tag`, `message_bar`, `step_indicator` | a view each: `PrismTag(tone: .success) { Text("Done") }` |
 

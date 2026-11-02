@@ -426,6 +426,67 @@ defmodule Prism.Generator.Web.ComponentsTest do
     refute css =~ "\n.only-tag--invalid {"
   end
 
+  test "a border on some sides is a declaration per side" do
+    design =
+      compile("""
+        component :tag do
+          part :label, border: [width: 1, color: :ink, sides: [:right, :y]]
+        end
+      """)
+
+    assert css(design) =~
+             ".only-tag__label {\n  display: flex;\n  flex-direction: column;\n  justify-content: center;\n  align-items: center;\n" <>
+               "  border-right: 1px solid #101010;\n  border-top: 1px solid #101010;\n  border-bottom: 1px solid #101010;\n}\n"
+  end
+
+  # With a prefix, the text field's element may be a wrapper around the prefix and the
+  # input: its focus and disabled states are its input's, and its padding the input's.
+  test "a text field with a prefix" do
+    with_prefix =
+      compile("""
+        component :text_field do
+          style padding: [x: 12], placeholder: :ink
+          part :prefix, padding: [x: 8]
+          state :focused, border: [color: :ink]
+          state :disabled, opacity: 0.5
+          state :invalid, border: [color: :ink]
+        end
+      """)
+
+    css = css(with_prefix)
+
+    assert css =~
+             ".only-text-field::placeholder,\n.only-text-field__input::placeholder {\n"
+
+    assert css =~
+             ".only-text-field--with-prefix {\n  display: flex;\n  align-items: stretch;\n  padding: 0;\n  overflow: hidden;\n}\n"
+
+    assert css =~
+             ".only-text-field__input {\n  flex: 1;\n  min-width: 0;\n  padding-left: 12px;\n  padding-right: 12px;\n" <>
+               "  font: inherit;\n  color: inherit;\n  background-color: transparent;\n  border: 0;\n  outline: none;\n  cursor: inherit;\n}\n"
+
+    assert css =~
+             ".only-text-field__prefix {\n  display: flex;\n  align-items: center;\n  flex-shrink: 0;\n  padding-left: 8px;\n"
+
+    assert css =~ "\n.only-text-field:focus-within {\n"
+    assert css =~ "\n.only-text-field:is(:disabled, :has(> :disabled)) {\n"
+    assert css =~ "\n.only-text-field.only-text-field--invalid:focus-within {\n"
+
+    # Without a prefix, the element is always the input.
+    without =
+      compile("""
+        component :text_field do
+          state :focused, border: [color: :ink]
+          state :disabled, opacity: 0.5
+        end
+      """)
+
+    css = css(without)
+    assert css =~ "\n.only-text-field:focus {\n"
+    assert css =~ "\n.only-text-field:disabled {\n"
+    refute css =~ "__input"
+  end
+
   test "a state the app sets outweighs the pointer and the focus where both change one property" do
     design =
       compile("""

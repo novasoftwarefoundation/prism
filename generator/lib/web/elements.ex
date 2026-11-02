@@ -14,7 +14,7 @@ defmodule Prism.Generator.Web.Elements do
   | Component | Element | Content |
   |---|---|---|
   | `button` | the app's choice: `button` (the default), `a`, `span` or `div` | `label` holds the content; `icon`; the spinner while loading |
-  | `text_field` | `<input>` | none |
+  | `text_field` | `<input>`; with a `prefix`, a `<div>` (`--with-prefix`) | none; with a `prefix`, the prefix (a `<span>`) and the input (`__input`), which gets the app's attributes |
   | `text_area` | `<textarea>` | its value |
   | `field` | `<div>` | `label` (a `<label>`), the content (the control), `error_message` (a `<p>`) |
   | `radio_group` | `<div role="radiogroup">` | the content (the radios) |
@@ -65,8 +65,14 @@ defmodule Prism.Generator.Web.Elements do
       options; `item_states` are `[%{name, class}]`;
     - `%{as: :inner_block}`: the app's content where no part holds it;
     - `%{as: :value}`: a text area's value.
+  - `wrap`: `nil`, or `%{part, element, children}` for a component whose
+    element is a wrapper while the app gives `part` (a text field's prefix,
+    ADR 0010): then the element is `element`, with the component's classes
+    and the look with the part, and `children` are the part and, last, the
+    form control (`%{as: :control, …}`), which gets the app's attributes and
+    the element's own states (`disabled`). The part is not in `children`.
   - `withs`: `%{part => class}`, the class of the look with each part, added
-    while that part is there.
+    while that part is there; a wrapped part has one too.
   - `flags`: `[%{name, default, class, only}]`, the looks the app turns on
     or off: `class` is added while the flag is on, and `default` is whether
     it is when the app sets nothing. A flag whose only looks are with
@@ -105,7 +111,13 @@ defmodule Prism.Generator.Web.Elements do
       parts: [label: {:content, "span"}, icon: {:slot, "span"}],
       content: :end
     },
-    text_field: %{element: "input", parts: [], content: nil},
+    # With a prefix, a wrapper holds the prefix and the input.
+    text_field: %{
+      element: "input",
+      parts: [prefix: {:slot, "span"}],
+      content: nil,
+      wrap: %{part: :prefix, element: "div", control: {:input, "input"}}
+    },
     text_area: %{element: "textarea", parts: [], content: :value},
     field: %{
       element: "div",
@@ -194,6 +206,8 @@ defmodule Prism.Generator.Web.Elements do
     end
 
     parts = Enum.map(c.parts, &part(c, kind, &1, prefix, components))
+    wrap = wrap(c, kind, parts, prefix)
+    unwrapped = if wrap, do: Enum.reject(parts, &(&1[:name] == wrap.part)), else: parts
 
     %{
       name: c.name,
@@ -203,8 +217,18 @@ defmodule Prism.Generator.Web.Elements do
       attrs: Map.get(kind, :attrs, []),
       axes: axes(c, prefix),
       states: states(c, parts, prefix),
-      children: children(parts, kind, c),
-      withs: withs(c, prefix),
+      children: children(unwrapped, kind, c),
+      wrap: wrap,
+      withs:
+        if(wrap,
+          do:
+            Map.put(
+              withs(c, prefix),
+              wrap.part,
+              Classes.modifier(prefix, c.name, :"with_#{wrap.part}")
+            ),
+          else: withs(c, prefix)
+        ),
       flags: flags(c, prefix),
       positions:
         for(
@@ -215,6 +239,31 @@ defmodule Prism.Generator.Web.Elements do
       values: Enum.map(Map.get(c, :values, []), &value(c, kind, &1, prefix, target)),
       rest: if(Enum.any?(parts, &(&1.as == :control)), do: :control, else: :root)
     }
+  end
+
+  # The element a component becomes while it has the part its kind wraps (a text
+  # field's prefix): a wrapper with the component's classes, around the part and the
+  # form control, which takes the app's attributes and the element's own states.
+  defp wrap(c, kind, parts, prefix) do
+    with %{part: name, element: element, control: {control, tag}} <- kind[:wrap],
+         %{} = part <- Enum.find(parts, &(&1[:name] == name)) do
+      %{
+        part: name,
+        element: element,
+        children: [
+          part,
+          %{
+            as: :control,
+            name: control,
+            element: tag,
+            type: nil,
+            class: Classes.part(prefix, c, control)
+          }
+        ]
+      }
+    else
+      _ -> nil
+    end
   end
 
   # The values a component's markup follows: the range, the attributes while the

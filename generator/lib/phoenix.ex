@@ -80,7 +80,7 @@ if Code.ensure_loaded?(Phoenix.Component) do
     | Component | Element | Content |
     |---|---|---|
     | `button` | `as`: `"button"` (the default), `"a"`, `"span"` or `"div"` | `label` holds the inner block; `<:icon>`; the spinner while loading |
-    | `text_field` | `<input>` | none |
+    | `text_field` | `<input>`; with `<:prefix>`, a `<div>` | none; with `<:prefix>`, the prefix (a `<span>`) and the input, which gets `rest` and `disabled` |
     | `text_area` | `<textarea>` | the `value` attribute |
     | `field` | `<div>` | `<:label>` (a `<label>`), the inner block (the control), `<:error_message>` (a `<p>`) |
     | `radio_group` | `<div role="radiogroup">` | the inner block (the radios) |
@@ -175,7 +175,7 @@ if Code.ensure_loaded?(Phoenix.Component) do
             Enum.map(spec.positions, & &1.name) ++
             Enum.map(spec.states, & &1.name) ++
             Enum.map(spec.values, & &1.name) ++
-            for(%{as: :slot, name: n} = child <- spec.children, child[:side] != :end, do: n) ++
+            for(%{as: :slot, name: n} = child <- parts(spec), child[:side] != :end, do: n) ++
             for(%{as: :list, item: item} <- spec.children, do: item)
 
         for name <- names, name in @reserved do
@@ -309,7 +309,7 @@ if Code.ensure_loaded?(Phoenix.Component) do
 
       # A part whose side the app picks is there twice; it is one slot.
       slots =
-        for child <- spec.children,
+        for child <- parts(spec),
             child[:side] != :end,
             slot <- slots(child),
             do: slot
@@ -346,6 +346,13 @@ if Code.ensure_loaded?(Phoenix.Component) do
     end
 
     defp slots(_), do: []
+
+    # The children, and the part the component wraps while the app gives it (a text
+    # field's prefix).
+    defp parts(%{wrap: %{children: wrapped}} = spec),
+      do: spec.children ++ for(%{as: :slot} = p <- wrapped, do: p)
+
+    defp parts(spec), do: spec.children
 
     defp rest_element(%{rest: :control, children: children}),
       do: Enum.find_value(children, &(&1.as == :control && &1.element))

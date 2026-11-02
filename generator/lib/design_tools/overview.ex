@@ -557,7 +557,7 @@ defmodule Prism.Generator.DesignTools.Overview do
 
   # A component's sheet: a row per variant selection, a column per state.
   defp sheet(ctx, c, specs) do
-    rows = rows(c)
+    rows = rows(c) ++ wrap_rows(c, specs[c.name])
     columns = [nil | states(c)]
     label_w = rows |> Enum.map(&estimate(elem(&1, 0), 13, 700)) |> Enum.max() |> max(80)
 
@@ -725,6 +725,22 @@ defmodule Prism.Generator.DesignTools.Overview do
                                                                                              sel} ->
       Enum.map(sel, & &1.name)
     end)
+  end
+
+  # The component with the part it wraps (a text field with its prefix), on its
+  # first row's look: a mark in the selection, which draws the wrapper.
+  defp wrap_rows(_c, %{wrap: nil}), do: []
+
+  defp wrap_rows(c, %{wrap: wrap}) do
+    {label, sel} = hd(rows(c))
+    mark = %{name: :"with_#{wrap.part}", wrap: wrap.part, style: [], web: [], states: []}
+
+    label =
+      if label in ["default", "no variant"],
+        do: key(wrap.part),
+        else: "#{label} + #{key(wrap.part)}"
+
+    [{label, sel ++ [mark]}]
   end
 
   defp flag_selections(c, f, base, defaults) do
@@ -901,10 +917,22 @@ defmodule Prism.Generator.DesignTools.Overview do
 
     {absolute, flow} = Enum.split_with(children, &(&1[:absolute] != nil))
 
+    wrapped = Enum.find_value(sel, &Map.get(&1, :wrap))
+
     content =
-      if spec.void and look[:placeholder],
-        do: [text_box(ctx, "Placeholder", inherited, color: look[:placeholder])],
-        else: flow
+      cond do
+        wrapped ->
+          wrapped_content(ctx, c, sel, state, wrapped, look, inherited)
+
+        spec.void and look[:placeholder] ->
+          [text_box(ctx, "Placeholder", inherited, color: look[:placeholder])]
+
+        true ->
+          flow
+      end
+
+    # The wrapper's padding is its input's.
+    look = if wrapped, do: Keyword.delete(look, :padding), else: look
 
     # A field holds text the app types: it has the width of a typical field.
     field = (spec.void and look[:placeholder] != nil) or spec.element == "textarea"
@@ -917,6 +945,27 @@ defmodule Prism.Generator.DesignTools.Overview do
     ]
 
     ctx |> shape(c.name, look, content, opts) |> with_absolute(absolute)
+  end
+
+  # A wrapper's content: the part, as high as the wrapper inside its border, and the
+  # input's placeholder in the wrapper's padding.
+  defp wrapped_content(ctx, c, sel, state, name, look, inherited) do
+    part = part_look(c, sel, state, name)
+    bs = border_sides(look)
+
+    part =
+      if look[:height],
+        do: Keyword.put(part, :height, px(look[:height]) - bs.top - bs.bottom),
+        else: part
+
+    text = text_box(ctx, title(name), inherit(inherited, part), [])
+    input = [padding: Keyword.get(look, :padding, [])]
+    placeholder = text_box(ctx, "Placeholder", inherited, color: look[:placeholder])
+
+    [
+      shape(ctx, nil, part, [text], align: :center),
+      shape(ctx, nil, input, [placeholder], [])
+    ]
   end
 
   defp child(ctx, c, specs, sel, state, child, look, inherited) do
@@ -1137,7 +1186,7 @@ defmodule Prism.Generator.DesignTools.Overview do
     align = opts[:align] || :start
     min_w = opts[:min_w] || 0
     gap = px(look[:gap] || 0)
-    border = px(Keyword.get(look[:border] || [], :width, 0))
+    bs = border_sides(look)
     pad = for s <- [:top, :right, :bottom, :left], into: %{}, do: {s, side(look, :padding, s)}
     none = %{top: 0, right: 0, bottom: 0, left: 0}
 
@@ -1156,8 +1205,8 @@ defmodule Prism.Generator.DesignTools.Overview do
         :column -> {Enum.max(ws, fn -> 0 end), Enum.sum(hs) + gaps}
       end
 
-    w = max(cw + pad.left + pad.right + 2 * border, min_w)
-    h = ch + pad.top + pad.bottom + 2 * border
+    w = max(cw + pad.left + pad.right + bs.left + bs.right, min_w)
+    h = ch + pad.top + pad.bottom + bs.top + bs.bottom
     {w, h} = if look[:size], do: {px(look[:size]), px(look[:size])}, else: {w, h}
     h = if look[:height], do: px(look[:height]), else: h
     h = if look[:min_height], do: max(h, px(look[:min_height])), else: h
@@ -1165,10 +1214,10 @@ defmodule Prism.Generator.DesignTools.Overview do
     top? = look[:min_height] != nil
 
     draw = fn x, y ->
-      ix = x + border + pad.left
-      iy = y + border + pad.top
-      iw = w - 2 * border - pad.left - pad.right
-      ih = h - 2 * border - pad.top - pad.bottom
+      ix = x + bs.left + pad.left
+      iy = y + bs.top + pad.top
+      iw = w - bs.left - bs.right - pad.left - pad.right
+      ih = h - bs.top - bs.bottom - pad.top - pad.bottom
 
       start =
         case direction do
@@ -1213,12 +1262,25 @@ defmodule Prism.Generator.DesignTools.Overview do
     }
   end
 
+  # The border's width on each side: on the sides it names, or on every side.
+  defp border_sides(look) do
+    border = look[:border] || []
+    width = px(Keyword.get(border, :width, 0))
+    on = sides(Enum.map(Keyword.get(border, :sides, [:x, :y]), &{&1, true}))
+    for s <- [:top, :right, :bottom, :left], into: %{}, do: {s, if(on[s], do: width, else: 0)}
+  end
+
   # The visible box: fill, border, outline and shadow, and the images the web
   # draws, a spinner's ring or its progress ring and a checkbox's check mark.
   defp surface(ctx, kind, look, x, y, w, h, state) do
     r = radius_value(ctx, look[:radius], min(w, h))
     border = look[:border] || []
-    bw = px(Keyword.get(border, :width, 0))
+    # A border on some sides is drawn as a line along each of them.
+    {bw, lines} =
+      if border[:sides],
+        do: {0, side_lines(ctx, border, border_sides(look), x, y, w, h)},
+        else: {px(Keyword.get(border, :width, 0)), []}
+
     fill = look[:background]
 
     shadow =
@@ -1276,7 +1338,27 @@ defmodule Prism.Generator.DesignTools.Overview do
           end
       end
 
-    [rect, outline, image(ctx, kind, look, x, y, w, h, state)]
+    [rect, lines, outline, image(ctx, kind, look, x, y, w, h, state)]
+  end
+
+  defp side_lines(ctx, border, bs, x, y, w, h) do
+    color = border[:color]
+
+    for {side, width} <- bs, width > 0 do
+      {lx, ly, lw, lh} =
+        case side do
+          :top -> {x, y, w, width}
+          :bottom -> {x, y + h - width, w, width}
+          :left -> {x, y, width, h}
+          :right -> {x + w - width, y, width, h}
+        end
+
+      el(
+        "rect",
+        [x: num(lx), y: num(ly), width: num(lw), height: num(lh), fill: paint(ctx, color)] ++
+          opacity_attr("fill-opacity", ctx, color)
+      )
+    end
   end
 
   # With a progress value (a track in the look), the track and an arc of the

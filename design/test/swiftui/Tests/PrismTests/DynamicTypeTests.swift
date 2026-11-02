@@ -26,6 +26,10 @@ struct DynamicTypeTests {
                 name: "text field", text: "someone@example.org", look: PrismTextFieldLooks().root,
                 view: AnyView(TextField("", text: .constant("someone@example.org")).prismTextField())),
             Sample(
+                name: "text field with prefix", text: "100", look: PrismTextFieldLooks().root,
+                view: AnyView(
+                    TextField("", text: .constant("100")).prismTextField { Text("€") })),
+            Sample(
                 name: "text area", text: "A note", look: PrismTextAreaLooks().root,
                 view: AnyView(TextEditor(text: .constant("A note")).prismTextArea())),
             Sample(
@@ -69,10 +73,10 @@ struct DynamicTypeTests {
 
     /// The components whose box has a height of the design's: they keep their text's
     /// height also where a stack offers them less.
-    static let boxes = ["text field", "select", "message bar"]
+    static let boxes = ["text field", "text field with prefix", "select", "message bar"]
 
     static let names = [
-        "button", "text field", "text area", "field", "radio group", "radio", "select",
+        "button", "text field", "text field with prefix", "text area", "field", "radio group", "radio", "select",
         "spinner", "checkbox", "tag", "message bar", "step indicator",
     ]
 
@@ -95,7 +99,8 @@ struct DynamicTypeTests {
             // A text field keeps its text on one line and scrolls it.
             let line = Text(sample.text).prismText(look)
             let text = measure(
-                name == "text field" ? AnyView(line.fixedSize()) : AnyView(line), at: .accessibility5)
+                name.hasPrefix("text field") ? AnyView(line.fixedSize()) : AnyView(line),
+                at: .accessibility5)
             #expect(
                 largest.height >= text.height,
                 "\(name) is \(largest.height) high, its text \(text.height): the text is cut off")

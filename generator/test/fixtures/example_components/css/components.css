@@ -98,21 +98,53 @@
   display: block;
   width: 100%;
   height: 40px;
+  padding-left: 8px;
+  padding-right: 8px;
   border: 1px solid #101010;
   outline: none;
 }
 
-.kit-text-field:focus {
+.kit-text-field--with-prefix {
+  display: flex;
+  align-items: stretch;
+  padding: 0;
+  overflow: hidden;
+}
+
+.kit-text-field__input {
+  flex: 1;
+  min-width: 0;
+  padding-left: 8px;
+  padding-right: 8px;
+  font: inherit;
+  color: inherit;
+  background-color: transparent;
+  border: 0;
+  outline: none;
+  cursor: inherit;
+}
+
+.kit-text-field__prefix {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  background-color: #fdfdfd;
+  padding-left: 8px;
+  padding-right: 8px;
+  border-right: 1px solid #101010;
+}
+
+.kit-text-field:focus-within {
   border-color: #1a73e8;
 }
 
-.kit-text-field:disabled {
+.kit-text-field:is(:disabled, :has(> :disabled)) {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
 .kit-text-field--invalid,
-.kit-text-field.kit-text-field--invalid:focus {
+.kit-text-field.kit-text-field--invalid:focus-within {
   border-color: #c62828;
 }
 

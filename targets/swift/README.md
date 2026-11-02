@@ -73,6 +73,7 @@ PrismSelect(icon: Image(systemName: "chevron.down")) {
 
 - **Variants** are enums of the design's values (`PrismButtonVariant.primary`, `PrismButtonTone.danger`, `PrismSpinnerSize.size16`), with the design's defaults: a button's tone is `.accent`, a spinner's size `.size24`, a tag's tone `.accent`, a message bar's `.info`, a step indicator's `.incomplete`. A button's variant and a spinner's color have none.
 - **States SwiftUI knows come from SwiftUI:** pressed from the button, checked from the toggle, disabled from `.disabled(_:)`, hovered from the pointer. The app gives the others: `loading`, `invalid`, a text field's `focused` (from its `@FocusState`), a radio's `checked`.
+- **A text field with a prefix** takes it after the modifier: `TextField(…).prismTextField(focused: focused) { Text("€") }`, or the app's `Picker` there. The prefix fills the field's height before the text, and the field's border goes around both.
 - **A button with an icon** gets `icon: .start` or `icon: .end` and a `Label` as its label; the icon goes at that side of the title, and the button takes its look with an icon.
 - **A spinner** keeps the `ProgressView`'s label for VoiceOver: `ProgressView("Uploading", value: 0.4)`.
 - **A select's list** is the system's menu. Its looks are in `PrismSelectLooks().listbox` and `.option`, for an app that draws its own list.

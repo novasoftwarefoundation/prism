@@ -356,15 +356,47 @@
   transition: border-color 0.15s ease-in-out;
 }
 
-.prism-text-field::placeholder {
+.prism-text-field::placeholder,
+.prism-text-field__input::placeholder {
   color: #999999;
 }
 
-.prism-text-field:focus {
+.prism-text-field--with-prefix {
+  display: flex;
+  align-items: stretch;
+  padding: 0;
+  overflow: hidden;
+}
+
+.prism-text-field__input {
+  flex: 1;
+  min-width: 0;
+  padding-left: 12px;
+  padding-right: 12px;
+  font: inherit;
+  color: inherit;
+  background-color: transparent;
+  border: 0;
+  outline: none;
+  cursor: inherit;
+}
+
+/* Text field with a prefix */
+.prism-text-field__prefix {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  background-color: #fafafa;
+  padding-left: 12px;
+  padding-right: 12px;
+  border-right: 1px solid #cccccc;
+}
+
+.prism-text-field:focus-within {
   border-color: #4272ef;
 }
 
-.prism-text-field:disabled {
+.prism-text-field:is(:disabled, :has(> :disabled)) {
   color: #cccccc;
   background-color: #f6f6f6;
   cursor: not-allowed;
@@ -372,13 +404,13 @@
 
 /* Text field with an invalid value */
 .prism-text-field--invalid,
-.prism-text-field.prism-text-field--invalid:focus,
-.prism-text-field--inverse.prism-text-field--invalid:focus {
+.prism-text-field.prism-text-field--invalid:focus-within,
+.prism-text-field--inverse.prism-text-field--invalid:focus-within {
   border-color: #f28d15;
 }
 
 /* Text field on a dark background */
-.prism-text-field--inverse:focus {
+.prism-text-field--inverse:focus-within {
   border-color: #ffcf60;
 }
 

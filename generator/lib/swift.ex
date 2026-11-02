@@ -406,8 +406,16 @@ defmodule Prism.Generator.Swift do
         :color -> {"#{name}Color", color(ctx, v)}
         :width -> {"#{name}Width", length(v, "#{where}: #{name}")}
         :offset -> {"#{name}Offset", length(v, "#{where}: #{name}")}
+        :sides -> {"#{name}Sides", edges(v)}
       end
     end
+  end
+
+  # Sides as `MSides`: left and right are leading and trailing, as for insets.
+  defp edges(sides) do
+    names = %{top: [".top"], bottom: [".bottom"], left: [".leading"], right: [".trailing"]}
+    names = Map.merge(names, %{x: names.left ++ names.right, y: names.top ++ names.bottom})
+    "[#{sides |> Enum.flat_map(&names[&1]) |> Enum.join(", ")}]"
   end
 
   defp insets(_ctx, value, where) do
