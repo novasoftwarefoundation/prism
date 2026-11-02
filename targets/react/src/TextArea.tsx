@@ -5,13 +5,23 @@ import { classNames } from "./helpers.js";
 /** The text area's variant. */
 export type TextAreaVariant = "inverse";
 
+/** The text area's format. */
+export type TextAreaFormat = "plain" | "rich_text";
+
 const variantClasses: Record<TextAreaVariant, string> = {
   inverse: "prism-text-area--inverse",
+};
+
+const formatClasses: Record<TextAreaFormat, string | undefined> = {
+  plain: undefined,
+  rich_text: "prism-text-area--rich-text",
 };
 
 export interface TextAreaOwnProps {
   /** No default: without one, it adds no class. */
   variant?: TextAreaVariant;
+  /** Default "plain", which has no class. */
+  format?: TextAreaFormat;
   /** Sets the element's `disabled`. */
   disabled?: boolean;
   /** Adds `prism-text-area--invalid`. */
@@ -25,11 +35,14 @@ export type TextAreaProps = TextAreaOwnProps &
 
 /** The design's `text_area` component. */
 export const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(function TextArea(
-  { variant, disabled, invalid, className, ...rest },
+  { variant, format = "plain", disabled, invalid, className, ...rest },
   ref,
 ) {
   if (variant != null && !["inverse"].includes(variant)) {
     throw new Error(`variant: ${JSON.stringify(variant)} is not one of "inverse"`);
+  }
+  if (!["plain", "rich_text"].includes(format)) {
+    throw new Error(`format: ${JSON.stringify(format)} is not one of "plain", "rich_text"`);
   }
   return (
     <textarea
@@ -39,6 +52,7 @@ export const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(function 
       className={classNames(
         "prism-text-area",
         variant && variantClasses[variant],
+        formatClasses[format],
         invalid && "prism-text-area--invalid",
         className,
       )}

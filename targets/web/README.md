@@ -217,6 +217,7 @@ Font classes: `font-title0` through `font-title7`, `font-body`, `font-button`, `
 | `prism-text-area` | Multi-line text field; its height is the app's (`rows`, or a height class) |
 | `prism-text-area--invalid` | A text area with an invalid value; it keeps its warning border while it has focus |
 | `prism-text-area--inverse` | A text area on a dark background |
+| `prism-text-area--rich-text` | The box around a rich-text editor (16px on every side): on the editor's element, with `prism-text-area`; the editor's toolbar and content styles are its own |
 | `prism-field__label` | Form label |
 | `prism-field__error-message` | Error message |
 
@@ -363,6 +364,7 @@ Also:
 - **The icon's side.** The Phoenix and React components put the icon before the label by default now (at its start), and after it with `icon_position={:end}` / `iconPosition="end"`; they used to put it after the label. In plain HTML, the order of the elements is the side.
 - **An invalid text field keeps its warning border while it has focus**, on the inverse field too: `prism-text-field--invalid` now outweighs `:focus`, where 0.1.7's focus border replaced it. CSS that an app wrote for this can go. These selectors also beat an app's own focus border on an invalid field, a `focus:border-*` utility or a rule such as `.prism-text-field--invalid:focus`; for another color there, use the important modifier (`focus:!border-…`) or `.prism-text-field.prism-text-field--invalid:focus` after Prism's CSS.
 - **A text area's height is the app's.** 0.1.7's `prism-textarea` had a minimum height of 256px; `prism-text-area` has none, so without `rows` or a height class it is the browser's default (two rows). Give it its height per use (`rows="8"`, `h-64`). It has the text field's states and variant too: `prism-text-area--invalid`, `disabled`, `prism-text-area--inverse`.
+- **A rich-text area** is new: `prism-text-area prism-text-area--rich-text` on the editor's element gives it the field's border, focus and invalid looks with 16px on every side; combine it with `--inverse` on a dark background.
 - **A select's field** takes `disabled` and `prism-select__field--invalid`, and the select `prism-select--inverse`, as the text field does.
 - **Two classes beat one utility.** These rules are two classes together, which is more specific than one Tailwind utility, so a utility on such a button no longer wins as it did on 0.1.7's single classes; use Tailwind's important modifier (`!px-4`, `!text-grey1`) or your own CSS for it:
   - a button with an icon (`.prism-button--primary.prism-button--with-icon`): its padding and gap, where 0.1.7's `prism-btn-primary-icon` was one class;
