@@ -320,6 +320,24 @@ defmodule Prism.Generator.PhoenixTest do
                )
     end
 
+    test "with rich text, a text area is a wrapper around the app's editor" do
+      assigns = %{}
+
+      rendered = ~H"""
+      <Kit.text_area editor={:rich_text} invalid disabled id="notes" class="w-1/2"><trix-editor class="kit-text-area__editor"></trix-editor></Kit.text_area>
+      """
+
+      assert html(rendered) ==
+               norm(
+                 ~s(<div id="notes" class="kit-text-area kit-text-area--rich-text kit-text-area--invalid w-1/2">) <>
+                   ~s(<trix-editor class="kit-text-area__editor"></trix-editor></div>)
+               )
+
+      # Without it, it is the text area.
+      assert html(~H"<Kit.text_area disabled value='x' />") ==
+               norm(~s(<textarea disabled class="kit-text-area">x</textarea>))
+    end
+
     test "a select's option takes selected, which adds its class" do
       assigns = %{}
 

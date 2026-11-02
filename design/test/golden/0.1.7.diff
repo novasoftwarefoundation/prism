@@ -380,11 +380,28 @@
    padding: 8px 12px;
    font-family: "Nunito Sans", sans-serif;
    font-weight: 300;
-@@ -254,8 +440,31 @@
+@@ -250,12 +436,47 @@
+   color: #999999;
+ }
+ 
+-.prism-text-area:focus {
++.prism-text-area--rich-text {
++  box-sizing: border-box;
++}
++
++.prism-text-area__editor {
++  border: 0;
++  border-radius: 0;
++  padding: 0;
++  background-color: transparent;
++  outline: none;
++}
++
++.prism-text-area:focus-within {
    border-color: #4272ef;
  }
  
-+.prism-text-area:disabled {
++.prism-text-area:is(:disabled, :has(.prism-text-area__editor:disabled)) {
 +  color: #cccccc;
 +  background-color: #f6f6f6;
 +  cursor: not-allowed;
@@ -392,13 +409,13 @@
 +
 +/* Text area with an invalid value */
 +.prism-text-area--invalid,
-+.prism-text-area.prism-text-area--invalid:focus,
-+.prism-text-area--inverse.prism-text-area--invalid:focus {
++.prism-text-area.prism-text-area--invalid:focus-within,
++.prism-text-area--inverse.prism-text-area--invalid:focus-within {
 +  border-color: #f28d15;
 +}
 +
 +/* Text area on a dark background */
-+.prism-text-area--inverse:focus {
++.prism-text-area--inverse:focus-within {
 +  border-color: #ffcf60;
 +}
 +
@@ -413,7 +430,7 @@
     ========================================================================== */
  
  .prism-field__label {
-@@ -277,6 +486,23 @@
+@@ -277,6 +498,23 @@
    margin-top: 4px;
  }
  
@@ -437,7 +454,7 @@
  /* ==========================================================================
     Radio Buttons
     ========================================================================== */
-@@ -332,7 +558,7 @@
+@@ -332,7 +570,7 @@
  }
  
  /* ==========================================================================
@@ -446,7 +463,7 @@
     ========================================================================== */
  
  .prism-select {
-@@ -363,6 +589,18 @@
+@@ -363,6 +601,18 @@
    border-color: #4272ef;
  }
  
@@ -465,7 +482,7 @@
  .prism-select__icon {
    position: absolute;
    right: 12px;
-@@ -409,13 +647,22 @@
+@@ -409,13 +659,22 @@
    color: #4272ef;
  }
  
@@ -488,7 +505,7 @@
    animation: prism-spin 1s linear infinite;
  }
  
-@@ -424,6 +671,11 @@
+@@ -424,6 +683,11 @@
    height: 16px;
  }
  
@@ -500,7 +517,7 @@
  .prism-spinner--32 {
    width: 32px;
    height: 32px;
-@@ -438,16 +690,43 @@
+@@ -438,16 +702,43 @@
    }
  }
  
@@ -549,7 +566,7 @@
  /* ==========================================================================
     Checkbox (bonus component)
     ========================================================================== */
-@@ -477,7 +756,7 @@
+@@ -477,7 +768,7 @@
  }
  
  /* ==========================================================================
@@ -558,7 +575,7 @@
     ========================================================================== */
  
  /* Base tag styles - colored label with background opacity */
-@@ -502,7 +781,7 @@
+@@ -502,7 +793,7 @@
    line-height: 16px;
  }
  
@@ -567,7 +584,7 @@
  .prism-tag--accent .prism-tag__label {
    background-color: rgba(66, 114, 239, 0.2);
    color: #4272ef;
-@@ -520,24 +799,23 @@
+@@ -520,24 +811,23 @@
    color: #f28d15;
  }
  
@@ -596,7 +613,7 @@
  .prism-message-bar {
    display: flex;
    justify-content: center;
-@@ -551,35 +829,35 @@
+@@ -551,35 +841,35 @@
    line-height: 16px;
  }
  
@@ -638,7 +655,7 @@
  .prism-step-indicator {
    display: flex;
    align-items: center;
-@@ -595,20 +873,53 @@
+@@ -595,20 +885,53 @@
    font-variant-numeric: tabular-nums;
  }
  

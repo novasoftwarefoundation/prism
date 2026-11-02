@@ -553,6 +553,40 @@ defmodule Prism.Generator.Web.ComponentsTest do
     assert Prism.Generator.Web.Classes.pseudo_classes(:field, nil)[:focused] == ":focus-within"
   end
 
+  # With rich text, the text area's element may be a wrapper around the app's editor:
+  # its focus is the editor's, and it is disabled while the editor's surface is.
+  test "a text area with rich text" do
+    css =
+      css(
+        compile("""
+          component :text_area do
+            state :focused, border: [color: :ink]
+            state :disabled, opacity: 0.5
+            state :invalid, border: [color: :ink]
+
+            variants :editor, default: :plain do
+              variant :rich_text, padding: [y: 16, x: 16]
+            end
+          end
+        """)
+      )
+
+    assert css =~ ".only-text-area--rich-text {\n  box-sizing: border-box;\n}\n"
+
+    assert css =~
+             ".only-text-area__editor {\n  border: 0;\n  border-radius: 0;\n  padding: 0;\n  background-color: transparent;\n  outline: none;\n}\n"
+
+    assert css =~ "\n.only-text-area:focus-within {\n"
+    assert css =~ "\n.only-text-area:is(:disabled, :has(.only-text-area__editor:disabled)) {\n"
+    assert css =~ "\n.only-text-area.only-text-area--invalid:focus-within {\n"
+    assert css =~ ".only-text-area--rich-text {\n  padding: 16px;\n}\n"
+
+    # Without it, the element is always the text area.
+    plain = css(compile("component :text_area do\n  state :focused, border: [color: :ink]\nend"))
+    assert plain =~ "\n.only-text-area:focus {\n"
+    refute plain =~ "__editor"
+  end
+
   test "a state the app sets outweighs the pointer and the focus where both change one property" do
     design =
       compile("""

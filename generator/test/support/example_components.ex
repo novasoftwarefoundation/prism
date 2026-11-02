@@ -100,6 +100,11 @@ defmodule Prism.Generator.ExampleComponents do
     variant :inverse do
       state :focused, border: [color: :paper]
     end
+
+    # With rich text, a wrapper around the app's editor.
+    variants :editor, default: :plain do
+      variant :rich_text, padding: [y: 12, x: 12]
+    end
   end
 
   # Its label follows its control's focus, and the field's invalid state.

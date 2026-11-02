@@ -262,6 +262,27 @@ describe("states", () => {
     );
   });
 
+  test("with rich text, a text area is a wrapper around the app's editor", () => {
+    assert.equal(
+      html(
+        h(
+          Kit.TextArea,
+          { editor: "rich_text", invalid: true, disabled: true, id: "notes", className: "w-1/2" },
+          h("div", { className: "kit-text-area__editor" }, "EDITOR"),
+        ),
+      ),
+      norm(
+        '<div id="notes" class="kit-text-area kit-text-area--rich-text kit-text-area--invalid w-1/2">' +
+          '<div class="kit-text-area__editor">EDITOR</div></div>',
+      ),
+    );
+    // Without it, it is the text area.
+    assert.equal(
+      html(h(Kit.TextArea, { disabled: true, defaultValue: "x" })),
+      norm('<textarea class="kit-text-area" disabled="">x</textarea>'),
+    );
+  });
+
   test("a state the app doesn't set adds nothing, and leaves a control uncontrolled", () => {
     assert.equal(
       html(h(Kit.Checkbox, { defaultChecked: true })),

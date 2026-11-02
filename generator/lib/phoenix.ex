@@ -82,7 +82,7 @@ if Code.ensure_loaded?(Phoenix.Component) do
     |---|---|---|
     | `button` | `as`: `"button"` (the default), `"a"`, `"span"` or `"div"` | `label` holds the inner block; `<:icon>`; the spinner while loading |
     | `text_field` | `<input>`; with `<:prefix>`, a `<div>` | none; with `<:prefix>`, the prefix (a `<span>`) and the input, which gets `rest` and `disabled` |
-    | `text_area` | `<textarea>` | the `value` attribute |
+    | `text_area` | `<textarea>`; with rich text, a `<div>` | the `value` attribute; with rich text, the inner block, the app's editor |
     | `field` | `<div>` | `<:label>` (a `<label>`), the inner block (the control), `<:error_message>` (a `<p>`) |
     | `radio_group` | `<div role="radiogroup">` | the inner block (the radios) |
     | `radio` | `<label>` | its `control` (an `<input type="radio">`, which gets `rest`), `label` holds the inner block |
@@ -363,7 +363,7 @@ if Code.ensure_loaded?(Phoenix.Component) do
     # The children, and the part the component wraps while the app gives it (a text
     # field's prefix).
     defp parts(%{wrap: %{children: wrapped}} = spec),
-      do: spec.children ++ for(%{as: :slot} = p <- wrapped, do: p)
+      do: spec.children ++ for(%{as: as} = p <- wrapped, as in [:slot, :inner_block], do: p)
 
     defp parts(spec), do: spec.children
 

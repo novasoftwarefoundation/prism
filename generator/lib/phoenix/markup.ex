@@ -5,6 +5,35 @@ if Code.ensure_loaded?(Phoenix.Component) do
     # assigns: the element with its classes, then its children in the design's order.
     use Phoenix.Component
 
+    # While an axis has the variant the component wraps (a text area's rich text), the
+    # element is a wrapper with the component's classes around the app's content, its
+    # editor, whose own states are the editor's: the wrapper gets no `disabled`.
+    def render(%{wrap: %{variant: variant, axis: axis} = wrap} = spec, assigns) do
+      a = Enum.find(spec.axes, &(&1.name == axis))
+
+      if a.classes[assigns[axis]] == a.classes[variant] do
+        axis!(a, assigns[axis])
+        natives = for {:native, nil, name} <- effects(spec, assigns), do: name
+        attrs = Enum.reject(root_attrs(spec, assigns, []), fn {k, _} -> k in natives end)
+
+        assigns =
+          assign(assigns,
+            prism_wrap: wrap.element,
+            prism_attrs: attrs,
+            prism_children: [{:slot, assigns[:inner_block] || []}]
+          )
+
+        ~H"""
+        <.dynamic_tag tag_name={@prism_wrap} {@prism_attrs}><.child
+            :for={child <- @prism_children}
+            child={child}
+          /></.dynamic_tag>
+        """
+      else
+        render(%{spec | wrap: nil}, assigns)
+      end
+    end
+
     # While the app gives the part the component wraps (a text field's prefix), the
     # element is a wrapper with the component's classes around the part and the form
     # control, which takes the app's attributes and the element's own states.

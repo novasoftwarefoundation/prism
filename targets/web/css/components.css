@@ -437,11 +437,23 @@
   color: #999999;
 }
 
-.prism-text-area:focus {
+.prism-text-area--rich-text {
+  box-sizing: border-box;
+}
+
+.prism-text-area__editor {
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  background-color: transparent;
+  outline: none;
+}
+
+.prism-text-area:focus-within {
   border-color: #4272ef;
 }
 
-.prism-text-area:disabled {
+.prism-text-area:is(:disabled, :has(.prism-text-area__editor:disabled)) {
   color: #cccccc;
   background-color: #f6f6f6;
   cursor: not-allowed;
@@ -449,13 +461,13 @@
 
 /* Text area with an invalid value */
 .prism-text-area--invalid,
-.prism-text-area.prism-text-area--invalid:focus,
-.prism-text-area--inverse.prism-text-area--invalid:focus {
+.prism-text-area.prism-text-area--invalid:focus-within,
+.prism-text-area--inverse.prism-text-area--invalid:focus-within {
   border-color: #f28d15;
 }
 
 /* Text area on a dark background */
-.prism-text-area--inverse:focus {
+.prism-text-area--inverse:focus-within {
   border-color: #ffcf60;
 }
 

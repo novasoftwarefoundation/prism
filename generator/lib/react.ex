@@ -169,7 +169,17 @@ defmodule Prism.Generator.React do
           [{"children", "ReactNode", "The content.", nil}]
 
         nil ->
-          []
+          case spec.wrap do
+            %{variant: variant, axis: axis} ->
+              [
+                {"children", "ReactNode",
+                 "The app's rich-text editor, while `#{camel(axis)}` is #{js_value(variant)}.",
+                 nil}
+              ]
+
+            _ ->
+              []
+          end
       end
 
     axes ++
@@ -288,7 +298,10 @@ defmodule Prism.Generator.React do
 
     as? = match?({:as, _}, spec.element)
     lists = for %{as: :list} = l <- spec.children, do: l
-    no_content = not Enum.any?(spec.children, &(&1.as in [:content, :inner_block]))
+
+    no_content =
+      not Enum.any?(spec.children, &(&1.as in [:content, :inner_block])) and
+        not match?(%{variant: _}, spec.wrap)
 
     body =
       IO.iodata_to_binary([
@@ -479,6 +492,24 @@ defmodule Prism.Generator.React do
       case spec.wrap do
         nil ->
           []
+
+        # While an axis has the variant the component wraps (a text area's rich text),
+        # a wrapper with the component's classes holds the app's editor.
+        %{variant: variant, axis: axis} = wrap ->
+          classes = root_classes(spec) ++ ["className"]
+
+          tree =
+            {:el, wrap.element,
+             [
+               ~s|{...(rest as ComponentPropsWithoutRef<#{js_str(wrap.element)}>)}|,
+               class_attr(classes)
+             ], [{:expr, "{children}"}]}
+
+          [
+            "  if (#{camel(axis)} === #{js_value(variant)}) {\n    return (\n",
+            render(tree, 6),
+            "\n    );\n  }\n"
+          ]
 
         wrap ->
           [

@@ -740,6 +740,9 @@ defmodule Prism.Generator.DesignTools.Overview do
   # first row's look: a mark in the selection, which draws the wrapper.
   defp wrap_rows(_c, %{wrap: nil}), do: []
 
+  # A wrap while an axis has a variant (a text area's rich text) has its rows already.
+  defp wrap_rows(_c, %{wrap: %{variant: _}}), do: []
+
   defp wrap_rows(c, %{wrap: wrap}) do
     {label, sel} = hd(rows(c))
     mark = %{name: :"with_#{wrap.part}", wrap: wrap.part, style: [], web: [], states: []}
@@ -928,10 +931,19 @@ defmodule Prism.Generator.DesignTools.Overview do
 
     wrapped = Enum.find_value(sel, &Map.get(&1, :wrap))
 
+    editor? =
+      match?(%{variant: _}, spec[:wrap]) and Enum.any?(sel, &(&1.name == spec.wrap.variant))
+
     content =
       cond do
         wrapped ->
           wrapped_content(ctx, c, sel, state, wrapped, look, inherited)
+
+        # The app's rich-text editor: its toolbar above its text, in the box.
+        editor? ->
+          toolbar = text_box(ctx, "Toolbar", inherited, color: look[:placeholder])
+          text = text_box(ctx, "Rich text", inherited, [])
+          [shape(ctx, nil, [], [toolbar, text], direction: :column)]
 
         spec.void and look[:placeholder] ->
           [text_box(ctx, "Placeholder", inherited, color: look[:placeholder])]
