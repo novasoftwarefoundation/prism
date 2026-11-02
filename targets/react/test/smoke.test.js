@@ -120,7 +120,7 @@ test("every axis value and state of every component renders a class of the CSS",
     ),
     h(Prism.TextField, { variant: "inverse", invalid: true, disabled: true }),
     h(Prism.TextArea, { defaultValue: "x" }),
-    h(Prism.Field, { label: "x", errorMessage: "x" }, "x"),
+    h(Prism.Field, { variant: "inverse", invalid: true, label: "x", errorMessage: "x" }, "x"),
     h(Prism.RadioGroup, null, h(Prism.Radio, { checked: true, disabled: true, onChange }, "x")),
     h(Prism.Select, { icon: "v", options: [{ selected: true, children: "x" }] }, "x"),
     h(Prism.Checkbox, { checked: true, disabled: true, onChange }),
@@ -141,9 +141,9 @@ test("every axis value and state of every component renders a class of the CSS",
   const rendered = classes(elements.map((element) => renderToStaticMarkup(element)).join(""));
   assert.ok(rendered.length > 50);
 
-  // Without a look of their own, the button's icon and the field have no rule.
+  // Without a look of its own, the button's icon has no rule.
   assert.deepEqual(
     rendered.filter((name) => !inCss(name)),
-    ["prism-button__icon", "prism-field"],
+    ["prism-button__icon"],
   );
 });

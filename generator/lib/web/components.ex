@@ -57,7 +57,8 @@ defmodule Prism.Generator.Web.Components do
   knows which) a state is the browser's:
   `:pressed` is `:active`, `:hovered` `:hover`, `:focused` `:focus`,
   `:disabled` `:disabled`, `:checked` `:checked`. On any other element
-  `:hovered` is `:hover`. Any other state, such as `:loading`, `:invalid` or
+  `:hovered` is `:hover`, and on a field `:focused` is `:focus-within`, the
+  focus of the control it holds. Any other state, such as `:loading`, `:invalid` or
   an option's `:selected`, is a modifier class the app sets.
 
   A state the app sets (`:invalid`, `:selected`, `:loading`, by name)

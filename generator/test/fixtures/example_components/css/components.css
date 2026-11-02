@@ -156,6 +156,20 @@
   color: #c62828;
 }
 
+.kit-field:focus-within .kit-field__label {
+  color: #1a73e8;
+}
+
+.kit-field--invalid .kit-field__label,
+.kit-field.kit-field--invalid:focus-within .kit-field__label,
+.kit-field--inverse.kit-field--invalid:focus-within .kit-field__label {
+  color: #c62828;
+}
+
+.kit-field--inverse:focus-within .kit-field__label {
+  color: #fdfdfd;
+}
+
 .kit-radio-group {
   display: flex;
   flex-direction: row;
