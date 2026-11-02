@@ -1,6 +1,16 @@
 // Type checks: `npm run check` fails when a line expected to be an error (the
 // directive above it) compiles, so TypeScript rejects what the design doesn't have.
-import { Button, Select, Spinner, Tag, TextArea, TextField } from "../src/index.js";
+import { type ComponentProps, createRef } from "react";
+import {
+  Button,
+  type PlainTextAreaProps,
+  type RichTextAreaProps,
+  Select,
+  Spinner,
+  Tag,
+  TextArea,
+  TextField,
+} from "../src/index.js";
 
 export const accepted = (
   <>
@@ -33,6 +43,60 @@ export const richTextRows = <TextArea editor="rich_text" rows={4} />;
 
 // @ts-expect-error: a plain text area has no content
 export const plainChildren = <TextArea>child</TextArea>;
+
+// An app wraps the text area per member of its props, not on the union.
+interface LabeledTextAreaProps extends PlainTextAreaProps {
+  label: string;
+}
+
+export const LabeledTextArea = ({ label, ...rest }: LabeledTextAreaProps) => (
+  <label>
+    {label}
+    <TextArea {...rest} />
+  </label>
+);
+
+export const WithoutClass = (props: Omit<PlainTextAreaProps, "className">) => (
+  <TextArea {...props} className="notes" />
+);
+
+export const RichWithoutClass = (props: Omit<RichTextAreaProps, "className">) => (
+  <TextArea {...props} className="notes" />
+);
+
+export const FewProps = (props: Pick<PlainTextAreaProps, "value" | "onChange" | "invalid">) => (
+  <TextArea {...props} />
+);
+
+export const MoreRows = (props: Extract<ComponentProps<typeof TextArea>, PlainTextAreaProps>) => (
+  <TextArea {...props} rows={3} dirName="notes.dir" />
+);
+
+export const PassDisabled = ({ disabled, ...rest }: PlainTextAreaProps) => (
+  <TextArea {...rest} disabled={disabled} />
+);
+
+// The ref is the textarea's, or with rich text the wrapper <div>'s.
+const textareaRef = createRef<HTMLTextAreaElement>();
+const divRef = createRef<HTMLDivElement>();
+
+export const plainRef = <TextArea ref={textareaRef} />;
+
+export const richRef = (
+  <TextArea editor="rich_text" ref={divRef}>
+    <div className="kit-text-area__editor" />
+  </TextArea>
+);
+
+export const richTextareaRef = (
+  // @ts-expect-error: with rich text the ref is the wrapper <div>'s, not a textarea's
+  <TextArea editor="rich_text" ref={textareaRef}>
+    <div className="kit-text-area__editor" />
+  </TextArea>
+);
+
+// @ts-expect-error: without rich text the ref is the textarea's
+export const plainDivRef = <TextArea ref={divRef} />;
 
 // @ts-expect-error: no such variant
 export const unknownVariant = <Button variant="primray">Save</Button>;
