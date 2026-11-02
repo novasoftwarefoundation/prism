@@ -38,8 +38,12 @@ ProgressView(value: upload.fraction).progressViewStyle(.prism(.accent, size: .si
 // A ToggleStyle.
 Toggle("Remember me", isOn: $remember).toggleStyle(.prism())
 
-// A modifier on a TextField or TextEditor; the app gives focused and invalid.
-PrismField(label: Text("Email"), errorMessage: error.map(Text.init)) {
+// A modifier on a TextField or TextEditor; the app gives focused and invalid, to the
+// field too, whose label follows them.
+PrismField(
+    focused: emailFocused, invalid: error != nil,
+    label: Text("Email"), errorMessage: error.map(Text.init)
+) {
     TextField("", text: $email, prompt: PrismTextFieldModifier.prompt(Text("name@example.org")))
         .focused($emailFocused)
         .prismTextField(focused: emailFocused, invalid: error != nil)
@@ -66,13 +70,13 @@ PrismSelect(icon: Image(systemName: "chevron.down")) {
 | Spinner | `PrismSpinnerStyle`, `.progressViewStyle(.prism(…))` |
 | Checkbox | `PrismCheckboxStyle`, `.toggleStyle(.prism(…))` |
 | Text field, text area | `.prismTextField(…)` on a `TextField`, `.prismTextArea(…)` on a `TextEditor` |
-| Field | `PrismField(label:errorMessage:) { control }` |
+| Field | `PrismField(focused:invalid:label:errorMessage:) { control }` |
 | Radio group, radio | `PrismRadioGroup { … }`, `PrismRadio(checked:) { label }` |
 | Select | `PrismSelect { menu items } label: { … }`, on a `Menu` |
 | Tag, message bar, step indicator | `PrismTag(tone:)`, `PrismMessageBar(tone:)`, `PrismStepIndicator(status:)` |
 
 - **Variants** are enums of the design's values (`PrismButtonVariant.primary`, `PrismButtonTone.danger`, `PrismSpinnerSize.size16`), with the design's defaults: a button's tone is `.accent`, a spinner's size `.size24`, a tag's tone `.accent`, a message bar's `.info`, a step indicator's `.incomplete`. A button's variant and a spinner's color have none.
-- **States SwiftUI knows come from SwiftUI:** pressed from the button, checked from the toggle, disabled from `.disabled(_:)`, hovered from the pointer. The app gives the others: `loading`, `invalid`, a text field's, a text area's and a select's `focused` (from its `@FocusState`), a radio's `checked`. A select is disabled with `.disabled(_:)` too.
+- **States SwiftUI knows come from SwiftUI:** pressed from the button, checked from the toggle, disabled from `.disabled(_:)`, hovered from the pointer. The app gives the others: `loading`, `invalid`, a text field's, a text area's, a select's and a field's `focused` (from its `@FocusState`; a field's is its control's), a radio's `checked`. A select is disabled with `.disabled(_:)` too.
 - **A button with an icon** gets `icon: .start` or `icon: .end` and a `Label` as its label; the icon goes at that side of the title, and the button takes its look with an icon.
 - **A spinner** keeps the `ProgressView`'s label for VoiceOver: `ProgressView("Uploading", value: 0.4)`.
 - **A text area's editor** is `.plain` or `.richText` (16pt on every side), on a `TextEditor` with an `AttributedString`: `.prismTextArea(editor: .richText)`.
