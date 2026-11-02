@@ -40,11 +40,11 @@ defmodule Prism.Design.ComponentsTest do
                variant: [:primary, :secondary, :plain, :link, :text, :soft, :icon]
              ],
              text_field: [variant: [:inverse]],
-             text_area: [],
+             text_area: [variant: [:inverse]],
              field: [],
              radio_group: [],
              radio: [],
-             select: [],
+             select: [variant: [:inverse]],
              spinner: [size: [16, 20, 32], variant: [:accent, :inverse]],
              checkbox: [],
              tag: [tone: [:accent, :success, :warning, :danger, :neutral]],
@@ -65,6 +65,29 @@ defmodule Prism.Design.ComponentsTest do
     assert button.component == :button
     [round] = picker.variants
     assert [%{name: :preview, style: [height: 120, radius: :full]}] = round.parts
+  end
+
+  # The text area and the select's field have the text field's states and its inverse
+  # variant, and the app sets the text area's height.
+  test "every field takes the text field's focused, disabled, invalid and inverse looks" do
+    component = &Enum.find(@design.components, fn c -> c.name == &1 end)
+    states = &Map.new(&1, fn s -> {s.name, s.style} end)
+    inverse = &Enum.find(&1.variants, fn v -> v.name == :inverse end)
+
+    text_field = component.(:text_field)
+    text_area = component.(:text_area)
+    select = component.(:select)
+    field = Enum.find(select.parts, &(&1.name == :field))
+
+    assert states.(text_area.states) == states.(text_field.states)
+    assert states.(field.states) == states.(text_field.states)
+    assert states.(inverse.(text_area).states) == states.(inverse.(text_field).states)
+
+    assert [%{name: :field, states: select_inverse}] = inverse.(select).parts
+    assert states.(select_inverse) == states.(inverse.(text_field).states)
+
+    refute Keyword.has_key?(text_area.style, :min_height)
+    refute Keyword.has_key?(text_area.style, :height)
   end
 
   test "one tone vocabulary, and no aliases" do

@@ -48,7 +48,8 @@ defmodule Prism.Generator.Swift.Components do
     `.disabled(_:)` (`isEnabled`), hovered from the pointer (a button and a
     checkbox). Every other state the design gives is a `Bool` the app sets
     (`loading`, `invalid`, a text field's `focused`, which the app has from
-    its `@FocusState`).
+    its `@FocusState`). A part that is a form control, the select's field, is
+    disabled with its view, from `.disabled(_:)` too.
   - **A value** is a `Double?` from 0 to 100; a spinner takes its progress
     from the `ProgressView`'s fraction.
 
@@ -65,7 +66,9 @@ defmodule Prism.Generator.Swift.Components do
   text field's placeholder color is in its modifier's `prompt(_:)`, since a
   modifier can't reach a `TextField`'s prompt; a step indicator has tabular
   numbers; a field, a text field and a message bar take the width they are
-  given, as the web's block elements do.
+  given, as the web's block elements do; a text area, whose `TextEditor` takes
+  no height of its own, is at least one line of its text high, with its text
+  view's inset, and the app gives it its height.
   """
 
   alias Prism.Generator.Swift
@@ -100,6 +103,9 @@ defmodule Prism.Generator.Swift.Components do
   @given %{image_picker: [:button]}
 
   @values %{spinner: [:progress]}
+
+  # The parts that are a form control, which SwiftUI disables with their view.
+  @control_parts [radio: :control, select: :field]
 
   # The states SwiftUI gives each kind, as Swift expressions in its body.
   @platform %{
@@ -369,16 +375,25 @@ defmodule Prism.Generator.Swift.Components do
     end)
   end
 
-  # The Looks for the view's own properties: `platform` gives the states SwiftUI
+  # The Swift expression of a state SwiftUI gives (`{:state, name}` or
+  # `{:part_state, part, name}`), or `nil` for one the app gives. A part that is a
+  # form control (the select's field) is disabled with its view.
+  defp platform(c, {:state, s}), do: Map.get(@platform, c.name, %{disabled: "!isEnabled"})[s]
+
+  defp platform(c, {:part_state, part, :disabled}) when {c.name, part} in @control_parts,
+    do: platform(c, {:state, :disabled})
+
+  defp platform(_c, _kind), do: nil
+
+  # The Looks for the view's own properties: `platform/2` gives the states SwiftUI
   # gives, `given` other arguments' expressions.
   defp looks_call(ctx, c, spec, given) do
-    platform = Map.get(@platform, c.name, %{disabled: "!isEnabled"})
-
     args =
       for a <- spec.args do
         value =
           case a.kind do
-            {:state, s} -> Map.get(given, a.name) || Map.get(platform, s, a.name)
+            {:state, _} = s -> Map.get(given, a.name) || platform(c, s) || a.name
+            {:part_state, _, _} = s -> Map.get(given, a.name) || platform(c, s) || a.name
             _ -> Map.get(given, a.name, a.name)
           end
 
@@ -397,18 +412,12 @@ defmodule Prism.Generator.Swift.Components do
   # The arguments the app gives the view: not the states SwiftUI gives, nor those
   # `except` names.
   defp own(c, spec, except) do
-    platform = Map.get(@platform, c.name, %{disabled: "!isEnabled"})
-
     Enum.reject(spec.args, fn a ->
-      a.name in except or match?({:with, _}, a.kind) or
-        (match?({:state, _}, a.kind) and Map.has_key?(platform, elem(a.kind, 1)))
+      a.name in except or match?({:with, _}, a.kind) or platform(c, a.kind) != nil
     end)
   end
 
-  defp uses_enabled?(c, spec) do
-    platform = Map.get(@platform, c.name, %{disabled: "!isEnabled"})
-    Enum.any?(spec.states, &(&1.kind == {:state, :disabled})) and platform[:disabled] != nil
-  end
+  defp uses_enabled?(c, spec), do: Enum.any?(spec.states, &(platform(c, &1.kind) == "!isEnabled"))
 
   defp uses_hover?(c, spec),
     do:
@@ -759,14 +768,36 @@ defmodule Prism.Generator.Swift.Components do
     type = "#{m}#{pascal}Modifier"
     args = own(c, spec, [])
     on = if k == :text_field, do: "TextField", else: "TextEditor"
-    hidden = if k == :text_area, do: "\n            .scrollContentBackground(.hidden)", else: ""
+    # A TextEditor takes no height of its own; the app gives it one, and it is at least
+    # one line of its text, which scales with Dynamic Type, with the text view's inset
+    # above and below it, so the line is never cut off.
+    {hidden, line, size} =
+      if k == :text_area,
+        do:
+          {"\n            .scrollContentBackground(.hidden)\n            .frame(minHeight: line(looks.root))",
+           "", "    @Environment(\\.dynamicTypeSize) private var dynamicTypeSize\n"},
+        else: {"", "", ""}
+
+    least =
+      if k == :text_area,
+        do: """
+
+            /// One line of the look's text, as Dynamic Type scales it, in the text view's
+            /// inset: `UITextView` draws its text 8pt below its top and needs 8pt below it.
+            private func line(_ look: #{m}Look) -> CGFloat? {
+                let traits = UITraitCollection(
+                    preferredContentSizeCategory: UIContentSizeCategory(dynamicTypeSize))
+                return look.font.map { ($0.uiFont(compatibleWith: traits).lineHeight).rounded(.up) + 16 }
+            }
+        """,
+        else: ""
 
     """
     /// #{String.capitalize(article(c.name))}'s look on a `#{on}`:
     /// `#{on}(…).#{ctx.lower}#{pascal}(#{example(spec)})`. Disabled comes from
     /// `.disabled(_:)`; the app gives focused from its `@FocusState`.
     public struct #{type}: ViewModifier {
-    #{stored(args)}#{env(c, spec)}
+    #{stored(args)}#{env(c, spec)}#{size}
         public init(
     #{wrap(params(args), "        ", ",")}
         ) {
@@ -775,11 +806,12 @@ defmodule Prism.Generator.Swift.Components do
         public func body(content: Content) -> some View {
             #{let_looks(ctx, c, spec, %{}, "        ")}
             content#{hidden}
-                .#{ctx.lower}Text(looks.root)
+                .#{ctx.lower}Text(looks.root)#{line}
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .#{ctx.lower}Box(looks.root)
                 .animation(looks.root.transition?.animation, value: looks)
         }
+    #{least}
 
         /// A prompt in the placeholder's color of `looks`, for the `#{on}`'s `prompt:`.
         public static func prompt(

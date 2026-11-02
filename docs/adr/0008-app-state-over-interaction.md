@@ -37,7 +37,7 @@ The owner decided that an invalid field keeps its warning border while it has fo
 
 6. **A native target lays the app's state over these states.** A target that draws looks as layers puts the layer of a state the app sets above the `pressed`, `hovered` and `focused` layers it is compared with, for the properties both set. A node's own look for the state stays above the component's look for it. iOS then shows what the web shows.
 
-In Prism's design, only the text field has both an invalid look and a focus look. The text area and the select have a focus look but no invalid look. If they get one, this rule covers them with no further change.
+In Prism's design, the text field, the text area and the select's field have both an invalid look and a focus look (the text area and the select since Flux 10465599977), and this rule covers each of them with no further change.
 
 ## Alternatives
 

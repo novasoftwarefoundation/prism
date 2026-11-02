@@ -73,9 +73,10 @@ PrismSelect(icon: Image(systemName: "chevron.down")) {
 | Tag, message bar, step indicator | `PrismTag(tone:)`, `PrismMessageBar(tone:)`, `PrismStepIndicator(status:)` |
 
 - **Variants** are enums of the design's values (`PrismButtonVariant.primary`, `PrismButtonTone.danger`, `PrismSpinnerSize.size16`), with the design's defaults: a button's tone is `.accent`, a spinner's size `.size24`, a tag's tone `.accent`, a message bar's `.info`, a step indicator's `.incomplete`. A button's variant and a spinner's color have none.
-- **States SwiftUI knows come from SwiftUI:** pressed from the button, checked from the toggle, disabled from `.disabled(_:)`, hovered from the pointer. The app gives the others: `loading`, `invalid`, a text field's `focused` (from its `@FocusState`), a radio's `checked`.
+- **States SwiftUI knows come from SwiftUI:** pressed from the button, checked from the toggle, disabled from `.disabled(_:)`, hovered from the pointer. The app gives the others: `loading`, `invalid`, a text field's, a text area's and a select's `focused` (from its `@FocusState`), a radio's `checked`. A select is disabled with `.disabled(_:)` too.
 - **A button with an icon** gets `icon: .start` or `icon: .end` and a `Label` as its label; the icon goes at that side of the title, and the button takes its look with an icon.
 - **A spinner** keeps the `ProgressView`'s label for VoiceOver: `ProgressView("Uploading", value: 0.4)`.
+- **A text area's height** is the app's (`.frame(height: 128)`); it is at least one line of its text, so that line is never cut off.
 - **A select's list** is the system's menu. Its looks are in `PrismSelectLooks().listbox` and `.option`, for an app that draws its own list.
 - **Each component's looks** are data too: `PrismButtonLooks(.primary, pressed: true).root` is the `PrismLook` the style draws, for a view of the app's own. `.prismText(_:)`, `.prismBox(_:)` and `.prismLook(_:)` draw a look on any view.
 

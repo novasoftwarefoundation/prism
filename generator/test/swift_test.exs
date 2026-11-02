@@ -302,6 +302,16 @@ defmodule Prism.Generator.SwiftTest do
       refute picker =~ "public var button = KitLook()"
     end
 
+    test "a text area is at least one line of its text high; the app gives it its height" do
+      text_area = body(ExampleComponents.__schema__(), "Sources/Kit/TextArea.swift")
+      assert text_area =~ ".frame(minHeight: line(looks.root))"
+      # A UITextView's 8pt inset above and below its text is in the minimum.
+      assert text_area =~ "$0.uiFont(compatibleWith: traits).lineHeight).rounded(.up) + 16"
+
+      text_field = body(ExampleComponents.__schema__(), "Sources/Kit/TextField.swift")
+      refute text_field =~ "minHeight: line("
+    end
+
     test "a part that is a spinner is drawn with the variants the part picks" do
       button = body(ExampleComponents.__schema__(), "Sources/Kit/Button.swift")
       assert button =~ "KitSpinnerStyle(nil, size: .size16, look: looks.spinner)"
@@ -318,6 +328,12 @@ defmodule Prism.Generator.SwiftTest do
 
       text_field = body(ExampleComponents.__schema__(), "Sources/Kit/TextField.swift")
       assert text_field =~ "    public var focused: Bool\n    public var invalid: Bool\n"
+
+      # A part that is a form control, the select's field, is disabled with its view.
+      select = body(ExampleComponents.__schema__(), "Sources/Kit/Select.swift")
+      assert select =~ "@Environment(\\.isEnabled) private var isEnabled"
+      assert select =~ ~r/focused: focused,\s+disabled: !isEnabled,\s+invalid: invalid/
+      refute select =~ "public var disabled"
     end
   end
 

@@ -87,6 +87,12 @@ defmodule Prism.Generator.ExampleComponents do
   component :text_area do
     style min_height: 80
     state :focused, border: [color: :accent]
+    state :disabled, opacity: 0.5
+    state :invalid, border: [color: :alarm]
+
+    variant :inverse do
+      state :focused, border: [color: :paper]
+    end
   end
 
   component :field do
@@ -112,6 +118,8 @@ defmodule Prism.Generator.ExampleComponents do
   component :select do
     part :field, height: 40 do
       state :focused, border: [color: :accent]
+      state :disabled, opacity: 0.5
+      state :invalid, border: [color: :alarm]
     end
 
     part :icon, inset: [right: 8]
@@ -120,6 +128,12 @@ defmodule Prism.Generator.ExampleComponents do
     part :option, height: 32 do
       state :hovered, background: {:accent, 0.1}
       state :selected, foreground: :accent
+    end
+
+    variant :inverse do
+      part :field do
+        state :focused, border: [color: :paper]
+      end
     end
   end
 

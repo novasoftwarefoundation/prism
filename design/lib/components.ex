@@ -191,11 +191,17 @@ defmodule Prism.Design.Components do
     end
   end
 
+  # Its height is the app's, which sets it per use.
   component :text_area, web: [doc: "Text area"] do
-    style [min_height: 256, padding: [y: 8, x: 12]] ++
-            @field ++ [transition: @motion, placeholder: :grey2]
-
+    style [padding: [y: 8, x: 12]] ++ @field ++ [transition: @motion, placeholder: :grey2]
     state :focused, border: [color: :primary]
+    state :disabled, foreground: :grey3, background: :grey5
+    state :invalid, border: [color: :warning], web: [doc: "Text area with an invalid value"]
+
+    # On a dark background.
+    variant :inverse, web: [doc: "Text area on a dark background"] do
+      state :focused, border: [color: :tertiary]
+    end
   end
 
   # A label and an error message around a control.
@@ -227,6 +233,8 @@ defmodule Prism.Design.Components do
   component :select, web: [section: "Select"] do
     part :field, [height: 44, padding: [left: 12, right: 40]] ++ @field do
       state :focused, border: [color: :primary]
+      state :disabled, foreground: :grey3, background: :grey5
+      state :invalid, border: [color: :warning]
     end
 
     part :icon, inset: [right: 12]
@@ -248,6 +256,13 @@ defmodule Prism.Design.Components do
       transition: {100, :ease_in_out} do
       state :hovered, background: :grey5
       state :selected, foreground: :primary
+    end
+
+    # On a dark background.
+    variant :inverse, web: [doc: "Select on a dark background"] do
+      part :field do
+        state :focused, border: [color: :tertiary]
+      end
     end
   end
 
