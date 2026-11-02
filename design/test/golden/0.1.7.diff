@@ -582,7 +582,7 @@
  .prism-step-indicator {
    display: flex;
    align-items: center;
-@@ -595,19 +835,19 @@
+@@ -595,20 +835,53 @@
    font-variant-numeric: tabular-nums;
  }
  
@@ -605,3 +605,37 @@
  .prism-step-indicator--complete {
    background-color: #52ba12;
    color: #ffffff;
+ }
++
++/* ==========================================================================
++   Image pickers
++   ========================================================================== */
++
++.prism-image-picker {
++  display: flex;
++  flex-direction: row;
++  align-items: center;
++  gap: 24px;
++}
++
++.prism-image-picker__preview {
++  flex-shrink: 0;
++  overflow: hidden;
++  width: 120px;
++  height: 90px;
++  background-color: #eeeeee;
++  border: 2px solid #eeeeee;
++}
++
++.prism-image-picker__preview > img {
++  display: block;
++  width: 100%;
++  height: 100%;
++  object-fit: cover;
++}
++
++/* Round image picker, for a profile photo */
++.prism-image-picker--round .prism-image-picker__preview {
++  height: 120px;
++  border-radius: 50%;
++}

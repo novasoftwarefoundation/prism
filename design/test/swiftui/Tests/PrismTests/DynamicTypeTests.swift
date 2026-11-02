@@ -55,6 +55,12 @@ struct DynamicTypeTests {
             Sample(
                 name: "step indicator", text: "3", look: PrismStepIndicatorLooks().root,
                 view: AnyView(PrismStepIndicator { Text("3") })),
+            Sample(
+                name: "image picker", text: "Choose", look: PrismButtonLooks(.primary).root,
+                view: AnyView(
+                    PrismImagePicker { Color.gray } button: {
+                        Button("Choose") {}.buttonStyle(.prism(.primary))
+                    })),
         ]
     }
 
@@ -73,7 +79,7 @@ struct DynamicTypeTests {
 
     static let names = [
         "button", "text field", "text area", "field", "radio group", "radio", "select",
-        "spinner", "checkbox", "tag", "message bar", "step indicator",
+        "spinner", "checkbox", "tag", "message bar", "step indicator", "image picker",
     ]
 
     /// A text area with no height of the app's, where its parent offers it little: its
@@ -114,7 +120,10 @@ struct DynamicTypeTests {
         #expect(largest.width > 0 && largest.height > 0, "\(name) renders nothing")
         if sample.text.isEmpty { return }
 
-        #expect(largest.height > large.height, "\(name) doesn't grow with its text")
+        // An image picker is as high as its preview until its button is taller.
+        if name != "image picker" {
+            #expect(largest.height > large.height, "\(name) doesn't grow with its text")
+        }
 
         if let look = sample.look {
             // A text field keeps its text on one line and scrolls it.
