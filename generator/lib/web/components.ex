@@ -109,6 +109,16 @@ defmodule Prism.Generator.Web.Components do
   its input's, `:focus-within` and `:is(:disabled, :has(> :disabled))`, which
   hold on a plain `<input>` too, with the same weight.
 
+  ## The text area's rich text
+
+  With rich text (a `:rich_text` variant), a text area may be a wrapper
+  (`--rich-text`) around the app's rich-text editor, its toolbar and its
+  editing surface (`__editor`, the class the app gives it), which has no frame
+  of its own. The text area's focus is then `:focus-within`, and it is
+  disabled while its surface is, `:is(:disabled, :has(:where(.<…>__editor):disabled))`.
+  Both hold on a plain `<textarea>` too, at the weight of `:focus` and
+  `:disabled`.
+
   ## The spinner
 
   A spinner is an image used as a mask over the spinner's text color
@@ -441,6 +451,7 @@ defmodule Prism.Generator.Web.Components do
       ),
       placeholder(n, if(prefix?(c), do: [".#{Classes.part(prefix(), c, :input)}"], else: [])),
       prefixed(c),
+      rich_text(c),
       own(n, c, pseudo(c)),
       variants(c, fn _ -> true end, pseudo(c)),
       flags(c, pseudo(c))
@@ -1237,6 +1248,32 @@ defmodule Prism.Generator.Web.Components do
   defp prefix?(%{name: :text_field, parts: parts}), do: Enum.any?(parts, &(&1.name == :prefix))
   defp prefix?(_c), do: false
 
+  # A text area with rich text: the element is a wrapper (`--rich-text`) with the text
+  # area's look, around the app's rich-text editor, its toolbar and its editing
+  # surface. The surface (`__editor`, the class the app gives it) has no frame of its
+  # own: the wrapper's border, padding and focus are its frame.
+  defp rich_text(c) do
+    if rich_text?(c) do
+      [
+        rule(".#{Classes.modifier(prefix(), c.name, :rich_text)}", ["box-sizing: border-box"]),
+        rule(".#{Classes.part(prefix(), c, :editor)}", [
+          "border: 0",
+          "border-radius: 0",
+          "padding: 0",
+          "background-color: transparent",
+          "outline: none"
+        ])
+      ]
+    else
+      []
+    end
+  end
+
+  defp rich_text?(%{name: :text_area, variants: variants}),
+    do: Enum.any?(variants, &(&1.name == :rich_text))
+
+  defp rich_text?(_c), do: false
+
   # The check mark's color in its SVG: white and black by name.
   defp check_color(path) do
     case path |> get(:foreground) |> resolve_color() do
@@ -1606,13 +1643,25 @@ defmodule Prism.Generator.Web.Components do
   # a prefix may be a wrapper around its input: it is focused while its input is, and
   # disabled while its input is.
   defp pseudo(c) do
-    if prefix?(c),
-      do:
+    cond do
+      prefix?(c) ->
         Map.merge(Classes.pseudo_classes(c.name, nil), %{
           focused: ":focus-within",
           disabled: ":is(:disabled, :has(> :disabled))"
-        }),
-      else: Classes.pseudo_classes(c.name, nil)
+        })
+
+      # Its editing surface may sit deeper in the app's editor than a direct child. The
+      # surface's class is in :where(), so the rule weighs what :disabled does.
+      rich_text?(c) ->
+        Map.merge(Classes.pseudo_classes(c.name, nil), %{
+          focused: ":focus-within",
+          disabled:
+            ":is(:disabled, :has(:where(.#{Classes.part(prefix(), c, :editor)}):disabled))"
+        })
+
+      true ->
+        Classes.pseudo_classes(c.name, nil)
+    end
   end
 
   defp node!(path), do: path |> nodes!() |> List.last() |> elem(1)

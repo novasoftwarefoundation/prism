@@ -262,6 +262,44 @@ describe("states", () => {
     );
   });
 
+  test("with rich text, a text area is a wrapper around the app's editor", () => {
+    assert.equal(
+      html(
+        h(
+          Kit.TextArea,
+          { editor: "rich_text", invalid: true, id: "notes", className: "w-1/2" },
+          h("div", { className: "kit-text-area__editor" }, "EDITOR"),
+        ),
+      ),
+      norm(
+        '<div id="notes" class="kit-text-area kit-text-area--rich-text kit-text-area--invalid w-1/2">' +
+          '<div class="kit-text-area__editor">EDITOR</div></div>',
+      ),
+    );
+    // Without it, it is the text area.
+    assert.equal(
+      html(h(Kit.TextArea, { disabled: true, defaultValue: "x" })),
+      norm('<textarea class="kit-text-area" disabled="">x</textarea>'),
+    );
+  });
+
+  test("a rich-text text area refuses disabled and the textarea's props, a plain one children", () => {
+    assert.throws(
+      () => html(h(Kit.TextArea, { editor: "rich_text", disabled: true }, "E")),
+      /^Error: disabled: a text area with editor="rich_text" is disabled by its editor's surface; set disabled on the app's editor \(its kit-text-area__editor element\) instead$/,
+    );
+    for (const key of ["value", "defaultValue", "rows", "placeholder", "maxLength", "name"]) {
+      assert.throws(
+        () => html(h(Kit.TextArea, { editor: "rich_text", [key]: key === "rows" ? 4 : "x" }, "E")),
+        new RegExp(`^Error: ${key}: a text area with editor="rich_text" takes the wrapper's props only; give ${key} to the app's editor`),
+      );
+    }
+    assert.throws(
+      () => html(h(Kit.TextArea, null, "CHILD")),
+      /^Error: children: a text area without editor="rich_text" has no content; give its value with value or defaultValue, or set editor="rich_text"/,
+    );
+  });
+
   test("a state the app doesn't set adds nothing, and leaves a control uncontrolled", () => {
     assert.equal(
       html(h(Kit.Checkbox, { defaultChecked: true })),

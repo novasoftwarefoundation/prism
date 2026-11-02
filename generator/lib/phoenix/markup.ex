@@ -5,6 +5,42 @@ if Code.ensure_loaded?(Phoenix.Component) do
     # assigns: the element with its classes, then its children in the design's order.
     use Phoenix.Component
 
+    # While an axis has the variant the component wraps (a text area's rich text), the
+    # element is a wrapper with the component's classes around the app's content, its
+    # editor, whose own states are the editor's: the wrapper gets no `disabled`.
+    def render(%{wrap: %{variant: variant, axis: axis} = wrap} = spec, assigns) do
+      a = Enum.find(spec.axes, &(&1.name == axis))
+
+      if a.classes[assigns[axis]] == a.classes[variant] do
+        axis!(a, assigns[axis])
+        refuse!(spec, wrap, assigns)
+        attrs = root_attrs(spec, assigns, [])
+
+        assigns =
+          assign(assigns,
+            prism_wrap: wrap.element,
+            prism_attrs: attrs,
+            prism_children: [{:slot, assigns[:inner_block] || []}]
+          )
+
+        ~H"""
+        <.dynamic_tag tag_name={@prism_wrap} {@prism_attrs}><.child
+            :for={child <- @prism_children}
+            child={child}
+          /></.dynamic_tag>
+        """
+      else
+        if Map.get(assigns, :inner_block, []) != [],
+          do:
+            raise(
+              ArgumentError,
+              "inner_block: a #{words(spec.name)} without #{axis}={#{inspect(variant)}} has no content; give its value with value=, or set #{axis}={#{inspect(variant)}} for the app's editor"
+            )
+
+        render(%{spec | wrap: nil}, assigns)
+      end
+    end
+
     # While the app gives the part the component wraps (a text field's prefix), the
     # element is a wrapper with the component's classes around the part and the form
     # control, which takes the app's attributes and the element's own states.
@@ -67,6 +103,31 @@ if Code.ensure_loaded?(Phoenix.Component) do
         /></.dynamic_tag>
       """
     end
+
+    # The wrapper takes its own attributes only: the element's own states and
+    # attributes (its value, those of typing) are the app's editor's.
+    defp refuse!(spec, wrap, assigns) do
+      editor = "the app's editor (its #{wrap.editor_class} element)"
+      variant = "#{wrap.axis}={#{inspect(wrap.variant)}}"
+
+      for {:native, nil, name} <- effects(spec, assigns) do
+        raise ArgumentError,
+              "#{name}: a #{words(spec.name)} with #{variant} is #{name} by its editor's surface; set #{name} on #{editor} instead"
+      end
+
+      given =
+        for key <- wrap.refuses,
+            (key == "value" and assigns[:value] != nil) or
+              Map.has_key?(assigns.rest, String.to_atom(key)),
+            do: key
+
+      for key <- Enum.take(given, 1) do
+        raise ArgumentError,
+              "#{key}: a #{words(spec.name)} with #{variant} takes the wrapper's attributes only; give #{key} to #{editor}"
+      end
+    end
+
+    defp words(name), do: name |> Atom.to_string() |> String.replace("_", " ")
 
     defp as!(tag) do
       if tag in Prism.Generator.Web.Elements.as(),

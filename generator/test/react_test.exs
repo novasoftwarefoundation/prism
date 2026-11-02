@@ -55,6 +55,27 @@ defmodule Prism.Generator.ReactTest do
     end
   end
 
+  # A union on the axis of the wrap, a named type per member, and the ref of each
+  # member's element: the textarea's, or with rich text the wrapper <div>'s.
+  test "a text area's props are a member per editor, each with its element's ref" do
+    text_area = body(ExampleComponents.__schema__(), "src/TextArea.tsx")
+
+    assert text_area =~
+             "export type PlainTextAreaProps = TextAreaOwnProps & {\n  editor?: \"plain\";\n"
+
+    assert text_area =~
+             "export type RichTextAreaProps = TextAreaOwnProps & {\n  editor: \"rich_text\";\n"
+
+    assert text_area =~ "export type TextAreaProps = PlainTextAreaProps | RichTextAreaProps;\n"
+
+    assert text_area =~
+             "}) as ForwardRefExoticComponent<\n  | (PlainTextAreaProps & RefAttributes<HTMLTextAreaElement>)\n" <>
+               "  | (RichTextAreaProps & RefAttributes<HTMLDivElement>)\n>;\n"
+
+    assert text_area =~ "      <div\n        ref={ref as Ref<HTMLDivElement>}\n"
+    assert text_area =~ "    <textarea\n      ref={ref as Ref<HTMLTextAreaElement>}\n"
+  end
+
   test "the class names are literals from the shared derivation" do
     button = body(ExampleComponents.__schema__(), "src/Button.tsx")
 

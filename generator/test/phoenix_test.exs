@@ -320,6 +320,69 @@ defmodule Prism.Generator.PhoenixTest do
                )
     end
 
+    test "with rich text, a text area is a wrapper around the app's editor" do
+      assigns = %{}
+
+      rendered = ~H"""
+      <Kit.text_area editor={:rich_text} invalid id="notes" class="w-1/2"><trix-editor class="kit-text-area__editor"></trix-editor></Kit.text_area>
+      """
+
+      assert html(rendered) ==
+               norm(
+                 ~s(<div id="notes" class="kit-text-area kit-text-area--rich-text kit-text-area--invalid w-1/2">) <>
+                   ~s(<trix-editor class="kit-text-area__editor"></trix-editor></div>)
+               )
+
+      # Without it, it is the text area.
+      assert html(~H"<Kit.text_area disabled value='x' />") ==
+               norm(~s(<textarea disabled class="kit-text-area">x</textarea>))
+    end
+
+    # The wrapper's states and attributes are its own: the textarea's are the editor's.
+    test "a rich-text text area refuses disabled and the textarea's attributes, a plain one content" do
+      assigns = %{}
+
+      assert_raise ArgumentError,
+                   ~r/^disabled: a text area with editor=\{:rich_text\} is disabled by its editor's surface; set disabled on the app's editor \(its kit-text-area__editor element\) instead$/,
+                   fn ->
+                     html(~H"<Kit.text_area editor={:rich_text} disabled>E</Kit.text_area>")
+                   end
+
+      for attr <- ["value='x'", "rows='4'", "placeholder='p'", "name='notes'"] do
+        key = attr |> String.split("=") |> hd()
+
+        assert_raise ArgumentError,
+                     ~r/^#{key}: a text area with editor=\{:rich_text\} takes the wrapper's attributes only; give #{key} to the app's editor/,
+                     fn ->
+                       assigns = %{attr: attr}
+
+                       case key do
+                         "value" ->
+                           html(
+                             ~H"<Kit.text_area editor={:rich_text} value='x'>E</Kit.text_area>"
+                           )
+
+                         "rows" ->
+                           html(~H"<Kit.text_area editor={:rich_text} rows='4'>E</Kit.text_area>")
+
+                         "placeholder" ->
+                           html(
+                             ~H"<Kit.text_area editor={:rich_text} placeholder='p'>E</Kit.text_area>"
+                           )
+
+                         "name" ->
+                           html(
+                             ~H"<Kit.text_area editor={:rich_text} name='notes'>E</Kit.text_area>"
+                           )
+                       end
+                     end
+      end
+
+      assert_raise ArgumentError,
+                   ~r/^inner_block: a text area without editor=\{:rich_text\} has no content; give its value with value=, or set editor=\{:rich_text\}/,
+                   fn -> html(~H"<Kit.text_area>CHILD</Kit.text_area>") end
+    end
+
     test "a select's option takes selected, which adds its class" do
       assigns = %{}
 

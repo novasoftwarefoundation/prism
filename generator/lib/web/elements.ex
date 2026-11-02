@@ -15,7 +15,7 @@ defmodule Prism.Generator.Web.Elements do
   |---|---|---|
   | `button` | the app's choice: `button` (the default), `a`, `span` or `div` | `label` holds the content; `icon`; the spinner while loading |
   | `text_field` | `<input>`; with a `prefix`, a `<div>` (`--with-prefix`) | none; with a `prefix`, the prefix (a `<span>`) and the input (`__input`), which gets the app's attributes |
-  | `text_area` | `<textarea>` | its value |
+  | `text_area` | `<textarea>`; with rich text, a `<div>` (`--rich-text`) | its value; with rich text, the app's editor, whose surface takes `__editor` |
   | `field` | `<div>` | `label` (a `<label>`), the content (the control), `error_message` (a `<p>`) |
   | `radio_group` | `<div role="radiogroup">` | the content (the radios) |
   | `radio` | `<label>` | its `control` (an `<input type="radio">`, which gets the app's attributes), `label` holds the content |
@@ -75,6 +75,14 @@ defmodule Prism.Generator.Web.Elements do
     and the look with the part, and `children` are the part and, last, the
     form control (`%{as: :control, …}`), which gets the app's attributes and
     the element's own states (`disabled`). The part is not in `children`.
+    Or `%{variant, axis, element, children, refuses, editor_class}` for a
+    component whose element is a wrapper while `axis` has `variant` (a text
+    area's rich text): then the element is `element`, with the component's
+    classes, and `children` are the app's content (`%{as: :inner_block}`), its
+    rich-text editor, whose surface takes `editor_class`. The element's own
+    states (`disabled`) and the attributes in `refuses` (its value, those of
+    typing) are the editor's: the components refuse them on the wrapper, and
+    refuse content without the variant.
   - `withs`: `%{part => class}`, the class of the look with each part, added
     while that part is there; a wrapped part has one too.
   - `flags`: `[%{name, default, class, only}]`, the looks the app turns on
@@ -122,7 +130,19 @@ defmodule Prism.Generator.Web.Elements do
       content: nil,
       wrap: %{part: :prefix, element: "div", control: {:input, "input"}}
     },
-    text_area: %{element: "textarea", parts: [], content: :value},
+    # With rich text, a wrapper holds the app's rich-text editor. It refuses the
+    # textarea's own attributes: its value and those of typing, which are the editor's.
+    text_area: %{
+      element: "textarea",
+      parts: [],
+      content: :value,
+      wrap: %{
+        variant: :rich_text,
+        element: "div",
+        refuses: ~w(value rows cols wrap maxlength minlength placeholder readonly required name
+                    form autocomplete)
+      }
+    },
     field: %{
       element: "div",
       parts: [label: {:slot, "label"}, error_message: {:slot, "p"}],
@@ -218,7 +238,9 @@ defmodule Prism.Generator.Web.Elements do
 
     parts = Enum.map(c.parts, &part(c, kind, &1, prefix, components))
     wrap = wrap(c, kind, parts, prefix)
-    unwrapped = if wrap, do: Enum.reject(parts, &(&1[:name] == wrap.part)), else: parts
+
+    unwrapped =
+      if wrap[:part], do: Enum.reject(parts, &(&1[:name] == wrap.part)), else: parts
 
     %{
       name: c.name,
@@ -231,7 +253,7 @@ defmodule Prism.Generator.Web.Elements do
       children: children(unwrapped, kind, c),
       wrap: wrap,
       withs:
-        if(wrap,
+        if(wrap[:part],
           do:
             Map.put(
               withs(c, prefix),
@@ -255,6 +277,26 @@ defmodule Prism.Generator.Web.Elements do
   # The element a component becomes while it has the part its kind wraps (a text
   # field's prefix): a wrapper with the component's classes, around the part and the
   # form control, which takes the app's attributes and the element's own states.
+  #
+  # Or while one of its axes has the variant its kind wraps (a text area's rich text):
+  # a wrapper with the component's classes around the app's content, its editor.
+  defp wrap(c, %{wrap: %{variant: name, element: element} = w}, _parts, prefix) do
+    case Enum.find(c.variants, &(&1.name == name)) do
+      nil ->
+        nil
+
+      v ->
+        %{
+          variant: name,
+          axis: v.axis,
+          element: element,
+          children: [%{as: :inner_block}],
+          refuses: w.refuses,
+          editor_class: Classes.part(prefix, c, :editor)
+        }
+    end
+  end
+
   defp wrap(c, kind, parts, prefix) do
     with %{part: name, element: element, control: {control, tag}} <- kind[:wrap],
          %{} = part <- Enum.find(parts, &(&1[:name] == name)) do

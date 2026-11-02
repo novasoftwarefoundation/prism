@@ -150,6 +150,7 @@ defmodule Prism.Design.PhoenixTest do
       <UI.text_field variant={:inverse} invalid disabled />
       <UI.text_field variant={:inverse} invalid disabled><:prefix>€</:prefix></UI.text_field>
       <UI.text_area variant={:inverse} invalid disabled value="x" />
+      <UI.text_area variant={:inverse} editor={:rich_text} invalid><div class="prism-text-area__editor">x</div></UI.text_area>
       <UI.field variant={:inverse} invalid><:label>x</:label>x<:error_message>x</:error_message></UI.field>
       <UI.radio_group><UI.radio checked disabled>x</UI.radio></UI.radio_group>
       <UI.select>x<:icon>v</:icon><:option selected>x</:option></UI.select>

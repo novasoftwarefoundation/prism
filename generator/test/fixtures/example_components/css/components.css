@@ -161,23 +161,39 @@
   resize: vertical;
 }
 
-.kit-text-area:focus {
+.kit-text-area--rich-text {
+  box-sizing: border-box;
+}
+
+.kit-text-area__editor {
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  background-color: transparent;
+  outline: none;
+}
+
+.kit-text-area:focus-within {
   border-color: #1a73e8;
 }
 
-.kit-text-area:disabled {
+.kit-text-area:is(:disabled, :has(:where(.kit-text-area__editor):disabled)) {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
 .kit-text-area--invalid,
-.kit-text-area.kit-text-area--invalid:focus,
-.kit-text-area--inverse.kit-text-area--invalid:focus {
+.kit-text-area.kit-text-area--invalid:focus-within,
+.kit-text-area--inverse.kit-text-area--invalid:focus-within {
   border-color: #c62828;
 }
 
-.kit-text-area--inverse:focus {
+.kit-text-area--inverse:focus-within {
   border-color: #fdfdfd;
+}
+
+.kit-text-area--rich-text {
+  padding: 12px;
 }
 
 .kit-field__label {

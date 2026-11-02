@@ -6,12 +6,18 @@ public enum PrismTextAreaVariant: Sendable, Hashable, CaseIterable {
     case inverse
 }
 
+/// The editor of a text area.
+public enum PrismTextAreaEditor: Sendable, Hashable, CaseIterable {
+    case plain, richText
+}
+
 /// The look of a text area and of each of its parts in one choice of its
 /// variants, flags, parts and states, laid over each other as on the web.
 public struct PrismTextAreaLooks: Sendable, Hashable {
     public var root = PrismLook()
     public init(
         _ variant: PrismTextAreaVariant? = nil,
+        editor: PrismTextAreaEditor = .plain,
         focused: Bool = false,
         disabled: Bool = false,
         invalid: Bool = false
@@ -25,6 +31,9 @@ public struct PrismTextAreaLooks: Sendable, Hashable {
             transition: PrismMotion(duration: 0.15, easing: .easeInOut)))
         if invalid {
             root.apply(PrismLook(borderColor: Prism.Colors.warning))
+        }
+        if editor == .richText {
+            root.apply(PrismLook(padding: .init(top: 16, leading: 16, bottom: 16, trailing: 16)))
         }
         if focused {
             root.apply(PrismLook(borderColor: Prism.Colors.primary))
@@ -49,6 +58,7 @@ public struct PrismTextAreaLooks: Sendable, Hashable {
 /// `.disabled(_:)`; the app gives focused from its `@FocusState`.
 public struct PrismTextAreaModifier: ViewModifier {
     public var variant: PrismTextAreaVariant?
+    public var editor: PrismTextAreaEditor
     public var focused: Bool
     public var invalid: Bool
     @Environment(\.isEnabled) private var isEnabled
@@ -56,17 +66,19 @@ public struct PrismTextAreaModifier: ViewModifier {
 
     public init(
         _ variant: PrismTextAreaVariant? = nil,
+        editor: PrismTextAreaEditor = .plain,
         focused: Bool = false,
         invalid: Bool = false
     ) {
         self.variant = variant
+        self.editor = editor
         self.focused = focused
         self.invalid = invalid
     }
 
     public func body(content: Content) -> some View {
         let looks = PrismTextAreaLooks(
-            variant, focused: focused, disabled: !isEnabled, invalid: invalid)
+            variant, editor: editor, focused: focused, disabled: !isEnabled, invalid: invalid)
         content
             .scrollContentBackground(.hidden)
             .frame(minHeight: line(looks.root))
@@ -96,9 +108,10 @@ extension View {
     /// A text area's look.
     public func prismTextArea(
         _ variant: PrismTextAreaVariant? = nil,
+        editor: PrismTextAreaEditor = .plain,
         focused: Bool = false,
         invalid: Bool = false
     ) -> some View {
-        modifier(PrismTextAreaModifier(variant, focused: focused, invalid: invalid))
+        modifier(PrismTextAreaModifier(variant, editor: editor, focused: focused, invalid: invalid))
     }
 }

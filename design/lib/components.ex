@@ -211,6 +211,12 @@ defmodule Prism.Design.Components do
     variant :inverse, web: [doc: "Text area on a dark background"] do
       state :focused, border: [color: :tertiary]
     end
+
+    # The editor in it: the plain text area (no class), or the app's rich-text editor,
+    # whose toolbar and content styles are the editor's own. Combines with inverse.
+    variants :editor, default: :plain do
+      variant :rich_text, padding: [y: 16, x: 16], web: [doc: "Text area with rich text"]
+    end
   end
 
   # A label and an error message around a control. Its label takes the control's focus

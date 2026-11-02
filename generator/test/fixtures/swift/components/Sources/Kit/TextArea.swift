@@ -6,12 +6,18 @@ public enum KitTextAreaVariant: Sendable, Hashable, CaseIterable {
     case inverse
 }
 
+/// The editor of a text area.
+public enum KitTextAreaEditor: Sendable, Hashable, CaseIterable {
+    case plain, richText
+}
+
 /// The look of a text area and of each of its parts in one choice of its
 /// variants, flags, parts and states, laid over each other as on the web.
 public struct KitTextAreaLooks: Sendable, Hashable {
     public var root = KitLook()
     public init(
         _ variant: KitTextAreaVariant? = nil,
+        editor: KitTextAreaEditor = .plain,
         focused: Bool = false,
         disabled: Bool = false,
         invalid: Bool = false
@@ -19,6 +25,9 @@ public struct KitTextAreaLooks: Sendable, Hashable {
         root.apply(KitLook(minHeight: 80))
         if invalid {
             root.apply(KitLook(borderColor: Kit.Colors.alarm))
+        }
+        if editor == .richText {
+            root.apply(KitLook(padding: .init(top: 12, leading: 12, bottom: 12, trailing: 12)))
         }
         if focused {
             root.apply(KitLook(borderColor: Kit.Colors.accent))
@@ -43,6 +52,7 @@ public struct KitTextAreaLooks: Sendable, Hashable {
 /// `.disabled(_:)`; the app gives focused from its `@FocusState`.
 public struct KitTextAreaModifier: ViewModifier {
     public var variant: KitTextAreaVariant?
+    public var editor: KitTextAreaEditor
     public var focused: Bool
     public var invalid: Bool
     @Environment(\.isEnabled) private var isEnabled
@@ -50,17 +60,19 @@ public struct KitTextAreaModifier: ViewModifier {
 
     public init(
         _ variant: KitTextAreaVariant? = nil,
+        editor: KitTextAreaEditor = .plain,
         focused: Bool = false,
         invalid: Bool = false
     ) {
         self.variant = variant
+        self.editor = editor
         self.focused = focused
         self.invalid = invalid
     }
 
     public func body(content: Content) -> some View {
         let looks = KitTextAreaLooks(
-            variant, focused: focused, disabled: !isEnabled, invalid: invalid)
+            variant, editor: editor, focused: focused, disabled: !isEnabled, invalid: invalid)
         content
             .scrollContentBackground(.hidden)
             .frame(minHeight: line(looks.root))
@@ -90,9 +102,10 @@ extension View {
     /// A text area's look.
     public func kitTextArea(
         _ variant: KitTextAreaVariant? = nil,
+        editor: KitTextAreaEditor = .plain,
         focused: Bool = false,
         invalid: Bool = false
     ) -> some View {
-        modifier(KitTextAreaModifier(variant, focused: focused, invalid: invalid))
+        modifier(KitTextAreaModifier(variant, editor: editor, focused: focused, invalid: invalid))
     }
 }

@@ -169,7 +169,17 @@ defmodule Prism.Generator.React do
           [{"children", "ReactNode", "The content.", nil}]
 
         nil ->
-          []
+          case spec.wrap do
+            %{variant: variant, axis: axis} ->
+              [
+                {"children", "ReactNode",
+                 "The app's rich-text editor, while `#{camel(axis)}` is #{js_value(variant)}.",
+                 nil}
+              ]
+
+            _ ->
+              []
+          end
       end
 
     axes ++
@@ -288,7 +298,10 @@ defmodule Prism.Generator.React do
 
     as? = match?({:as, _}, spec.element)
     lists = for %{as: :list} = l <- spec.children, do: l
-    no_content = not Enum.any?(spec.children, &(&1.as in [:content, :inner_block]))
+
+    no_content =
+      not Enum.any?(spec.children, &(&1.as in [:content, :inner_block])) and
+        not match?(%{variant: _}, spec.wrap)
 
     body =
       IO.iodata_to_binary([
@@ -302,7 +315,8 @@ defmodule Prism.Generator.React do
       ])
 
     types =
-      for type <- ~w(ComponentPropsWithoutRef ReactNode Ref),
+      for type <-
+            ~w(ComponentPropsWithoutRef ForwardRefExoticComponent ReactNode Ref RefAttributes),
           body =~ ~r/\b#{type}\b/,
           do: "type #{type}"
 
@@ -404,9 +418,40 @@ defmodule Prism.Generator.React do
         ]
 
       _ ->
-        head = "export type #{name}Props = #{own} &"
-        omitted = "Omit<ComponentPropsWithoutRef<#{js_str(rest_tag)}>, #{omit}>;"
-        "\n" <> wrap(head, omitted) <> "\n"
+        case spec.wrap do
+          # One member per element: the element's props with the axis's other values,
+          # the wrapper's with the variant, refusing the element's own.
+          %{variant: variant, axis: axis, element: element} = w ->
+            a = Enum.find(spec.axes, &(&1.name == axis))
+            others = Enum.reject(a.values, &(&1 == variant))
+            optional = if a.default in others, do: "?", else: ""
+            natives = for {n, {:native, nil, _}} <- effects(spec), uniq: true, do: camel(n)
+            refused = Enum.map(natives ++ refused_props(w), &"#{&1}?: never")
+
+            {plain, wrapped} = member_names(spec, w)
+            on = "`#{camel(axis)}` #{js_value(variant)}"
+
+            [
+              "\n/** The #{words(spec.name)}'s props without #{on}: the `<#{rest_tag}>`'s. */\n",
+              "export type #{plain} = #{own} & {\n",
+              "  #{camel(axis)}#{optional}: #{Enum.map_join(others, " | ", &js_value/1)};\n",
+              "  children?: never;\n",
+              "} & Omit<ComponentPropsWithoutRef<#{js_str(rest_tag)}>, keyof #{own}>;\n",
+              "\n/** The #{words(spec.name)}'s props with #{on}: the wrapper `<#{element}>`'s. */\n",
+              "export type #{wrapped} = #{own} & {\n",
+              "  #{camel(axis)}: #{js_value(variant)};\n",
+              Enum.map(refused, &"  #{&1};\n"),
+              "} & Omit<ComponentPropsWithoutRef<#{js_str(element)}>, keyof #{own}>;\n",
+              "\n/**\n * The #{words(spec.name)}'s props, a union on `#{camel(axis)}`. A wrapper of the component takes\n",
+              " * one member and `Omit`s or `Pick`s from it, not from the union.\n */\n",
+              "export type #{name}Props = #{plain} | #{wrapped};\n"
+            ]
+
+          _ ->
+            head = "export type #{name}Props = #{own} &"
+            omitted = "Omit<ComponentPropsWithoutRef<#{js_str(rest_tag)}>, #{omit}>;"
+            "\n" <> wrap(head, omitted) <> "\n"
+        end
     end
   end
 
@@ -422,6 +467,21 @@ defmodule Prism.Generator.React do
       case spec.element do
         {:as, _} when spec.rest == :root -> "HTMLElement"
         _ -> Map.fetch!(@dom, rest_tag)
+      end
+
+    # Around a wrap on an axis, the ref is each member's element's: the wrapper's
+    # with the variant.
+    {ref_type, typed} =
+      case spec.wrap do
+        %{variant: _, element: element} = w ->
+          {plain, wrapped} = member_names(spec, w)
+          div = Map.fetch!(@dom, element)
+
+          {"#{ref_type} | #{div}",
+           ") as ForwardRefExoticComponent<\n  | (#{plain} & RefAttributes<#{ref_type}>)\n  | (#{wrapped} & RefAttributes<#{div}>)\n>;\n"}
+
+        _ ->
+          {ref_type, ");\n"}
       end
 
     bindings =
@@ -480,6 +540,50 @@ defmodule Prism.Generator.React do
         nil ->
           []
 
+        # While an axis has the variant the component wraps (a text area's rich text),
+        # a wrapper with the component's classes holds the app's editor.
+        %{variant: variant, axis: axis} = wrap ->
+          classes = root_classes(spec) ++ ["className"]
+          on = "#{camel(axis)}=#{js_value(variant)}"
+          editor = "the app's editor (its #{wrap.editor_class} element)"
+
+          tree =
+            {:el, wrap.element,
+             [
+               "ref={ref as Ref<#{Map.fetch!(@dom, wrap.element)}>}",
+               ~s|{...(rest as ComponentPropsWithoutRef<#{js_str(wrap.element)}>)}|,
+               class_attr(classes)
+             ], [{:expr, "{children}"}]}
+
+          # The element's own states and attributes are the app's editor's.
+          natives =
+            for {name, {:native, nil, _}} <- effects(spec) do
+              js_throw_if(
+                camel(name),
+                "#{camel(name)}: a #{words(spec.name)} with #{on} is #{name} by its editor's surface; set #{camel(name)} on #{editor} instead"
+              )
+            end
+
+          [
+            "  if (#{camel(axis)} === #{js_value(variant)}) {\n",
+            natives,
+            "    const refused = [\n",
+            Enum.map(refused_props(wrap), &"      #{js_str(&1)},\n"),
+            "    ].find((key) => (rest as Record<string, unknown>)[key] !== undefined);\n",
+            js_throw_if(
+              "refused",
+              "${refused}: a #{words(spec.name)} with #{on} takes the wrapper's props only; give ${refused} to #{editor}"
+            ),
+            "    return (\n",
+            render(tree, 6),
+            "\n    );\n  }\n",
+            js_throw_if(
+              "present(children)",
+              "children: a #{words(spec.name)} without #{on} has no content; give its value with value or defaultValue, or set #{on} for the app's editor",
+              2
+            )
+          ]
+
         wrap ->
           [
             "  if (present(#{camel(wrap.part)})) {\n    return (\n",
@@ -490,7 +594,7 @@ defmodule Prism.Generator.React do
 
     [
       "\n/** The design's `#{spec.name}` component. */\n",
-      "export const #{name} = forwardRef<#{ref_type}, #{name}Props>(function #{name}(\n",
+      forward_ref(name, ref_type),
       pattern,
       ",\n  ref,\n) {\n",
       guard,
@@ -500,8 +604,84 @@ defmodule Prism.Generator.React do
       wrapped,
       "  return (\n",
       render(root, 4),
-      "\n  );\n});\n"
+      "\n  );\n}",
+      typed
     ]
+  end
+
+  # `if (test) { throw new Error(`message`); }`, at `indent` (4 by default).
+  # A long message is template literals joined by `+`, each within the width.
+  defp js_throw_if(test, message, indent \\ 4) do
+    pad = String.duplicate(" ", indent)
+    width = @width - indent - 10
+
+    chunks =
+      message
+      |> String.split(" ")
+      |> Enum.reduce([], fn
+        word, [line | rest] when byte_size(line) + byte_size(word) + 1 <= width ->
+          [line <> " " <> word | rest]
+
+        word, lines ->
+          [word | lines]
+      end)
+      |> Enum.reverse()
+
+    literals =
+      chunks
+      |> Enum.with_index()
+      |> Enum.map_join(" +\n#{pad}      ", fn {chunk, i} ->
+        if i < length(chunks) - 1, do: "`#{chunk} `", else: "`#{chunk}`"
+      end)
+
+    "#{pad}if (#{test}) {\n#{pad}  throw new Error(\n#{pad}    #{literals},\n#{pad}  );\n#{pad}}\n"
+  end
+
+  # `export const X = forwardRef<Ref, XProps>(function X(`, its types on lines of their
+  # own past the width.
+  defp forward_ref(name, ref_type) do
+    line = "export const #{name} = forwardRef<#{ref_type}, #{name}Props>(function #{name}("
+
+    if String.length(line) <= @width,
+      do: line <> "\n",
+      else:
+        "export const #{name} = forwardRef<\n  #{ref_type},\n  #{name}Props\n>(function #{name}(\n"
+  end
+
+  # The names of the props' members around a wrap on an axis: the axis's other values,
+  # named by its default, and the wrapped variant (`PlainTextAreaProps`,
+  # `RichTextAreaProps`). A variant's name and the component's share a word once.
+  defp member_names(spec, %{variant: variant, axis: axis}) do
+    a = Enum.find(spec.axes, &(&1.name == axis))
+    other = if a.default != variant, do: a.default, else: hd(a.values -- [variant])
+    {merged(pascal(other), pascal(spec.name)), merged(pascal(variant), pascal(spec.name))}
+  end
+
+  defp merged(head, name) do
+    words = &(Regex.scan(~r/[A-Z][a-z0-9]*/, &1) |> List.flatten())
+    {hs, ns} = {words.(head), words.(name)}
+
+    shared =
+      Enum.find(min(length(hs), length(ns))..1//-1, 0, fn n ->
+        Enum.take(hs, -n) == Enum.take(ns, n)
+      end)
+
+    Enum.join(hs) <> Enum.join(Enum.drop(ns, shared)) <> "Props"
+  end
+
+  # The React names of the attributes a wrapper refuses, its element's value first.
+  defp refused_props(wrap) do
+    names = %{
+      "maxlength" => "maxLength",
+      "minlength" => "minLength",
+      "readonly" => "readOnly",
+      "autocomplete" => "autoComplete"
+    }
+
+    Enum.flat_map(wrap.refuses, fn
+      "value" -> ["value", "defaultValue"]
+      name -> [Map.get(names, name, name)]
+    end)
   end
 
   defp axis_check(a) do
@@ -650,6 +830,14 @@ defmodule Prism.Generator.React do
         {:as, default} ->
           {"ref={ref as Ref<#{Map.fetch!(@dom, default)}>}",
            "{...(rest as ComponentPropsWithoutRef<#{js_str(default)}>)}"}
+
+        # The props are a union on the axis of the wrap, which TypeScript doesn't narrow
+        # in a destructured rest.
+        element
+        when is_map_key(spec, :wrap) and is_map(spec.wrap) and
+               is_map_key(spec.wrap, :variant) ->
+          {"ref={ref as Ref<#{Map.fetch!(@dom, element)}>}",
+           "{...(rest as ComponentPropsWithoutRef<#{js_str(element)}>)}"}
 
         _ ->
           {"ref={ref}", "{...rest}"}

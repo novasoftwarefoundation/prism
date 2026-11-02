@@ -81,6 +81,7 @@ PrismSelect(icon: Image(systemName: "chevron.down")) {
 - **A text field with a prefix** takes it after the modifier: `TextField(…).prismTextField(focused: focused) { Text("€") }`, or the app's `Picker` there. The prefix fills the field's height before the text, and the field's border goes around both.
 - **A button with an icon** gets `icon: .start` or `icon: .end` and a `Label` as its label; the icon goes at that side of the title, and the button takes its look with an icon.
 - **A spinner** keeps the `ProgressView`'s label for VoiceOver: `ProgressView("Uploading", value: 0.4)`.
+- **A text area's editor** is `.plain` or `.richText` (16pt on every side). A rich-text editor on iOS is a `TextEditor` on an `AttributedString`, whose formatting controls are the system's: `.prismTextArea(editor: .richText)` gives it the box. Prism draws no toolbar.
 - **A text area's height** is the app's (`.frame(height: 128)`); it is at least one line of its text, so that line is never cut off.
 - **A select's list** is the system's menu. Its looks are in `PrismSelectLooks().listbox` and `.option`, for an app that draws its own list.
 - **Each component's looks** are data too: `PrismButtonLooks(.primary, pressed: true).root` is the `PrismLook` the style draws, for a view of the app's own. `.prismText(_:)`, `.prismBox(_:)` and `.prismLook(_:)` draw a look on any view.
