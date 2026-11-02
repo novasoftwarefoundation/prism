@@ -301,7 +301,7 @@
  .prism-text-field {
    display: block;
    width: 100%;
-@@ -203,31 +355,65 @@
+@@ -203,35 +355,68 @@
    transition: border-color 0.15s ease-in-out;
  }
  
@@ -375,16 +375,39 @@
  .prism-text-area {
    display: block;
    width: 100%;
-@@ -255,7 +441,7 @@
+-  min-height: 256px;
+   padding: 8px 12px;
+   font-family: "Nunito Sans", sans-serif;
+   font-weight: 300;
+@@ -254,8 +439,26 @@
+   border-color: #4272ef;
  }
  
++.prism-text-area:disabled {
++  color: #cccccc;
++  background-color: #f6f6f6;
++  cursor: not-allowed;
++}
++
++/* Text area with an invalid value */
++.prism-text-area--invalid,
++.prism-text-area.prism-text-area--invalid:focus,
++.prism-text-area--inverse.prism-text-area--invalid:focus {
++  border-color: #f28d15;
++}
++
++/* Text area on a dark background */
++.prism-text-area--inverse:focus {
++  border-color: #ffcf60;
++}
++
  /* ==========================================================================
 -   Form Labels
 +   Fields
     ========================================================================== */
  
  .prism-field__label {
-@@ -332,7 +518,7 @@
+@@ -332,7 +535,7 @@
  }
  
  /* ==========================================================================
@@ -393,7 +416,36 @@
     ========================================================================== */
  
  .prism-select {
-@@ -414,8 +600,12 @@
+@@ -363,6 +566,18 @@
+   border-color: #4272ef;
+ }
+ 
++.prism-select__field:disabled {
++  color: #cccccc;
++  background-color: #f6f6f6;
++  cursor: not-allowed;
++}
++
++.prism-select__field--invalid,
++.prism-select__field.prism-select__field--invalid:focus,
++.prism-select--inverse .prism-select__field.prism-select__field--invalid:focus {
++  border-color: #f28d15;
++}
++
+ .prism-select__icon {
+   position: absolute;
+   right: 12px;
+@@ -409,13 +624,22 @@
+   color: #4272ef;
+ }
+ 
++/* Select on a dark background */
++.prism-select--inverse .prism-select__field:focus {
++  border-color: #ffcf60;
++}
++
+ /* ==========================================================================
+    Spinner
     ========================================================================== */
  
  .prism-spinner {
@@ -406,7 +458,7 @@
    animation: prism-spin 1s linear infinite;
  }
  
-@@ -424,6 +614,11 @@
+@@ -424,6 +648,11 @@
    height: 16px;
  }
  
@@ -418,7 +470,7 @@
  .prism-spinner--32 {
    width: 32px;
    height: 32px;
-@@ -438,16 +633,43 @@
+@@ -438,16 +667,43 @@
    }
  }
  
@@ -467,7 +519,7 @@
  /* ==========================================================================
     Checkbox (bonus component)
     ========================================================================== */
-@@ -477,7 +699,7 @@
+@@ -477,7 +733,7 @@
  }
  
  /* ==========================================================================
@@ -476,7 +528,7 @@
     ========================================================================== */
  
  /* Base tag styles - colored label with background opacity */
-@@ -502,7 +724,7 @@
+@@ -502,7 +758,7 @@
    line-height: 16px;
  }
  
@@ -485,7 +537,7 @@
  .prism-tag--accent .prism-tag__label {
    background-color: rgba(66, 114, 239, 0.2);
    color: #4272ef;
-@@ -520,24 +742,23 @@
+@@ -520,24 +776,23 @@
    color: #f28d15;
  }
  
@@ -514,7 +566,7 @@
  .prism-message-bar {
    display: flex;
    justify-content: center;
-@@ -551,35 +772,35 @@
+@@ -551,35 +806,35 @@
    line-height: 16px;
  }
  
@@ -556,7 +608,7 @@
  .prism-step-indicator {
    display: flex;
    align-items: center;
-@@ -595,19 +816,19 @@
+@@ -595,19 +850,19 @@
    font-variant-numeric: tabular-nums;
  }
  

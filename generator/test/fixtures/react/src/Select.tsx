@@ -2,10 +2,23 @@
 import { forwardRef, type ComponentPropsWithoutRef, type ReactNode } from "react";
 import { classNames, present } from "./helpers.js";
 
+/** The select's variant. */
+export type SelectVariant = "inverse";
+
 /** One of the option parts: its attributes, and its states. */
 export type SelectOption = { selected?: boolean } & ComponentPropsWithoutRef<"li">;
 
+const variantClasses: Record<SelectVariant, string> = {
+  inverse: "kit-select--inverse",
+};
+
 export interface SelectOwnProps {
+  /** No default: without one, it adds no class. */
+  variant?: SelectVariant;
+  /** Sets `disabled` on the field part. */
+  disabled?: boolean;
+  /** Adds `kit-select__field--invalid`. */
+  invalid?: boolean;
   /** The icon part. */
   icon?: ReactNode;
   /** Attributes of the icon part's `<span>`. */
@@ -23,12 +36,27 @@ export type SelectProps = SelectOwnProps &
 
 /** The design's `select` component. */
 export const Select = forwardRef<HTMLDivElement, SelectProps>(function Select(
-  { icon, iconProps, options = [], className, children, ...rest },
+  { variant, disabled, invalid, icon, iconProps, options = [], className, children, ...rest },
   ref,
 ) {
+  if (variant != null && !["inverse"].includes(variant)) {
+    throw new Error(`variant: ${JSON.stringify(variant)} is not one of "inverse"`);
+  }
   return (
-    <div ref={ref} {...rest} className={classNames("kit-select", className)}>
-      {present(children) && <button type="button" className="kit-select__field">{children}</button>}
+    <div
+      ref={ref}
+      {...rest}
+      className={classNames("kit-select", variant && variantClasses[variant], className)}
+    >
+      {present(children) && (
+        <button
+          type="button"
+          disabled={disabled}
+          className={classNames("kit-select__field", invalid && "kit-select__field--invalid")}
+        >
+          {children}
+        </button>
+      )}
       {present(icon) && (
         <span {...iconProps} className={classNames("kit-select__icon", iconProps?.className)}>
           {icon}

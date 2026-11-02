@@ -256,11 +256,21 @@ defmodule Prism.Generator.PhoenixTest do
       # button's flags are boolean attributes too.
       assert states.(:button) == [:disabled, :loading, :roomy, :strong]
       assert states.(:text_field) == [:disabled, :invalid]
-      assert states.(:text_area) == []
+      assert states.(:text_area) == [:disabled, :invalid]
       assert states.(:radio) == [:checked, :disabled]
       assert states.(:checkbox) == [:checked, :disabled]
-      # The option's hovered state is the browser's, its selected state an attribute of its slot.
-      assert states.(:select) == []
+      # The field's disabled and invalid are the select's attributes; the option's hovered
+      # state is the browser's, its selected state an attribute of its slot.
+      assert states.(:select) == [:disabled, :invalid]
+    end
+
+    test "a select's disabled and invalid go on its field" do
+      assigns = %{}
+
+      assert html(~H"<Kit.select variant={:inverse} disabled invalid>Pick</Kit.select>") ==
+               norm(
+                 ~s(<div class="kit-select kit-select--inverse"><button type="button" disabled class="kit-select__field kit-select__field--invalid">Pick</button></div>)
+               )
     end
 
     test "with a prefix, a text field is a wrapper; its input takes the app's attributes and states" do
@@ -589,10 +599,11 @@ defmodule Prism.Generator.PhoenixTest do
       <Kit.button variant={:subtle}>x</Kit.button>
       <Kit.text_field variant={:inverse} invalid disabled />
       <Kit.text_field variant={:inverse} invalid disabled><:prefix>€</:prefix></Kit.text_field>
-      <Kit.text_area value="x" />
+      <Kit.text_area variant={:inverse} invalid disabled value="x" />
       <Kit.field><:label>x</:label>x<:error_message>x</:error_message></Kit.field>
       <Kit.radio_group><Kit.radio checked disabled>x</Kit.radio></Kit.radio_group>
       <Kit.select>x<:icon>v</:icon><:option selected>x</:option></Kit.select>
+      <Kit.select variant={:inverse} invalid disabled>x</Kit.select>
       <Kit.spinner size={16} variant={:accent} />
       <Kit.spinner size={32} progress={40} />
       <Kit.spinner variant={:inverse} progress={40} />

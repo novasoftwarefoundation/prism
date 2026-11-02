@@ -111,7 +111,7 @@ Classes follow BEM: `prism-<component>`, `__<part>` for a part, `--<name>` for a
   <input type="text" class="prism-text-field__input" name="amount" />
 </div>
 <span class="prism-field__error-message">Required</span>
-<textarea class="prism-text-area" placeholder="Enter description"></textarea>
+<textarea class="prism-text-area" rows="4" placeholder="Enter description"></textarea>
 
 <!-- Radio buttons -->
 <div class="prism-radio-group">
@@ -222,7 +222,9 @@ Font classes: `font-title0` through `font-title7`, `font-body`, `font-button`, `
 | `prism-text-field--with-prefix` | A text field with a prefix: a `<div>` with the text field's classes around the prefix and the input |
 | `prism-text-field__prefix` | The prefix, before the text: a currency symbol, or a picker of the app's |
 | `prism-text-field__input` | The input in a text field with a prefix; `disabled` on it disables the field |
-| `prism-text-area` | Multi-line text field |
+| `prism-text-area` | Multi-line text field; its height is the app's (`rows`, or a height class) |
+| `prism-text-area--invalid` | A text area with an invalid value; it keeps its warning border while it has focus |
+| `prism-text-area--inverse` | A text area on a dark background |
 | `prism-field__label` | Form label |
 | `prism-field__error-message` | Error message |
 
@@ -241,7 +243,9 @@ Font classes: `font-title0` through `font-title7`, `font-body`, `font-button`, `
 | Class | Description |
 | --- | --- |
 | `prism-select` | Container |
-| `prism-select__field` | The field that opens the list |
+| `prism-select__field` | The field that opens the list; `disabled` on it disables it |
+| `prism-select__field--invalid` | A field with an invalid value; it keeps its warning border while it has focus |
+| `prism-select--inverse` | A select on a dark background |
 | `prism-select__icon` | The field's icon |
 | `prism-select__listbox` | The list of options |
 | `prism-select__option` | One option |
@@ -367,6 +371,8 @@ Also:
 - **The icon's side.** The Phoenix and React components put the icon before the label by default now (at its start), and after it with `icon_position={:end}` / `iconPosition="end"`; they used to put it after the label. In plain HTML, the order of the elements is the side.
 - **An invalid text field keeps its warning border while it has focus**, on the inverse field too: `prism-text-field--invalid` now outweighs `:focus`, where 0.1.7's focus border replaced it. CSS that an app wrote for this can go. These selectors also beat an app's own focus border on an invalid field, a `focus:border-*` utility or a rule such as `.prism-text-field--invalid:focus`; for another color there, use the important modifier (`focus:!border-…`) or `.prism-text-field.prism-text-field--invalid:focus` after Prism's CSS.
 - **A text field's prefix** is new (`prism-text-field--with-prefix`, `__prefix`, `__input`). For it, the text field's focus and disabled rules are `.prism-text-field:focus-within` and `.prism-text-field:is(:disabled, :has(> :disabled))`, which hold on a plain `<input>` too, at the weight of `:focus` and `:disabled`.
+- **A text area's height is the app's.** 0.1.7's `prism-textarea` had a minimum height of 256px; `prism-text-area` has none, so without `rows` or a height class it is the browser's default (two rows). Give it its height per use (`rows="8"`, `h-64`). It has the text field's states and variant too: `prism-text-area--invalid`, `disabled`, `prism-text-area--inverse`.
+- **A select's field** takes `disabled` and `prism-select__field--invalid`, and the select `prism-select--inverse`, as the text field does.
 - **Two classes beat one utility.** These rules are two classes together, which is more specific than one Tailwind utility, so a utility on such a button no longer wins as it did on 0.1.7's single classes; use Tailwind's important modifier (`!px-4`, `!text-grey1`) or your own CSS for it:
   - a button with an icon (`.prism-button--primary.prism-button--with-icon`): its padding and gap, where 0.1.7's `prism-btn-primary-icon` was one class;
   - a tone (`.prism-button--secondary.prism-button--danger`): its text, border and background colors, where 0.1.7's `prism-btn-danger` was one class;

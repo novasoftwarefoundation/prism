@@ -418,7 +418,6 @@
 .prism-text-area {
   display: block;
   width: 100%;
-  min-height: 256px;
   padding: 8px 12px;
   font-family: "Nunito Sans", sans-serif;
   font-weight: 300;
@@ -439,6 +438,24 @@
 
 .prism-text-area:focus {
   border-color: #4272ef;
+}
+
+.prism-text-area:disabled {
+  color: #cccccc;
+  background-color: #f6f6f6;
+  cursor: not-allowed;
+}
+
+/* Text area with an invalid value */
+.prism-text-area--invalid,
+.prism-text-area.prism-text-area--invalid:focus,
+.prism-text-area--inverse.prism-text-area--invalid:focus {
+  border-color: #f28d15;
+}
+
+/* Text area on a dark background */
+.prism-text-area--inverse:focus {
+  border-color: #ffcf60;
 }
 
 /* ==========================================================================
@@ -550,6 +567,18 @@
   border-color: #4272ef;
 }
 
+.prism-select__field:disabled {
+  color: #cccccc;
+  background-color: #f6f6f6;
+  cursor: not-allowed;
+}
+
+.prism-select__field--invalid,
+.prism-select__field.prism-select__field--invalid:focus,
+.prism-select--inverse .prism-select__field.prism-select__field--invalid:focus {
+  border-color: #f28d15;
+}
+
 .prism-select__icon {
   position: absolute;
   right: 12px;
@@ -594,6 +623,11 @@
 
 .prism-select__option--selected {
   color: #4272ef;
+}
+
+/* Select on a dark background */
+.prism-select--inverse .prism-select__field:focus {
+  border-color: #ffcf60;
 }
 
 /* ==========================================================================

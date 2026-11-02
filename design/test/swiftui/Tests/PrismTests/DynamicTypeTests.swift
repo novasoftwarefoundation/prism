@@ -80,6 +80,31 @@ struct DynamicTypeTests {
         "spinner", "checkbox", "tag", "message bar", "step indicator",
     ]
 
+    /// A text area with no height of the app's, where its parent offers it little: its
+    /// text view holds its line, so it neither cuts the line off nor scrolls.
+    @Test(arguments: [DynamicTypeSize.large, .accessibility5])
+    @MainActor func textAreaHoldsItsLine(_ size: DynamicTypeSize) throws {
+        let view = ScrollView {
+            VStack { TextEditor(text: .constant("A note")).prismTextArea() }
+        }
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
+        window.rootViewController = UIHostingController(
+            rootView: view.environment(\.dynamicTypeSize, size))
+        window.makeKeyAndVisible()
+        window.layoutIfNeeded()
+
+        func textView(in view: UIView) -> UITextView? {
+            if let textView = view as? UITextView { return textView }
+            return view.subviews.lazy.compactMap(textView(in:)).first
+        }
+
+        let editor = try #require(textView(in: window))
+        editor.layoutIfNeeded()
+        #expect(
+            editor.contentSize.height <= editor.bounds.height + 0.5,
+            "at \(size) the text view is \(editor.bounds.height) high, its text \(editor.contentSize.height)")
+    }
+
     @Test @MainActor func everyComponent() {
         #expect(Self.samples.map(\.name) == Self.names)
     }
