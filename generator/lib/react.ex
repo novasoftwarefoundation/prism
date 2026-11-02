@@ -417,9 +417,31 @@ defmodule Prism.Generator.React do
         ]
 
       _ ->
-        head = "export type #{name}Props = #{own} &"
-        omitted = "Omit<ComponentPropsWithoutRef<#{js_str(rest_tag)}>, #{omit}>;"
-        "\n" <> wrap(head, omitted) <> "\n"
+        case spec.wrap do
+          # One member per element: the element's props with the axis's other values,
+          # the wrapper's with the variant, refusing the element's own.
+          %{variant: variant, axis: axis, element: element} = w ->
+            a = Enum.find(spec.axes, &(&1.name == axis))
+            others = Enum.reject(a.values, &(&1 == variant))
+            optional = if a.default in others, do: "?", else: ""
+            natives = for {n, {:native, nil, _}} <- effects(spec), uniq: true, do: camel(n)
+            refused = Enum.map(natives ++ refused_props(w), &"#{&1}?: never")
+
+            [
+              "\nexport type #{name}Props =\n",
+              "  | (#{own} & { #{camel(axis)}#{optional}: #{Enum.map_join(others, " | ", &js_value/1)}; children?: never } &\n",
+              "      Omit<ComponentPropsWithoutRef<#{js_str(rest_tag)}>, keyof #{own}>)\n",
+              "  | (#{own} & {\n",
+              "      #{camel(axis)}: #{js_value(variant)};\n",
+              Enum.map(refused, &"      #{&1};\n"),
+              "    } & Omit<ComponentPropsWithoutRef<#{js_str(element)}>, keyof #{own}>);\n"
+            ]
+
+          _ ->
+            head = "export type #{name}Props = #{own} &"
+            omitted = "Omit<ComponentPropsWithoutRef<#{js_str(rest_tag)}>, #{omit}>;"
+            "\n" <> wrap(head, omitted) <> "\n"
+        end
     end
   end
 
@@ -497,6 +519,8 @@ defmodule Prism.Generator.React do
         # a wrapper with the component's classes holds the app's editor.
         %{variant: variant, axis: axis} = wrap ->
           classes = root_classes(spec) ++ ["className"]
+          on = "#{camel(axis)}=#{js_value(variant)}"
+          editor = "the app's editor (its #{wrap.editor_class} element)"
 
           tree =
             {:el, wrap.element,
@@ -505,10 +529,33 @@ defmodule Prism.Generator.React do
                class_attr(classes)
              ], [{:expr, "{children}"}]}
 
+          # The element's own states and attributes are the app's editor's.
+          natives =
+            for {name, {:native, nil, _}} <- effects(spec) do
+              js_throw_if(
+                camel(name),
+                "#{camel(name)}: a #{words(spec.name)} with #{on} is #{name} by its editor's surface; set #{camel(name)} on #{editor} instead"
+              )
+            end
+
           [
-            "  if (#{camel(axis)} === #{js_value(variant)}) {\n    return (\n",
+            "  if (#{camel(axis)} === #{js_value(variant)}) {\n",
+            natives,
+            "    const refused = [\n",
+            Enum.map(refused_props(wrap), &"      #{js_str(&1)},\n"),
+            "    ].find((key) => (rest as Record<string, unknown>)[key] !== undefined);\n",
+            js_throw_if(
+              "refused",
+              "${refused}: a #{words(spec.name)} with #{on} takes the wrapper's props only; give ${refused} to #{editor}"
+            ),
+            "    return (\n",
             render(tree, 6),
-            "\n    );\n  }\n"
+            "\n    );\n  }\n",
+            js_throw_if(
+              "present(children)",
+              "children: a #{words(spec.name)} without #{on} has no content; give its value with value or defaultValue, or set #{on} for the app's editor",
+              2
+            )
           ]
 
         wrap ->
@@ -533,6 +580,49 @@ defmodule Prism.Generator.React do
       render(root, 4),
       "\n  );\n});\n"
     ]
+  end
+
+  # `if (test) { throw new Error(`message`); }`, at `indent` (4 by default).
+  # A long message is template literals joined by `+`, each within the width.
+  defp js_throw_if(test, message, indent \\ 4) do
+    pad = String.duplicate(" ", indent)
+    width = @width - indent - 10
+
+    chunks =
+      message
+      |> String.split(" ")
+      |> Enum.reduce([], fn
+        word, [line | rest] when byte_size(line) + byte_size(word) + 1 <= width ->
+          [line <> " " <> word | rest]
+
+        word, lines ->
+          [word | lines]
+      end)
+      |> Enum.reverse()
+
+    literals =
+      chunks
+      |> Enum.with_index()
+      |> Enum.map_join(" +\n#{pad}      ", fn {chunk, i} ->
+        if i < length(chunks) - 1, do: "`#{chunk} `", else: "`#{chunk}`"
+      end)
+
+    "#{pad}if (#{test}) {\n#{pad}  throw new Error(\n#{pad}    #{literals},\n#{pad}  );\n#{pad}}\n"
+  end
+
+  # The React names of the attributes a wrapper refuses, its element's value first.
+  defp refused_props(wrap) do
+    names = %{
+      "maxlength" => "maxLength",
+      "minlength" => "minLength",
+      "readonly" => "readOnly",
+      "autocomplete" => "autoComplete"
+    }
+
+    Enum.flat_map(wrap.refuses, fn
+      "value" -> ["value", "defaultValue"]
+      name -> [Map.get(names, name, name)]
+    end)
   end
 
   defp axis_check(a) do
@@ -681,6 +771,13 @@ defmodule Prism.Generator.React do
         {:as, default} ->
           {"ref={ref as Ref<#{Map.fetch!(@dom, default)}>}",
            "{...(rest as ComponentPropsWithoutRef<#{js_str(default)}>)}"}
+
+        # The props are a union on the axis of the wrap, which TypeScript doesn't narrow
+        # in a destructured rest.
+        element
+        when is_map_key(spec, :wrap) and is_map(spec.wrap) and
+               is_map_key(spec.wrap, :variant) ->
+          {"ref={ref}", "{...(rest as ComponentPropsWithoutRef<#{js_str(element)}>)}"}
 
         _ ->
           {"ref={ref}", "{...rest}"}

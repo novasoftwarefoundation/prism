@@ -115,8 +115,9 @@ defmodule Prism.Generator.Web.Components do
   (`--rich-text`) around the app's rich-text editor, its toolbar and its
   editing surface (`__editor`, the class the app gives it), which has no frame
   of its own. The text area's focus is then `:focus-within`, and it is
-  disabled while its surface is, `:is(:disabled, :has(.<…>__editor:disabled))`.
-  Both hold on a plain `<textarea>` too.
+  disabled while its surface is, `:is(:disabled, :has(:where(.<…>__editor):disabled))`.
+  Both hold on a plain `<textarea>` too, at the weight of `:focus` and
+  `:disabled`.
 
   ## The spinner
 
@@ -1649,11 +1650,13 @@ defmodule Prism.Generator.Web.Components do
           disabled: ":is(:disabled, :has(> :disabled))"
         })
 
-      # Its editing surface may sit deeper in the app's editor than a direct child.
+      # Its editing surface may sit deeper in the app's editor than a direct child. The
+      # surface's class is in :where(), so the rule weighs what :disabled does.
       rich_text?(c) ->
         Map.merge(Classes.pseudo_classes(c.name, nil), %{
           focused: ":focus-within",
-          disabled: ":is(:disabled, :has(.#{Classes.part(prefix(), c, :editor)}:disabled))"
+          disabled:
+            ":is(:disabled, :has(:where(.#{Classes.part(prefix(), c, :editor)}):disabled))"
         })
 
       true ->

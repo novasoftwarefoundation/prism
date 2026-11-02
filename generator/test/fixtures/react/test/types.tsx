@@ -1,6 +1,6 @@
 // Type checks: `npm run check` fails when a line expected to be an error (the
 // directive above it) compiles, so TypeScript rejects what the design doesn't have.
-import { Button, Select, Spinner, Tag, TextField } from "../src/index.js";
+import { Button, Select, Spinner, Tag, TextArea, TextField } from "../src/index.js";
 
 export const accepted = (
   <>
@@ -17,6 +17,22 @@ export const accepted = (
     <Select options={[{ selected: true, children: "A" }]}>Pick</Select>
   </>
 );
+
+// A text area with rich text takes the wrapper's props and the app's editor.
+export const richText = (
+  <TextArea editor="rich_text" invalid id="notes">
+    <div className="kit-text-area__editor" />
+  </TextArea>
+);
+
+// @ts-expect-error: a rich-text text area is disabled by its editor's surface
+export const richTextDisabled = <TextArea editor="rich_text" disabled />;
+
+// @ts-expect-error: a textarea's own prop is the editor's with rich text
+export const richTextRows = <TextArea editor="rich_text" rows={4} />;
+
+// @ts-expect-error: a plain text area has no content
+export const plainChildren = <TextArea>child</TextArea>;
 
 // @ts-expect-error: no such variant
 export const unknownVariant = <Button variant="primray">Save</Button>;

@@ -177,7 +177,7 @@
   border-color: #1a73e8;
 }
 
-.kit-text-area:is(:disabled, :has(.kit-text-area__editor:disabled)) {
+.kit-text-area:is(:disabled, :has(:where(.kit-text-area__editor):disabled)) {
   opacity: 0.5;
   cursor: not-allowed;
 }

@@ -231,7 +231,7 @@ Font classes: `font-title0` through `font-title7`, `font-body`, `font-button`, `
 | `prism-text-area--invalid` | A text area with an invalid value; it keeps its warning border while it has focus |
 | `prism-text-area--inverse` | A text area on a dark background |
 | `prism-text-area--rich-text` | A text area with rich text: a `<div>` with `prism-text-area` around the app's rich-text editor, its toolbar and its editing surface, 16px on every side |
-| `prism-text-area__editor` | The editing surface of the app's rich-text editor, in a `--rich-text` text area: no frame of its own; `disabled` on it disables the text area |
+| `prism-text-area__editor` | The editing surface of the app's rich-text editor, in a `--rich-text` text area: no frame of its own; `disabled` on it disables the text area, at the weight of `:disabled` |
 | `prism-field` | A label and an error message around a control |
 | `prism-field__label` | Form label; primary while the field's control has focus |
 | `prism-field--invalid` | A field with an invalid value: a warning label, also while its control has focus |

@@ -75,11 +75,14 @@ defmodule Prism.Generator.Web.Elements do
     and the look with the part, and `children` are the part and, last, the
     form control (`%{as: :control, …}`), which gets the app's attributes and
     the element's own states (`disabled`). The part is not in `children`.
-    Or `%{variant, axis, element, children}` for a component whose element is
-    a wrapper while `axis` has `variant` (a text area's rich text): then the
-    element is `element`, with the component's classes, and `children` are
-    the app's content (`%{as: :inner_block}`), its rich-text editor; the
-    element's own states and value are the editor's.
+    Or `%{variant, axis, element, children, refuses, editor_class}` for a
+    component whose element is a wrapper while `axis` has `variant` (a text
+    area's rich text): then the element is `element`, with the component's
+    classes, and `children` are the app's content (`%{as: :inner_block}`), its
+    rich-text editor, whose surface takes `editor_class`. The element's own
+    states (`disabled`) and the attributes in `refuses` (its value, those of
+    typing) are the editor's: the components refuse them on the wrapper, and
+    refuse content without the variant.
   - `withs`: `%{part => class}`, the class of the look with each part, added
     while that part is there; a wrapped part has one too.
   - `flags`: `[%{name, default, class, only}]`, the looks the app turns on
@@ -127,12 +130,18 @@ defmodule Prism.Generator.Web.Elements do
       content: nil,
       wrap: %{part: :prefix, element: "div", control: {:input, "input"}}
     },
-    # With rich text, a wrapper holds the app's rich-text editor.
+    # With rich text, a wrapper holds the app's rich-text editor. It refuses the
+    # textarea's own attributes: its value and those of typing, which are the editor's.
     text_area: %{
       element: "textarea",
       parts: [],
       content: :value,
-      wrap: %{variant: :rich_text, element: "div"}
+      wrap: %{
+        variant: :rich_text,
+        element: "div",
+        refuses: ~w(value rows cols wrap maxlength minlength placeholder readonly required name
+                    form autocomplete)
+      }
     },
     field: %{
       element: "div",
@@ -271,10 +280,20 @@ defmodule Prism.Generator.Web.Elements do
   #
   # Or while one of its axes has the variant its kind wraps (a text area's rich text):
   # a wrapper with the component's classes around the app's content, its editor.
-  defp wrap(c, %{wrap: %{variant: name, element: element}}, _parts, _prefix) do
+  defp wrap(c, %{wrap: %{variant: name, element: element} = w}, _parts, prefix) do
     case Enum.find(c.variants, &(&1.name == name)) do
-      nil -> nil
-      v -> %{variant: name, axis: v.axis, element: element, children: [%{as: :inner_block}]}
+      nil ->
+        nil
+
+      v ->
+        %{
+          variant: name,
+          axis: v.axis,
+          element: element,
+          children: [%{as: :inner_block}],
+          refuses: w.refuses,
+          editor_class: Classes.part(prefix, c, :editor)
+        }
     end
   end
 

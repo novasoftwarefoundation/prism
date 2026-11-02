@@ -577,7 +577,10 @@ defmodule Prism.Generator.Web.ComponentsTest do
              ".only-text-area__editor {\n  border: 0;\n  border-radius: 0;\n  padding: 0;\n  background-color: transparent;\n  outline: none;\n}\n"
 
     assert css =~ "\n.only-text-area:focus-within {\n"
-    assert css =~ "\n.only-text-area:is(:disabled, :has(.only-text-area__editor:disabled)) {\n"
+
+    assert css =~
+             "\n.only-text-area:is(:disabled, :has(:where(.only-text-area__editor):disabled)) {\n"
+
     assert css =~ "\n.only-text-area.only-text-area--invalid:focus-within {\n"
     assert css =~ ".only-text-area--rich-text {\n  padding: 16px;\n}\n"
 

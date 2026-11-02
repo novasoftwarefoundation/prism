@@ -453,7 +453,7 @@
   border-color: #4272ef;
 }
 
-.prism-text-area:is(:disabled, :has(.prism-text-area__editor:disabled)) {
+.prism-text-area:is(:disabled, :has(:where(.prism-text-area__editor):disabled)) {
   color: #cccccc;
   background-color: #f6f6f6;
   cursor: not-allowed;
