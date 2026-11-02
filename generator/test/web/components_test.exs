@@ -487,6 +487,43 @@ defmodule Prism.Generator.Web.ComponentsTest do
     refute css =~ "__input"
   end
 
+  # The preview clips the app's image, which covers it; the button is the app's.
+  test "an image picker: its preview and the app's image in it" do
+    design =
+      compile("""
+        component :image_picker do
+          style gap: 16
+          part :preview, width: 80, height: 60
+          part :button, component: :button
+
+          variants :shape, default: :wide do
+            variant :round do
+              part :preview, height: 80, radius: {50, :percent}
+            end
+          end
+        end
+        component :button do
+          style radius: 4
+        end
+      """)
+
+    css = css(design)
+
+    assert css =~
+             ".only-image-picker {\n  display: flex;\n  flex-direction: row;\n  align-items: center;\n  gap: 16px;\n}\n"
+
+    assert css =~
+             ".only-image-picker__preview {\n  flex-shrink: 0;\n  overflow: hidden;\n  width: 80px;\n  height: 60px;\n}\n"
+
+    assert css =~
+             ".only-image-picker__preview > img {\n  display: block;\n  width: 100%;\n  height: 100%;\n  object-fit: cover;\n}\n"
+
+    assert css =~
+             ".only-image-picker--round .only-image-picker__preview {\n  height: 80px;\n  border-radius: 50%;\n}\n"
+
+    refute css =~ "only-image-picker__button"
+  end
+
   # A field holds its control, so its focus is its control's: `:focus-within`. Its
   # invalid state still outweighs it on the label.
   test "a field is focused while its control has focus" do

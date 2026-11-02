@@ -38,6 +38,7 @@ defmodule Prism.Generator.ReactTest do
              ~w(src/Button.tsx src/TextField.tsx src/TextArea.tsx src/Field.tsx
                 src/RadioGroup.tsx src/Radio.tsx src/Select.tsx src/Spinner.tsx
                 src/Checkbox.tsx src/Tag.tsx src/MessageBar.tsx src/StepIndicator.tsx
+                src/ImagePicker.tsx
                 src/helpers.ts src/index.ts)
 
     assert Enum.uniq(for {_, _, from} <- files, do: from) == [
@@ -94,6 +95,22 @@ defmodule Prism.Generator.ReactTest do
   defp body(design, path) do
     {_, body, _} = design |> React.files() |> List.keyfind(path, 0)
     body
+  end
+
+  # The image picker's button is the app's own component; without `component:` the
+  # design gives a look nothing would draw.
+  test "an image picker's button without component: fails, naming the fix" do
+    picker =
+      design("""
+        component :image_picker do
+          part :preview, width: 80, height: 60
+          part :button, radius: 4
+        end
+      """)
+
+    assert_raise ArgumentError,
+                 ~r/:image_picker's :button is the app's own component, in the part's place; give it component:/,
+                 fn -> React.files(picker) end
   end
 
   describe "designs Prism's doesn't have" do

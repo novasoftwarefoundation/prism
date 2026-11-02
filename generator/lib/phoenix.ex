@@ -92,6 +92,7 @@ if Code.ensure_loaded?(Phoenix.Component) do
     | `tag` | `<span>` | `label` holds the inner block |
     | `message_bar` | `<div>` | the inner block |
     | `step_indicator` | `<span>` | the inner block |
+    | `image_picker` | `<div>` | `<:preview>` (a `<div>`) holds the app's image; `<:button>` holds the app's own button component |
 
     A select's `<:option>` takes `selected` (adds the option's selected class
     and `aria-selected`); its other attributes go on the option. The listbox is
@@ -176,7 +177,12 @@ if Code.ensure_loaded?(Phoenix.Component) do
             Enum.map(spec.positions, & &1.name) ++
             Enum.map(spec.states, & &1.name) ++
             Enum.map(spec.values, & &1.name) ++
-            for(%{as: :slot, name: n} = child <- parts(spec), child[:side] != :end, do: n) ++
+            for(
+              %{as: as, name: n} = child <- parts(spec),
+              as in [:slot, :given],
+              child[:side] != :end,
+              do: n
+            ) ++
             for(%{as: :list, item: item} <- spec.children, do: item)
 
         for name <- names, name in @reserved do
@@ -336,6 +342,12 @@ if Code.ensure_loaded?(Phoenix.Component) do
     defp slots(%{as: :slot, name: name}) do
       doc = "The #{name} part; its attributes go on the part's element."
       [quote(do: Phoenix.Component.slot(unquote(name), validate_attrs: false, doc: unquote(doc)))]
+    end
+
+    # A part the app renders itself, such as its own button component.
+    defp slots(%{as: :given, name: name, component: component}) do
+      doc = "The #{name} part: the app's own #{component} component, in its place."
+      [quote(do: Phoenix.Component.slot(unquote(name), doc: unquote(doc)))]
     end
 
     defp slots(%{as: :list, item: item, item_states: states}) do

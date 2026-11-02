@@ -161,6 +161,7 @@ defmodule Prism.Generator.Schema.ComponentsTest do
       {"padding: [middle: 1]", "unknown side :middle"},
       {"padding: [x: -1]", "every side is a length"},
       {"gap: \"4px\"", "is not a length"},
+      {"width: -1", "is not a length"},
       {"border: [width: 1, style: :dashed]", "is not a keyword list of width:, color:, sides:"},
       {"border: [width: 1, sides: :right]", "sides: :right is not a list of sides, each once"},
       {"border: [width: 1, sides: [:start]]",

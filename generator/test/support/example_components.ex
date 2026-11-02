@@ -218,4 +218,17 @@ defmodule Prism.Generator.ExampleComponents do
       variant :current, background: :accent
     end
   end
+
+  # A preview the app fills with its image, and the app's own button beside it.
+  component :image_picker do
+    style gap: 16
+    part :preview, width: 80, height: 60, background: :paper
+    part :button, component: :button
+
+    variants :shape, default: :wide do
+      variant :round do
+        part :preview, height: 80, radius: {50, :percent}
+      end
+    end
+  end
 end

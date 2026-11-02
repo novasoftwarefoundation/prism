@@ -290,6 +290,7 @@ public struct AcmeLook: Sendable, Hashable {
     public var inset = AcmeInsets()
     public var gap: CGFloat?
     public var size: CGFloat?
+    public var width: CGFloat?
     public var height: CGFloat?
     public var minHeight: CGFloat?
     public var maxHeight: CGFloat?
@@ -320,6 +321,7 @@ public struct AcmeLook: Sendable, Hashable {
         inset: AcmeInsets = AcmeInsets(),
         gap: CGFloat? = nil,
         size: CGFloat? = nil,
+        width: CGFloat? = nil,
         height: CGFloat? = nil,
         minHeight: CGFloat? = nil,
         maxHeight: CGFloat? = nil,
@@ -348,6 +350,7 @@ public struct AcmeLook: Sendable, Hashable {
         self.inset = inset
         self.gap = gap
         self.size = size
+        self.width = width
         self.height = height
         self.minHeight = minHeight
         self.maxHeight = maxHeight
@@ -380,6 +383,7 @@ public struct AcmeLook: Sendable, Hashable {
         inset.apply(other.inset)
         gap = other.gap ?? gap
         size = other.size ?? size
+        width = other.width ?? width
         height = other.height ?? height
         minHeight = other.minHeight ?? minHeight
         maxHeight = other.maxHeight ?? maxHeight
@@ -517,7 +521,7 @@ struct AcmeBoxModifier: ViewModifier {
             .compactMap { $0 }.max()
         content
             .padding(look.padding.edgeInsets(adding: border, on: sides))
-            .frame(width: size, height: size ?? height)
+            .frame(width: size ?? scaled(look.width), height: size ?? height)
             .frame(minHeight: minHeight, maxHeight: scaled(look.maxHeight))
             // Its text's height even where less is offered, so none of it is cut off.
             .fixedSize(horizontal: false, vertical: text && look.height != nil)

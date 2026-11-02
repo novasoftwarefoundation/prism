@@ -231,6 +231,9 @@ if Code.ensure_loaded?(Phoenix.Component) do
       [{:void, p.element, [type: p.type] ++ native ++ rest ++ [class: class]}]
     end
 
+    # A part the app renders itself: its slot's content, as it is.
+    defp child(%{as: :given} = p, _spec, assigns), do: [{:slot, Map.get(assigns, p.name, [])}]
+
     defp child(%{as: :component} = p, _spec, assigns) do
       if p.while_loading and not assigns[:loading],
         do: [],
@@ -275,7 +278,7 @@ if Code.ensure_loaded?(Phoenix.Component) do
 
       case Enum.find(children, &(&1[:name] == part)) do
         %{as: :content} -> assigns.inner_block != []
-        %{as: :slot} -> Map.get(assigns, part, []) != []
+        %{as: as} when as in [:slot, :given] -> Map.get(assigns, part, []) != []
         %{as: :list, item: item} -> Map.get(assigns, item, []) != []
         %{as: :component} = p -> not p.while_loading or assigns[:loading] == true
         _ -> false

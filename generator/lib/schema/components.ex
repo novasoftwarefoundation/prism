@@ -117,6 +117,7 @@ defmodule Prism.Generator.Schema.Components do
     inset: {:insets, "distance from the edges of what holds it"},
     gap: {:length, "space between its children"},
     size: {:length, "width and height"},
+    width: {:length, "width"},
     height: {:length, "height"},
     min_height: {:length, "minimum height"},
     max_height: {:max_height, "maximum height: a max_height token or a length"},

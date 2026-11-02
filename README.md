@@ -19,7 +19,7 @@ Prism's look is written once, as a design in Elixir, and generated into code for
 | `targets/swift/` | The Swift package `Prism`, released as the `prism-swift` repository: the generated `Package.swift` and `Sources/Prism/` (the tokens, the looks and one file per component), with a hand-written `README.md` and `LICENSE`. |
 | `targets/design-tools/` | Files for design tools, attached to each release: the generated `tokens.json` (DTCG), `tokens.css` (CSS custom properties) and `overview.svg`, and their checks (`package.json`, `test/`). |
 
-`design/` depends on `generator/` with `{:prism_generator, path: "../generator"}`; there is no Mix project at the root. Decisions are in `docs/adr/`: [0001: design format](docs/adr/0001-design-format.md), [0002: Prism's design](docs/adr/0002-prism-design.md), [0003: Phoenix components at compile time](docs/adr/0003-phoenix-components.md), [0004: React components](docs/adr/0004-react-components.md), [0005: files for design tools](docs/adr/0005-design-tools.md), [0006: button looks](docs/adr/0006-button-looks.md), [0007: spinner sizes and progress](docs/adr/0007-spinner-sizes-progress.md), [0008: a state the app sets outweighs the pointer and the focus](docs/adr/0008-app-state-over-interaction.md), [0009: the Swift target](docs/adr/0009-swift-target.md) and [0010: the text field's prefix](docs/adr/0010-text-field-prefix.md).
+`design/` depends on `generator/` with `{:prism_generator, path: "../generator"}`; there is no Mix project at the root. Decisions are in `docs/adr/`: [0001: design format](docs/adr/0001-design-format.md), [0002: Prism's design](docs/adr/0002-prism-design.md), [0003: Phoenix components at compile time](docs/adr/0003-phoenix-components.md), [0004: React components](docs/adr/0004-react-components.md), [0005: files for design tools](docs/adr/0005-design-tools.md), [0006: button looks](docs/adr/0006-button-looks.md), [0007: spinner sizes and progress](docs/adr/0007-spinner-sizes-progress.md), [0008: a state the app sets outweighs the pointer and the focus](docs/adr/0008-app-state-over-interaction.md), [0009: the Swift target](docs/adr/0009-swift-target.md), [0010: the text field's prefix](docs/adr/0010-text-field-prefix.md) and [0011: the image picker](docs/adr/0011-image-picker.md).
 
 ## Change the design
 
@@ -82,6 +82,21 @@ end
 - **Buttons** ([ADR 0006](docs/adr/0006-button-looks.md)): the variants are `:primary`, `:secondary`, `:plain`, `:link`, `:text`, `:soft` (the tone's light color behind its color) and `:icon` (an icon only, 24×24; give it an `aria-label`). A tone (`:success`, `:warning`, `:danger`, `:neutral`, `:highlight`) colors a primary button's background and the others' text and border; `:soft` has no look with `:neutral` or `:highlight`. `padded` (default `true`) makes a plain or text button as tall as a primary one beside it; `padded={false}` fits it to its text.
 - **States the app sets** are boolean attributes: `loading`, `invalid`, `disabled`, `checked`. On a form control, `disabled` and `checked` set the element's own attribute; elsewhere a state adds its class (`prism-radio--disabled`). The browser's states (pressed, hovered, focused) need nothing.
 - **Parts** follow the design's order: the label is the inner block, the icon a `<:icon>` slot (with it, the button gets `prism-button--with-icon`), and the spinner shows while `loading`. The icon goes at the start of the label, or at its end with `icon_position={:end}`; start and end follow the text's direction. Any other value warns at compile time and fails when it renders, as `as` does. A text field takes a `<:prefix>` before its text, a currency symbol or the app's own picker ([ADR 0010](docs/adr/0010-text-field-prefix.md)): it is then a `<div>` with the text field's classes around the prefix and the `<input>`, which gets the other attributes (`name`, `phx-*`) and `disabled`. Adding or removing the prefix on a field that is on screen swaps its element, so the input loses its focus: give a field that may get a prefix one from its first render.
+- **Image pickers** ([ADR 0011](docs/adr/0011-image-picker.md)): `shape` is `:rectangular` (the default) or `:round`. The app puts its image (or its placeholder) in `<:preview>` and its own button in `<:button>`, with the variant it picks: primary while there is no image, secondary with one. The file input is the app's: keep it focusable and visually hidden (`sr-only`, not `hidden`), so a keyboard reaches the picker, and give it the focus style you want.
+
+  ```heex
+  <MyAppWeb.Prism.image_picker shape={:round}>
+    <:preview><img src={@photo_url || ~p"/images/placeholder.svg"} alt="" /></:preview>
+    <:button>
+      <label>
+        <MyAppWeb.Prism.button as="span" variant={if @photo_url, do: :secondary, else: :primary}>
+          Choose
+        </MyAppWeb.Prism.button>
+        <.live_file_input upload={@uploads.photo} class="sr-only" />
+      </label>
+    </:button>
+  </MyAppWeb.Prism.image_picker>
+  ```
 - **Adjusting**: `class` adds the app's classes after the component's own, and other attributes (`id`, `phx-*`, `type`, `name`, …) go on the element. A button's element is `as`: `"button"` by default, or `"a"`, `"span"` or `"div"` when the app wraps it in its own action; any other value warns at compile time and fails when it renders. What a component does stays in the app.
 
 `Prism.Generator.Phoenix` exists only when the app has Phoenix LiveView (`~> 1.1`); the design itself has no Phoenix. The class names come from the same functions as `components.css`, so the components and the CSS can't drift apart, and a design change reaches the app with the dependency bump: Mix recompiles the module. Its moduledoc lists each component's element and slots.

@@ -149,6 +149,13 @@ defmodule Prism.Generator.React do
         %{as: :list} = list ->
           [{items(list), "#{item_type(spec, list)}[]", list_doc(list), "[]"}]
 
+        %{as: :given, name: name, component: component} ->
+          [
+            {camel(name), "ReactNode",
+             "The #{words(name)} part: the app's own #{words(component)} component, in its place.",
+             nil}
+          ]
+
         _ ->
           []
       end)
@@ -737,6 +744,8 @@ defmodule Prism.Generator.React do
     [{:el, p.element, attrs, []}]
   end
 
+  defp child(%{as: :given} = p, _spec), do: [{:expr, "{#{camel(p.name)}}"}]
+
   defp child(%{as: :component} = p, _spec) do
     el = {:el, p.element, ["className=#{js_str(Enum.join(p.class, " "))}"], []}
     if p.while_loading, do: [{:cond, "loading", el}], else: [el]
@@ -786,7 +795,7 @@ defmodule Prism.Generator.React do
   defp present_test(spec, part) do
     case Enum.find(spec.children, &(&1[:name] == part)) do
       %{as: :content} -> "present(children)"
-      %{as: :slot} -> "present(#{camel(part)})"
+      %{as: as} when as in [:slot, :given] -> "present(#{camel(part)})"
       %{as: :list} = list -> "#{items(list)}.length > 0"
       %{as: :component, while_loading: true} -> "loading"
       %{as: :component} -> "true"

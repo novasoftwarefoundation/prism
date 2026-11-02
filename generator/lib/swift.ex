@@ -356,7 +356,7 @@ defmodule Prism.Generator.Swift do
       k when k in [:padding, :margin, :inset] ->
         [{Atom.to_string(k), insets(ctx, value, where)}]
 
-      k when k in [:gap, :size, :height, :min_height] ->
+      k when k in [:gap, :size, :width, :height, :min_height] ->
         [{camel(k), length(value, "#{where}: #{k}")}]
 
       :max_height ->
