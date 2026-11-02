@@ -273,6 +273,23 @@ defmodule Prism.Generator.PhoenixTest do
                )
     end
 
+    test "with a prefix, a text field is a wrapper; its input takes the app's attributes and states" do
+      assigns = %{}
+
+      assert html(
+               ~H"<Kit.text_field variant={:inverse} invalid disabled name='amount' class='w-1/2'><:prefix class='x'>€</:prefix></Kit.text_field>"
+             ) ==
+               norm(
+                 ~s(<div class="kit-text-field kit-text-field--inverse kit-text-field--invalid kit-text-field--with-prefix w-1/2">) <>
+                   ~s(<span class="kit-text-field__prefix x">€</span>) <>
+                   ~s(<input disabled name="amount" class="kit-text-field__input"/></div>)
+               )
+
+      # Without one, it is the input.
+      assert html(~H"<Kit.text_field disabled name='amount' />") ==
+               norm(~s(<input disabled name="amount" class="kit-text-field"/>))
+    end
+
     test "an image picker: the app's image in its preview, and the app's own button" do
       assigns = %{}
 
@@ -611,6 +628,7 @@ defmodule Prism.Generator.PhoenixTest do
       <Kit.button variant={:quiet} tone={:danger} loading>x<:icon>i</:icon></Kit.button>
       <Kit.button variant={:subtle}>x</Kit.button>
       <Kit.text_field variant={:inverse} invalid disabled />
+      <Kit.text_field variant={:inverse} invalid disabled><:prefix>€</:prefix></Kit.text_field>
       <Kit.text_area variant={:inverse} invalid disabled value="x" />
       <Kit.field variant={:inverse} invalid><:label>x</:label>x<:error_message>x</:error_message></Kit.field>
       <Kit.radio_group><Kit.radio checked disabled>x</Kit.radio></Kit.radio_group>

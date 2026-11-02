@@ -26,6 +26,20 @@ struct DynamicTypeTests {
                 name: "text field", text: "someone@example.org", look: PrismTextFieldLooks().root,
                 view: AnyView(TextField("", text: .constant("someone@example.org")).prismTextField())),
             Sample(
+                name: "text field with prefix", text: "100", look: PrismTextFieldLooks().root,
+                view: AnyView(
+                    TextField("", text: .constant("100")).prismTextField { Text("€") })),
+            Sample(
+                name: "text field with a picker prefix", text: "EUR",
+                look: PrismTextFieldLooks().root,
+                view: AnyView(
+                    TextField("", text: .constant("100")).prismTextField {
+                        Picker("", selection: .constant("EUR")) {
+                            Text("EUR").tag("EUR")
+                            Text("USD").tag("USD")
+                        }
+                    })),
+            Sample(
                 name: "text area", text: "A note", look: PrismTextAreaLooks().root,
                 view: AnyView(TextEditor(text: .constant("A note")).prismTextArea())),
             Sample(
@@ -75,12 +89,56 @@ struct DynamicTypeTests {
 
     /// The components whose box has a height of the design's: they keep their text's
     /// height also where a stack offers them less.
-    static let boxes = ["text field", "select", "message bar"]
+    static let boxes = [
+        "text field", "text field with prefix", "text field with a picker prefix", "select",
+        "message bar",
+    ]
 
     static let names = [
-        "button", "text field", "text area", "field", "radio group", "radio", "select",
+        "button", "text field", "text field with prefix", "text field with a picker prefix",
+        "text area", "field", "radio group", "radio", "select",
         "spinner", "checkbox", "tag", "message bar", "step indicator", "image picker",
     ]
+
+    /// A picker prefix keeps its label on one line inside the field's box at any text
+    /// size, where the text would squeeze it into a column taller than the field.
+    @Test(arguments: [DynamicTypeSize.large, .accessibility5])
+    @MainActor func pickerPrefixStaysInTheField(_ size: DynamicTypeSize) async throws {
+        @MainActor final class Frames {
+            var field = CGRect.zero
+            var picker = CGRect.zero
+        }
+        let frames = Frames()
+        let view = VStack {
+            TextField("", text: .constant("100"))
+                .prismTextField {
+                    Picker("", selection: .constant("EUR")) {
+                        Text("EUR").tag("EUR")
+                        Text("USD").tag("USD")
+                    }
+                    .onGeometryChange(for: CGRect.self, of: { $0.frame(in: .global) }) {
+                        frames.picker = $0
+                    }
+                }
+                .onGeometryChange(for: CGRect.self, of: { $0.frame(in: .global) }) {
+                    frames.field = $0
+                }
+        }
+        .padding(16)
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
+        window.rootViewController = UIHostingController(
+            rootView: view.environment(\.dynamicTypeSize, size))
+        window.makeKeyAndVisible()
+        window.layoutIfNeeded()
+        try await Task.sleep(for: .milliseconds(200))
+        window.layoutIfNeeded()
+
+        #expect(frames.field.height > 0 && frames.picker.height > 0)
+        #expect(
+            frames.picker.minY >= frames.field.minY - 0.5
+                && frames.picker.maxY <= frames.field.maxY + 0.5,
+            "at \(size) the picker is \(frames.picker), the field \(frames.field)")
+    }
 
     /// A text area with no height of the app's, where its parent offers it little: its
     /// text view holds its line, so it neither cuts the line off nor scrolls.
@@ -129,7 +187,8 @@ struct DynamicTypeTests {
             // A text field keeps its text on one line and scrolls it.
             let line = Text(sample.text).prismText(look)
             let text = measure(
-                name == "text field" ? AnyView(line.fixedSize()) : AnyView(line), at: .accessibility5)
+                name.hasPrefix("text field") ? AnyView(line.fixedSize()) : AnyView(line),
+                at: .accessibility5)
             #expect(
                 largest.height >= text.height,
                 "\(name) is \(largest.height) high, its text \(text.height): the text is cut off")

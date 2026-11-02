@@ -136,7 +136,7 @@ defmodule Prism.Generator.React do
 
     # A part whose side the app picks is there twice; it is one prop.
     parts =
-      spec.children
+      (spec.children ++ wrapped_parts(spec))
       |> Enum.reject(&(&1[:side] == :end))
       |> Enum.flat_map(fn
         %{as: :slot, name: name, element: element} ->
@@ -179,6 +179,10 @@ defmodule Prism.Generator.React do
       values ++
       parts ++ [{"className", "string", "Classes after the component's own.", nil}] ++ content
   end
+
+  # The parts the component wraps while the app gives them (a text field's prefix).
+  defp wrapped_parts(%{wrap: %{children: children}}), do: for(%{as: :slot} = p <- children, do: p)
+  defp wrapped_parts(_spec), do: []
 
   defp flag_doc(f) do
     only =
@@ -469,6 +473,21 @@ defmodule Prism.Generator.React do
 
     root = root(spec)
 
+    # While the app gives the part the component wraps (a text field's prefix), a
+    # wrapper with the component's classes holds the part and the form control.
+    wrapped =
+      case spec.wrap do
+        nil ->
+          []
+
+        wrap ->
+          [
+            "  if (present(#{camel(wrap.part)})) {\n    return (\n",
+            render(wrapped(spec), 6),
+            "\n    );\n  }\n"
+          ]
+      end
+
     [
       "\n/** The design's `#{spec.name}` component. */\n",
       "export const #{name} = forwardRef<#{ref_type}, #{name}Props>(function #{name}(\n",
@@ -478,6 +497,7 @@ defmodule Prism.Generator.React do
       axes,
       positions,
       Enum.map(spec.values, &value_consts/1),
+      wrapped,
       "  return (\n",
       render(root, 4),
       "\n  );\n});\n"
@@ -568,8 +588,29 @@ defmodule Prism.Generator.React do
         tag -> tag
       end
 
-    on_root = spec.rest == :root
+    root_tree(spec, tag, spec.rest == :root, root_classes(spec) ++ ["className"])
+  end
 
+  # The wrapper, with the component's classes and its look with the part, around the
+  # part and the form control, which takes the ref, the app's attributes and the
+  # element's own states.
+  defp wrapped(spec) do
+    {parts, [control]} = Enum.split(spec.wrap.children, -1)
+    classes = root_classes(spec) ++ [js_str(spec.withs[spec.wrap.part]), "className"]
+
+    input =
+      {:el, control.element,
+       ["ref={ref}"] ++ natives(spec, nil) ++ ["{...rest}", "className=#{js_str(control.class)}"],
+       []}
+
+    # The part is there in this branch.
+    parts = for p <- parts, node <- child(p, spec), do: with({:cond, _, el} <- node, do: el)
+    {:el, spec.wrap.element, [class_attr(classes)], parts ++ [input]}
+  end
+
+  # The component's classes: its own, then its axes', flags', states', values' and
+  # looks with a part.
+  defp root_classes(spec) do
     axes =
       for a <- spec.axes do
         lookup = "#{classes_const(a)}[#{camel(a.name)}]"
@@ -599,8 +640,10 @@ defmodule Prism.Generator.React do
       end
 
     values = for v <- spec.values, do: "#{value_const(v)} !== undefined && #{js_str(v.class)}"
-    classes = [js_str(spec.class)] ++ axes ++ flags ++ states ++ values ++ withs ++ ["className"]
+    [js_str(spec.class)] ++ axes ++ flags ++ states ++ values ++ withs
+  end
 
+  defp root_tree(spec, tag, on_root, classes) do
     # An element the app picks is typed as its default (`function/3`).
     {ref, rest} =
       case spec.element do

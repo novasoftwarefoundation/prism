@@ -76,8 +76,15 @@ defmodule Prism.Generator.ExampleComponents do
     flag(:strong, weight: 400)
   end
 
+  # With a prefix, a wrapper around it and the input; the prefix has a line at its end.
   component :text_field do
-    style height: 40, border: [width: 1, color: :ink]
+    style height: 40, padding: [x: 8], border: [width: 1, color: :ink]
+
+    part :prefix,
+      background: :paper,
+      padding: [x: 8],
+      border: [width: 1, color: :ink, sides: [:right]]
+
     state :focused, border: [color: :accent]
     state :disabled, opacity: 0.5
     state :invalid, border: [color: :alarm]

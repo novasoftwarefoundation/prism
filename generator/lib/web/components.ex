@@ -9,11 +9,11 @@ defmodule Prism.Generator.Web.Components do
   Its mechanics are keyed on component and part names. It knows these
   components (`kinds/0`): `:button`, `:text_field`, `:text_area`, `:field`,
   `:radio_group`, `:radio`, `:select`, `:spinner`, `:checkbox`, `:tag`,
-  `:message_bar`, `:step_indicator` and `:image_picker`, and these parts of them (`parts/0`):
-  the button's `:label` and `:icon`, the field's `:label` and
-  `:error_message`, the radio's `:control` and `:label`, the select's
-  `:field`, `:icon`, `:listbox` and `:option`, the tag's `:label`, the image
-  picker's `:preview`, and on any
+  `:message_bar`, `:step_indicator` and `:image_picker`, and these parts of
+  them (`parts/0`): the button's `:label` and `:icon`, the text field's
+  `:prefix`, the field's `:label` and `:error_message`, the radio's
+  `:control` and `:label`, the select's `:field`, `:icon`, `:listbox` and
+  `:option`, the tag's `:label`, the image picker's `:preview`, and on any
   component a part that is another component, and these values (`values/0`):
   the spinner's `:progress`. A design component it doesn't know fails
   generation, and so does a part or a value it doesn't write. Each component
@@ -100,6 +100,15 @@ defmodule Prism.Generator.Web.Components do
   Generation fails when a value or a `web:` key of the design is written
   nowhere, so nothing in the design is ignored.
 
+  ## The text field's prefix
+
+  With a prefix, a text field may be a wrapper (`--with-prefix`) around the
+  prefix and its input (`__input`, ADR 0010): the wrapper has the text field's
+  look, and the input fills the rest of the row with the text field's padding
+  and the wrapper's text. The text field's focus and disabled states are then
+  its input's, `:focus-within` and `:is(:disabled, :has(> :disabled))`, which
+  hold on a plain `<input>` too, with the same weight.
+
   ## The spinner
 
   A spinner is an image used as a mask over the spinner's text color
@@ -153,6 +162,7 @@ defmodule Prism.Generator.Web.Components do
   # The parts each component writes, besides parts that are other components.
   @parts %{
     button: [:label, :icon],
+    text_field: [:prefix],
     field: [:label, :error_message],
     radio: [:control, :label],
     select: [:field, :icon, :listbox, :option],
@@ -429,7 +439,8 @@ defmodule Prism.Generator.Web.Components do
         ["display: block", "width: 100%", declarations(n), "outline: none"] ++
           resize ++ [placed(n, :transition, &"transition: border-color #{&1}")]
       ),
-      placeholder(n),
+      placeholder(n, if(prefix?(c), do: [".#{Classes.part(prefix(), c, :input)}"], else: [])),
+      prefixed(c),
       own(n, c, pseudo(c)),
       variants(c, fn _ -> true end, pseudo(c)),
       flags(c, pseudo(c))
@@ -1170,11 +1181,61 @@ defmodule Prism.Generator.Web.Components do
     end
   end
 
-  defp placeholder(path) do
-    if has?(path, :placeholder),
-      do: rule(selector(path, "::placeholder"), ["color: #{value(path, :placeholder)}"]),
-      else: []
+  defp placeholder(path, also) do
+    if has?(path, :placeholder) do
+      sel =
+        Enum.join(
+          [selector(path, "::placeholder") | Enum.map(also, &"#{&1}::placeholder")],
+          ",\n"
+        )
+
+      rule(sel, ["color: #{value(path, :placeholder)}"])
+    else
+      []
+    end
   end
+
+  # A text field with a prefix: the element is a wrapper (`--with-prefix`) with the
+  # text field's look, around the prefix and the input, which takes the text
+  # field's padding and the wrapper's text. The prefix fills the height at the start.
+  defp prefixed(c) do
+    if prefix?(c) do
+      n = [c.name]
+
+      [
+        # A <div> is content-box where an <input> is border-box: the same size without
+        # a reset.
+        rule(".#{Classes.modifier(prefix(), c.name, :with_prefix)}", [
+          "box-sizing: border-box",
+          "display: flex",
+          "align-items: stretch",
+          "padding: 0",
+          "overflow: hidden"
+        ]),
+        rule(".#{Classes.part(prefix(), c, :input)}", [
+          "flex: 1",
+          "min-width: 0",
+          declarations(n, only: [:padding]),
+          "font: inherit",
+          "color: inherit",
+          "background-color: transparent",
+          "border: 0",
+          "outline: none",
+          "cursor: inherit"
+        ]),
+        part(
+          c,
+          :prefix,
+          &["display: flex", "align-items: center", "flex-shrink: 0", declarations(&1)]
+        )
+      ]
+    else
+      []
+    end
+  end
+
+  defp prefix?(%{name: :text_field, parts: parts}), do: Enum.any?(parts, &(&1.name == :prefix))
+  defp prefix?(_c), do: false
 
   # The check mark's color in its SVG: white and black by name.
   defp check_color(path) do
@@ -1391,7 +1452,16 @@ defmodule Prism.Generator.Web.Components do
 
   defp declaration(:background, value), do: ["background-color: #{color(value)}"]
   defp declaration(:foreground, value), do: ["color: #{color(value)}"]
-  defp declaration(:border, value), do: line_style("border", value)
+  # A border on some sides is one declaration per side (`border-right: 1px solid …`).
+  defp declaration(:border, value) do
+    case Keyword.pop(value, :sides) do
+      {nil, value} ->
+        line_style("border", value)
+
+      {sides, value} ->
+        Enum.flat_map(sides, &expand/1) |> Enum.flat_map(&line_style("border-#{&1}", value))
+    end
+  end
 
   defp declaration(:outline, value) do
     {offset, rest} = Keyword.split(value, [:offset])
@@ -1532,8 +1602,18 @@ defmodule Prism.Generator.Web.Components do
       Enum.find(tokens(), &(&1.kind == kind and &1.name == name)) ||
         raise(ArgumentError, "no #{kind} #{inspect(name)}")
 
-  # The states that are the browser's on a component's own element.
-  defp pseudo(c), do: Classes.pseudo_classes(c.name, nil)
+  # The states that are the browser's on a component's own element. A text field with
+  # a prefix may be a wrapper around its input: it is focused while its input is, and
+  # disabled while its input is.
+  defp pseudo(c) do
+    if prefix?(c),
+      do:
+        Map.merge(Classes.pseudo_classes(c.name, nil), %{
+          focused: ":focus-within",
+          disabled: ":is(:disabled, :has(> :disabled))"
+        }),
+      else: Classes.pseudo_classes(c.name, nil)
+  end
 
   defp node!(path), do: path |> nodes!() |> List.last() |> elem(1)
 
