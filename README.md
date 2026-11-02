@@ -63,7 +63,7 @@ end
   <:icon><span class="hero-check"></span></:icon>
 </MyAppWeb.Prism.button>
 
-<MyAppWeb.Prism.field>
+<MyAppWeb.Prism.field invalid={@errors != []}>
   <:label for="email">Email</:label>
   <MyAppWeb.Prism.text_field id="email" name="email" invalid={@errors != []} />
   <:error_message :for={error <- @errors}>{error}</:error_message>
@@ -107,7 +107,7 @@ import { Button, Field, Tag, TextField } from "@novasoftwarefoundation/prism-rea
   Save
 </Button>
 
-<Field label="Email" labelProps={{ htmlFor: "email" }} errorMessage={errors[0]}>
+<Field label="Email" labelProps={{ htmlFor: "email" }} errorMessage={errors[0]} invalid={errors.length > 0}>
   <TextField id="email" name="email" invalid={errors.length > 0} />
 </Field>
 
@@ -130,7 +130,7 @@ import Prism
 Button("Save", action: save)
     .buttonStyle(.prism(.primary, tone: .danger, loading: saving))
 
-PrismField(label: Text("Email"), errorMessage: error.map(Text.init)) {
+PrismField(focused: emailFocused, invalid: error != nil, label: Text("Email"), errorMessage: error.map(Text.init)) {
     TextField("", text: $email)
         .focused($emailFocused)
         .prismTextField(focused: emailFocused, invalid: error != nil)

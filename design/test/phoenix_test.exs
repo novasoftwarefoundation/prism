@@ -112,7 +112,7 @@ defmodule Prism.Design.PhoenixTest do
       <:icon><span class="hero-check"></span></:icon>
     </UI.button>
 
-    <UI.field>
+    <UI.field invalid={@errors != []}>
       <:label for="email">Email</:label>
       <UI.text_field id="email" name="email" invalid={@errors != []} />
       <:error_message :for={error <- @errors}>{error}</:error_message>
@@ -126,6 +126,7 @@ defmodule Prism.Design.PhoenixTest do
     assert html =~
              ~s(class="prism-button prism-button--primary prism-button--danger prism-button--loading prism-button--with-icon")
 
+    assert html =~ ~s(<div class="prism-field prism-field--invalid">)
     assert html =~ ~s(<label for="email" class="prism-field__label">Email</label>)
     assert html =~ ~s(class="prism-text-field prism-text-field--invalid")
     assert html =~ ~s(<p class="prism-field__error-message">can&#39;t be blank</p>)
@@ -147,7 +148,7 @@ defmodule Prism.Design.PhoenixTest do
       ~H"""
       <UI.text_field variant={:inverse} invalid disabled />
       <UI.text_area value="x" />
-      <UI.field><:label>x</:label>x<:error_message>x</:error_message></UI.field>
+      <UI.field variant={:inverse} invalid><:label>x</:label>x<:error_message>x</:error_message></UI.field>
       <UI.radio_group><UI.radio checked disabled>x</UI.radio></UI.radio_group>
       <UI.select>x<:icon>v</:icon><:option selected>x</:option></UI.select>
       <UI.checkbox checked disabled />
@@ -173,7 +174,7 @@ defmodule Prism.Design.PhoenixTest do
     classes = rendered |> List.flatten() |> Enum.flat_map(&classes/1) |> Enum.uniq()
     assert length(classes) > 50
 
-    # Without a look of their own, the button's icon and the field have no rule.
-    assert Enum.reject(classes, &in_css?/1) == ["prism-button__icon", "prism-field"]
+    # Without a look of its own, the button's icon has no rule.
+    assert Enum.reject(classes, &in_css?/1) == ["prism-button__icon"]
   end
 end

@@ -198,10 +198,27 @@ defmodule Prism.Design.Components do
     state :focused, border: [color: :primary]
   end
 
-  # A label and an error message around a control.
+  # A label and an error message around a control. Its label takes the control's focus
+  # color while the control has focus, and the warning color while the field is
+  # invalid, which wins over the focus (ADR 0008).
   component :field, web: [section: "Fields"] do
     part :label, typography: :title6, foreground: :grey1, margin: [bottom: 8]
     part :error_message, typography: :caption, foreground: :warning, margin: [top: 4]
+
+    state :focused, web: [doc: "Field whose control has focus"] do
+      part :label, foreground: :primary
+    end
+
+    state :invalid, web: [doc: "Field with an invalid value"] do
+      part :label, foreground: :warning
+    end
+
+    # On a dark background.
+    variant :inverse, web: [doc: "Field on a dark background"] do
+      state :focused do
+        part :label, foreground: :tertiary
+      end
+    end
   end
 
   component :radio_group, web: [section: "Radio Buttons"] do

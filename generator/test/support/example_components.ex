@@ -89,9 +89,24 @@ defmodule Prism.Generator.ExampleComponents do
     state :focused, border: [color: :accent]
   end
 
+  # Its label follows its control's focus, and the field's invalid state.
   component :field do
     part :label, foreground: :ink
     part :error_message, foreground: :alarm
+
+    state :focused do
+      part :label, foreground: :accent
+    end
+
+    state :invalid do
+      part :label, foreground: :alarm
+    end
+
+    variant :inverse do
+      state :focused do
+        part :label, foreground: :paper
+      end
+    end
   end
 
   component :radio_group do

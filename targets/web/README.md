@@ -101,11 +101,16 @@ Classes follow BEM: `prism-<component>`, `__<part>` for a part, `--<name>` for a
   <span class="prism-spinner prism-spinner--20"></span>
 </button>
 
-<!-- Fields -->
-<label class="prism-field__label" for="name">Name</label>
-<input id="name" type="text" class="prism-text-field" placeholder="Enter text" />
-<input type="text" class="prism-text-field prism-text-field--invalid" aria-invalid="true" />
-<span class="prism-field__error-message">Required</span>
+<!-- Fields: the label follows its control's focus, and the field's invalid state -->
+<div class="prism-field">
+  <label class="prism-field__label" for="name">Name</label>
+  <input id="name" type="text" class="prism-text-field" placeholder="Enter text" />
+</div>
+<div class="prism-field prism-field--invalid">
+  <label class="prism-field__label" for="email">Email</label>
+  <input id="email" type="text" class="prism-text-field prism-text-field--invalid" aria-invalid="true" />
+  <p class="prism-field__error-message">Required</p>
+</div>
 <textarea class="prism-text-area" placeholder="Enter description"></textarea>
 
 <!-- Radio buttons -->
@@ -215,7 +220,10 @@ Font classes: `font-title0` through `font-title7`, `font-body`, `font-button`, `
 | `prism-text-field--invalid` | A text field with an invalid value; it keeps its warning border while it has focus, also over a `focus:border-*` utility |
 | `prism-text-field--inverse` | A text field on a dark background |
 | `prism-text-area` | Multi-line text field |
-| `prism-field__label` | Form label |
+| `prism-field` | A label and an error message around a control |
+| `prism-field__label` | Form label; primary while the field's control has focus |
+| `prism-field--invalid` | A field with an invalid value: a warning label, also while its control has focus |
+| `prism-field--inverse` | A field on a dark background: a tertiary label while its control has focus |
 | `prism-field__error-message` | Error message |
 
 ### Radio Buttons
@@ -358,6 +366,7 @@ Also:
 - **Plain and text buttons fit their text** unless they have `prism-button--padded` (15px top and bottom, 16px at the sides, as tall as a primary button). Without it, a plain button is as in 0.1.7 (4px top and bottom, none at the sides); a text button keeps 0.1.7's label button's 1px top and bottom but has no padding at the sides (it had 16px). The Phoenix and React components add `--padded` by default (`padded={false}` leaves it off).
 - **The icon's side.** The Phoenix and React components put the icon before the label by default now (at its start), and after it with `icon_position={:end}` / `iconPosition="end"`; they used to put it after the label. In plain HTML, the order of the elements is the side.
 - **An invalid text field keeps its warning border while it has focus**, on the inverse field too: `prism-text-field--invalid` now outweighs `:focus`, where 0.1.7's focus border replaced it. CSS that an app wrote for this can go. These selectors also beat an app's own focus border on an invalid field, a `focus:border-*` utility or a rule such as `.prism-text-field--invalid:focus`; for another color there, use the important modifier (`focus:!border-…`) or `.prism-text-field.prism-text-field--invalid:focus` after Prism's CSS.
+- **A field's label follows its control.** Put the label and the control in a `prism-field`: its label is primary while the control has focus (tertiary with `prism-field--inverse`), and warning with `prism-field--invalid`, also while focused. Its own `color` beats a text-color utility on the label (two classes, or one and `:focus-within`); use the important modifier for another color.
 - **Two classes beat one utility.** These rules are two classes together, which is more specific than one Tailwind utility, so a utility on such a button no longer wins as it did on 0.1.7's single classes; use Tailwind's important modifier (`!px-4`, `!text-grey1`) or your own CSS for it:
   - a button with an icon (`.prism-button--primary.prism-button--with-icon`): its padding and gap, where 0.1.7's `prism-btn-primary-icon` was one class;
   - a tone (`.prism-button--secondary.prism-button--danger`): its text, border and background colors, where 0.1.7's `prism-btn-danger` was one class;

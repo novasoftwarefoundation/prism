@@ -123,7 +123,7 @@ Today the generator has the schema (tokens, typography and components), the web 
 
    - A part never reads as a variant: a flat class such as `prism-button-label` could be either, `prism-button__label` can't. So a variant may have a part's name (`--icon` and `__icon`); the schema keeps every other pair of a component's names apart (variants, parts, states, flags, looks with a part), as their modifier classes or the native targets' names would clash.
    - The axis is not in the class: a component's variant names are unique across its axes (the schema checks it), so `--danger` is enough.
-   - A state that is the browser's is its pseudo-class instead (`:active`, `:hover`, `:focus`, `:disabled`, `:checked`) on a form control; see `Prism.Generator.Web.Components`.
+   - A state that is the browser's is its pseudo-class instead (`:active`, `:hover`, `:focus`, `:disabled`, `:checked`) on a form control, and a field's `focused` is `:focus-within`, the focus of the control it holds; see `Prism.Generator.Web.Components`.
    - A part that is another component has that component's class (`.prism-spinner` in a button), and the classes of the variants it picks (`.prism-spinner--20`).
 
    Renaming a design name renames its class; there is no binding for class names.

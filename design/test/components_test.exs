@@ -40,7 +40,7 @@ defmodule Prism.Design.ComponentsTest do
              ],
              text_field: [variant: [:inverse]],
              text_area: [],
-             field: [],
+             field: [variant: [:inverse]],
              radio_group: [],
              radio: [],
              select: [],
