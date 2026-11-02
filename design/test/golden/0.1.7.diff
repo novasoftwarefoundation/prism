@@ -1,0 +1,714 @@
+--- 0.1.7/tailwind.preset.js
++++ generated/tailwind.preset.js
+@@ -46,7 +46,7 @@
+         // Deprecated — use btn-pressed / card instead
+         top4px: "inset 0 4px 0 0 rgba(0, 0, 0, 0.15)",
+         top2px: "inset 0 2px 0 0 rgba(0, 0, 0, 0.15)",
+-        floating: "0px 5px 20px 0px rgba(0, 0, 0, 0.10)",
++        floating: "0 5px 20px 0 rgba(0, 0, 0, 0.10)",
+       },
+       spacing: {
+         "1px": "1px",
+--- 0.1.7-renamed/css/components.css
++++ generated/css/components.css
+@@ -48,8 +48,6 @@
+ 
+ /* Primary button with icon */
+ .prism-button--primary.prism-button--with-icon {
+-  background-color: #4272ef;
+-  color: #ffffff;
+   padding: 4px 16px;
+   gap: 12px;
+ }
+@@ -57,7 +55,6 @@
+ .prism-button--primary.prism-button--with-icon:active {
+   padding-top: 5px;
+   padding-bottom: 3px;
+-  box-shadow: inset 0 4px 0 0 rgba(0, 0, 0, 0.15);
+ }
+ 
+ /* Secondary button - outlined */
+@@ -81,19 +78,9 @@
+ 
+ /* Secondary button with icon */
+ .prism-button--secondary.prism-button--with-icon {
+-  background-color: transparent;
+-  color: #4272ef;
+-  border: 2px solid #4272ef;
+-  padding: 13px 16px;
+   gap: 12px;
+ }
+ 
+-.prism-button--secondary.prism-button--with-icon:active {
+-  padding-top: 14px;
+-  padding-bottom: 12px;
+-  box-shadow: inset 0 2px 0 0 rgba(0, 0, 0, 0.15);
+-}
+-
+ /* Plain button - text only, no background */
+ .prism-button--plain {
+   background-color: transparent;
+@@ -108,17 +95,9 @@
+ 
+ /* Plain button with icon */
+ .prism-button--plain.prism-button--with-icon {
+-  background-color: transparent;
+-  color: #222222;
+-  padding: 4px 0;
+   gap: 8px;
+ }
+ 
+-.prism-button--plain.prism-button--with-icon:active {
+-  padding-top: 5px;
+-  padding-bottom: 3px;
+-}
+-
+ /* Link button - looks like a text link */
+ .prism-button--link {
+   background-color: transparent;
+@@ -132,10 +111,10 @@
+   text-decoration: none;
+ }
+ 
+-/* Label button - for wrapping labels, minimal styling */
++/* Text button - brand-colored text, minimal styling */
+ .prism-button--text {
+   color: #4272ef;
+-  padding: 1px 16px;
++  padding: 1px 0;
+ }
+ 
+ .prism-button--text:active {
+@@ -143,6 +122,47 @@
+   padding-bottom: 0;
+ }
+ 
++/* Soft button - the tone's light color as its background */
++.prism-button--soft {
++  background-color: #e3eafd;
++  color: #4272ef;
++  padding: 15px 16px;
++}
++
++.prism-button--soft:active {
++  padding-top: 16px;
++  padding-bottom: 14px;
++  box-shadow: inset 0 4px 0 0 rgba(0, 0, 0, 0.15);
++}
++
++.prism-button--soft:disabled {
++  opacity: 0.5;
++  cursor: not-allowed;
++}
++
++/* Soft button with icon */
++.prism-button--soft.prism-button--with-icon {
++  padding: 4px 16px;
++  gap: 12px;
++}
++
++.prism-button--soft.prism-button--with-icon:active {
++  padding-top: 5px;
++  padding-bottom: 3px;
++}
++
++/* Icon button - an icon only */
++.prism-button--icon {
++  width: 24px;
++  height: 24px;
++  padding: 0;
++  background-color: transparent;
++}
++
++.prism-button--icon:active {
++  opacity: 0.8;
++}
++
+ /* Button with loading state */
+ .prism-button--loading {
+   position: relative;
+@@ -159,32 +179,164 @@
+   /* Use margins instead of transform for centering because
+      the spinner animation uses transform: rotate() which would
+      override translate(-50%, -50%) centering */
+-  margin-top: -12px;
+-  margin-left: -12px;
++  margin-top: -10px;
++  margin-left: -10px;
+ }
+ 
+-/* Color variants */
+-.prism-button--success {
++.prism-button:not(.prism-button--loading) .prism-spinner {
++  display: none;
++}
++
++/* Tones */
++.prism-button--primary.prism-button--success {
+   background-color: #52ba12;
+   color: #ffffff;
+ }
+ 
+-.prism-button--warning {
++.prism-button--secondary.prism-button--success {
++  color: #52ba12;
++  border-color: #52ba12;
++}
++
++.prism-button--plain.prism-button--success {
++  color: #52ba12;
++}
++
++.prism-button--link.prism-button--success {
++  color: #52ba12;
++}
++
++.prism-button--text.prism-button--success {
++  color: #52ba12;
++}
++
++.prism-button--soft.prism-button--success {
++  background-color: #ebffdf;
++  color: #52ba12;
++}
++
++.prism-button--primary.prism-button--warning {
+   background-color: #f28d15;
+   color: #ffffff;
+ }
+ 
+-.prism-button--danger,
+-.prism-button--danger {
++.prism-button--secondary.prism-button--warning {
++  color: #f28d15;
++  border-color: #f28d15;
++}
++
++.prism-button--plain.prism-button--warning {
++  color: #f28d15;
++}
++
++.prism-button--link.prism-button--warning {
++  color: #f28d15;
++}
++
++.prism-button--text.prism-button--warning {
++  color: #f28d15;
++}
++
++.prism-button--soft.prism-button--warning {
++  background-color: #ffefdc;
++  color: #f28d15;
++}
++
++.prism-button--primary.prism-button--danger {
+   background-color: #db1e1e;
+   color: #ffffff;
+ }
+ 
++.prism-button--secondary.prism-button--danger {
++  color: #db1e1e;
++  border-color: #db1e1e;
++}
++
++.prism-button--plain.prism-button--danger {
++  color: #db1e1e;
++}
++
++.prism-button--link.prism-button--danger {
++  color: #db1e1e;
++}
++
++.prism-button--text.prism-button--danger {
++  color: #db1e1e;
++}
++
++.prism-button--soft.prism-button--danger {
++  background-color: #ffecec;
++  color: #db1e1e;
++}
++
++.prism-button--primary.prism-button--neutral {
++  background-color: #222222;
++  color: #ffffff;
++}
++
++.prism-button--secondary.prism-button--neutral {
++  color: #222222;
++  border-color: #222222;
++}
++
++.prism-button--plain.prism-button--neutral {
++  color: #222222;
++}
++
++.prism-button--link.prism-button--neutral {
++  color: #222222;
++}
++
++.prism-button--text.prism-button--neutral {
++  color: #222222;
++}
++
++.prism-button--primary.prism-button--highlight {
++  background-color: #ffcf60;
++  color: #222222;
++}
++
++.prism-button--secondary.prism-button--highlight {
++  color: #ffcf60;
++  border-color: #ffcf60;
++}
++
++.prism-button--plain.prism-button--highlight {
++  color: #ffcf60;
++}
++
++.prism-button--link.prism-button--highlight {
++  color: #ffcf60;
++}
++
++.prism-button--text.prism-button--highlight {
++  color: #ffcf60;
++}
++
++/* Plain and text buttons with padding */
++.prism-button--plain.prism-button--padded {
++  padding: 15px 16px;
++}
++
++.prism-button--plain.prism-button--padded:active {
++  padding-top: 16px;
++  padding-bottom: 14px;
++}
++
++.prism-button--text.prism-button--padded {
++  padding: 15px 16px;
++}
++
++.prism-button--text.prism-button--padded:active {
++  padding-top: 16px;
++  padding-bottom: 14px;
++}
++
+ /* ==========================================================================
+-   Inputs
++   Text fields
+    ========================================================================== */
+ 
+-/* Base input styles */
++/* Base text field styles */
+ .prism-text-field {
+   display: block;
+   width: 100%;
+@@ -203,35 +355,69 @@
+   transition: border-color 0.15s ease-in-out;
+ }
+ 
+-.prism-text-field::placeholder {
++.prism-text-field::placeholder,
++.prism-text-field__input::placeholder {
+   color: #999999;
+ }
+ 
+-.prism-text-field:focus {
++.prism-text-field--with-prefix {
++  box-sizing: border-box;
++  display: flex;
++  align-items: stretch;
++  padding: 0;
++  overflow: hidden;
++}
++
++.prism-text-field__input {
++  flex: 1;
++  min-width: 0;
++  padding-left: 12px;
++  padding-right: 12px;
++  font: inherit;
++  color: inherit;
++  background-color: transparent;
++  border: 0;
++  outline: none;
++  cursor: inherit;
++}
++
++/* Text field with a prefix */
++.prism-text-field__prefix {
++  display: flex;
++  align-items: center;
++  flex-shrink: 0;
++  background-color: #fafafa;
++  padding-left: 12px;
++  padding-right: 12px;
++  border-right: 1px solid #cccccc;
++}
++
++.prism-text-field:focus-within {
+   border-color: #4272ef;
+ }
+ 
+-.prism-text-field:disabled {
++.prism-text-field:is(:disabled, :has(> :disabled)) {
+   color: #cccccc;
+   background-color: #f6f6f6;
+   cursor: not-allowed;
+ }
+ 
+-/* Input with error state */
+-.prism-text-field--invalid {
++/* Text field with an invalid value */
++.prism-text-field--invalid,
++.prism-text-field.prism-text-field--invalid:focus-within,
++.prism-text-field--inverse.prism-text-field--invalid:focus-within {
+   border-color: #f28d15;
+ }
+ 
+-/* Input with dark background */
+-.prism-text-field--inverse:focus {
++/* Text field on a dark background */
++.prism-text-field--inverse:focus-within {
+   border-color: #ffcf60;
+ }
+ 
+-/* Textarea */
++/* Text area */
+ .prism-text-area {
+   display: block;
+   width: 100%;
+-  min-height: 256px;
+   padding: 8px 12px;
+   font-family: "Nunito Sans", sans-serif;
+   font-weight: 300;
+@@ -250,12 +436,47 @@
+   color: #999999;
+ }
+ 
+-.prism-text-area:focus {
++.prism-text-area--rich-text {
++  box-sizing: border-box;
++}
++
++.prism-text-area__editor {
++  border: 0;
++  border-radius: 0;
++  padding: 0;
++  background-color: transparent;
++  outline: none;
++}
++
++.prism-text-area:focus-within {
+   border-color: #4272ef;
+ }
+ 
++.prism-text-area:is(:disabled, :has(:where(.prism-text-area__editor):disabled)) {
++  color: #cccccc;
++  background-color: #f6f6f6;
++  cursor: not-allowed;
++}
++
++/* Text area with an invalid value */
++.prism-text-area--invalid,
++.prism-text-area.prism-text-area--invalid:focus-within,
++.prism-text-area--inverse.prism-text-area--invalid:focus-within {
++  border-color: #f28d15;
++}
++
++/* Text area on a dark background */
++.prism-text-area--inverse:focus-within {
++  border-color: #ffcf60;
++}
++
++/* Text area with rich text */
++.prism-text-area--rich-text {
++  padding: 16px;
++}
++
+ /* ==========================================================================
+-   Form Labels
++   Fields
+    ========================================================================== */
+ 
+ .prism-field__label {
+@@ -277,6 +498,23 @@
+   margin-top: 4px;
+ }
+ 
++/* Field whose control has focus */
++.prism-field:focus-within .prism-field__label {
++  color: #4272ef;
++}
++
++/* Field with an invalid value */
++.prism-field--invalid .prism-field__label,
++.prism-field.prism-field--invalid:focus-within .prism-field__label,
++.prism-field--inverse.prism-field--invalid:focus-within .prism-field__label {
++  color: #f28d15;
++}
++
++/* Field on a dark background */
++.prism-field--inverse:focus-within .prism-field__label {
++  color: #ffcf60;
++}
++
+ /* ==========================================================================
+    Radio Buttons
+    ========================================================================== */
+@@ -332,7 +570,7 @@
+ }
+ 
+ /* ==========================================================================
+-   Dropdown / Select
++   Select
+    ========================================================================== */
+ 
+ .prism-select {
+@@ -363,6 +601,18 @@
+   border-color: #4272ef;
+ }
+ 
++.prism-select__field:disabled {
++  color: #cccccc;
++  background-color: #f6f6f6;
++  cursor: not-allowed;
++}
++
++.prism-select__field--invalid,
++.prism-select__field.prism-select__field--invalid:focus,
++.prism-select--inverse .prism-select__field.prism-select__field--invalid:focus {
++  border-color: #f28d15;
++}
++
+ .prism-select__icon {
+   position: absolute;
+   right: 12px;
+@@ -409,13 +659,22 @@
+   color: #4272ef;
+ }
+ 
++/* Select on a dark background */
++.prism-select--inverse .prism-select__field:focus {
++  border-color: #ffcf60;
++}
++
+ /* ==========================================================================
+    Spinner
+    ========================================================================== */
+ 
+ .prism-spinner {
++  display: inline-block;
+   width: 24px;
+   height: 24px;
++  background-color: currentColor;
++  -webkit-mask: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none'%3e%3ccircle cx='12' cy='12' r='10' stroke='black' stroke-opacity='0.25' stroke-width='4'/%3e%3cpath d='M22 12a10 10 0 0 0-10-10' stroke='black' stroke-width='4' stroke-linecap='round'/%3e%3c/svg%3e") center / contain no-repeat;
++  mask: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none'%3e%3ccircle cx='12' cy='12' r='10' stroke='black' stroke-opacity='0.25' stroke-width='4'/%3e%3cpath d='M22 12a10 10 0 0 0-10-10' stroke='black' stroke-width='4' stroke-linecap='round'/%3e%3c/svg%3e") center / contain no-repeat;
+   animation: prism-spin 1s linear infinite;
+ }
+ 
+@@ -424,6 +683,11 @@
+   height: 16px;
+ }
+ 
++.prism-spinner--20 {
++  width: 20px;
++  height: 20px;
++}
++
+ .prism-spinner--32 {
+   width: 32px;
+   height: 32px;
+@@ -438,16 +702,43 @@
+   }
+ }
+ 
+-/* Spinner colors - use with filter for different colors */
++/* Spinner colors */
++.prism-spinner--accent {
++  color: #4272ef;
++}
++
+ .prism-spinner--inverse {
+-  filter: brightness(0) invert(1);
++  color: #ffffff;
+ }
+ 
+-.prism-spinner--accent {
+-  filter: brightness(0) saturate(100%) invert(39%) sepia(70%) saturate(2238%)
+-    hue-rotate(209deg) brightness(97%) contrast(91%);
++/* Spinner with a progress value */
++.prism-spinner--progress {
++  background-color: transparent;
++  -webkit-mask: none;
++  mask: none;
+ }
+ 
++.prism-spinner--progress svg {
++  display: block;
++  width: 100%;
++  height: 100%;
++  fill: none;
++  stroke-width: 16;
++}
++
++.prism-spinner--progress .prism-spinner__track {
++  stroke: #eeeeee;
++}
++
++.prism-spinner--progress .prism-spinner__indicator {
++  stroke: currentColor;
++  stroke-linecap: round;
++}
++
++.prism-spinner--inverse.prism-spinner--progress .prism-spinner__track {
++  stroke: rgba(255, 255, 255, 0.2);
++}
++
+ /* ==========================================================================
+    Checkbox (bonus component)
+    ========================================================================== */
+@@ -477,7 +768,7 @@
+ }
+ 
+ /* ==========================================================================
+-   Tags / Badges
++   Tags
+    ========================================================================== */
+ 
+ /* Base tag styles - colored label with background opacity */
+@@ -502,7 +793,7 @@
+   line-height: 16px;
+ }
+ 
+-/* Primary tag (default) */
++/* Accent tag (default) */
+ .prism-tag--accent .prism-tag__label {
+   background-color: rgba(66, 114, 239, 0.2);
+   color: #4272ef;
+@@ -520,24 +811,23 @@
+   color: #f28d15;
+ }
+ 
+-/* Error/Danger tag */
+-.prism-tag--danger .prism-tag__label,
++/* Danger tag */
+ .prism-tag--danger .prism-tag__label {
+   background-color: rgba(219, 30, 30, 0.2);
+   color: #db1e1e;
+ }
+ 
+-/* Secondary tag */
++/* Neutral tag */
+ .prism-tag--neutral .prism-tag__label {
+   background-color: rgba(153, 153, 153, 0.2);
+   color: #666666;
+ }
+ 
+ /* ==========================================================================
+-   Alert Banners
++   Message bars
+    ========================================================================== */
+ 
+-/* Base alert styles */
++/* Base message bar styles */
+ .prism-message-bar {
+   display: flex;
+   justify-content: center;
+@@ -551,35 +841,35 @@
+   line-height: 16px;
+ }
+ 
+-/* Info alert (default) */
++/* Info message bar (default) */
+ .prism-message-bar--info {
+   background-color: rgba(66, 114, 239, 0.15);
+   color: #4272ef;
+ }
+ 
+-/* Success alert */
++/* Success message bar */
+ .prism-message-bar--success {
+   background-color: rgba(82, 186, 18, 0.15);
+   color: #52ba12;
+ }
+ 
+-/* Warning alert */
++/* Warning message bar */
+ .prism-message-bar--warning {
+   background-color: rgba(242, 141, 21, 0.15);
+   color: #f28d15;
+ }
+ 
+-/* Error alert */
++/* Danger message bar */
+ .prism-message-bar--danger {
+   background-color: rgba(219, 30, 30, 0.15);
+   color: #db1e1e;
+ }
+ 
+ /* ==========================================================================
+-   Number Icons (Step Indicators)
++   Step indicators
+    ========================================================================== */
+ 
+-/* Base number icon - circular badge with number */
++/* Base step indicator - circular badge with number */
+ .prism-step-indicator {
+   display: flex;
+   align-items: center;
+@@ -595,20 +885,53 @@
+   font-variant-numeric: tabular-nums;
+ }
+ 
+-/* Inactive state (default) */
++/* Incomplete step (default) */
+ .prism-step-indicator--incomplete {
+   background-color: #eeeeee;
+   color: #999999;
+ }
+ 
+-/* Active state */
++/* Current step */
+ .prism-step-indicator--current {
+   background-color: #4272ef;
+   color: #ffffff;
+ }
+ 
+-/* Completed state */
++/* Complete step */
+ .prism-step-indicator--complete {
+   background-color: #52ba12;
+   color: #ffffff;
+ }
++
++/* ==========================================================================
++   Image pickers
++   ========================================================================== */
++
++.prism-image-picker {
++  display: flex;
++  flex-direction: row;
++  align-items: center;
++  gap: 24px;
++}
++
++.prism-image-picker__preview {
++  flex-shrink: 0;
++  overflow: hidden;
++  width: 120px;
++  height: 90px;
++  background-color: #eeeeee;
++  border: 2px solid #eeeeee;
++}
++
++.prism-image-picker__preview > img {
++  display: block;
++  width: 100%;
++  height: 100%;
++  object-fit: cover;
++}
++
++/* Round image picker, for a profile photo */
++.prism-image-picker--round .prism-image-picker__preview {
++  height: 120px;
++  border-radius: 50%;
++}

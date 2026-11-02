@@ -1,0 +1,239 @@
+defmodule Prism.Design.ComponentsTest do
+  use ExUnit.Case, async: true
+
+  @design Prism.Design.Components.__schema__()
+
+  test "the design has 0.1.7's eleven components, under their new names, in 0.1.7's order, then the image picker" do
+    assert Enum.map(@design.components, & &1.name) == [
+             :button,
+             :text_field,
+             :text_area,
+             :field,
+             :radio_group,
+             :radio,
+             :select,
+             :spinner,
+             :checkbox,
+             :tag,
+             :message_bar,
+             :step_indicator,
+             :image_picker
+           ]
+  end
+
+  test "the components are built on Prism's tokens" do
+    assert @design.tokens == Prism.Design.Tokens.__schema__().tokens
+    assert @design.tokens_file == "lib/tokens.ex"
+    assert @design.file == "lib/components.ex"
+    assert @design.web.prefix == "prism"
+  end
+
+  test "variants are on separate axes: variant, tone, size and status" do
+    axes =
+      Map.new(@design.components, fn c ->
+        {c.name, c.variants |> Enum.group_by(& &1.axis, & &1.name) |> Enum.sort()}
+      end)
+
+    assert axes == %{
+             button: [
+               tone: [:success, :warning, :danger, :neutral, :highlight],
+               variant: [:primary, :secondary, :plain, :link, :text, :soft, :icon]
+             ],
+             text_field: [variant: [:inverse]],
+             text_area: [editor: [:rich_text], variant: [:inverse]],
+             field: [variant: [:inverse]],
+             radio_group: [],
+             radio: [],
+             select: [variant: [:inverse]],
+             spinner: [size: [16, 20, 32], variant: [:accent, :inverse]],
+             checkbox: [],
+             tag: [tone: [:accent, :success, :warning, :danger, :neutral]],
+             message_bar: [tone: [:info, :success, :warning, :danger]],
+             step_indicator: [status: [:incomplete, :current, :complete]],
+             image_picker: [shape: [:round]]
+           }
+  end
+
+  # The consumer app's previews: 120×90 for an image, 120×120 and round for a profile
+  # photo, on grey4 with a 2px grey4 frame, 24px from the app's button.
+  test "an image picker: a rectangular or round preview, and the app's button" do
+    picker = Enum.find(@design.components, &(&1.name == :image_picker))
+    assert picker.style == [gap: 24]
+    assert [%{default: :rectangular, name: :shape}] = picker.axes
+    assert [preview, button] = picker.parts
+    assert preview.style[:width] == 120 and preview.style[:height] == 90
+    assert button.component == :button
+    [round] = picker.variants
+    assert [%{name: :preview, style: [height: 120, radius: :full]}] = round.parts
+  end
+
+  # The text area and the select's field have the text field's states and its inverse
+  # variant, and the app sets the text area's height.
+  test "every field takes the text field's focused, disabled, invalid and inverse looks" do
+    component = &Enum.find(@design.components, fn c -> c.name == &1 end)
+    states = &Map.new(&1, fn s -> {s.name, s.style} end)
+    inverse = &Enum.find(&1.variants, fn v -> v.name == :inverse end)
+
+    text_field = component.(:text_field)
+    text_area = component.(:text_area)
+    select = component.(:select)
+    field = Enum.find(select.parts, &(&1.name == :field))
+
+    assert states.(text_area.states) == states.(text_field.states)
+    assert states.(field.states) == states.(text_field.states)
+    assert states.(inverse.(text_area).states) == states.(inverse.(text_field).states)
+
+    assert [%{name: :field, states: select_inverse}] = inverse.(select).parts
+    assert states.(select_inverse) == states.(inverse.(text_field).states)
+
+    refute Keyword.has_key?(text_area.style, :min_height)
+    refute Keyword.has_key?(text_area.style, :height)
+  end
+
+  # Rich text in the app's editor: 16px on every side, a height of the app's, and plain
+  # text without a class. The editor's toolbar and content styles are not Prism's.
+  test "the text area's rich-text look is an editor, which combines with inverse" do
+    text_area = Enum.find(@design.components, &(&1.name == :text_area))
+    assert [%{name: :editor, default: :plain}] = text_area.axes
+    rich = Enum.find(text_area.variants, &(&1.name == :rich_text))
+    assert rich.axis == :editor
+    assert rich.style == [padding: [y: 16, x: 16]]
+    assert rich.states == []
+  end
+
+  test "one tone vocabulary, and no aliases" do
+    tones = [:accent, :neutral, :highlight, :info, :success, :warning, :danger]
+
+    for c <- @design.components, v <- c.variants do
+      if v.axis == :tone, do: assert(v.name in tones, "#{c.name}: tone #{v.name}")
+      assert v.aliases == [], "#{c.name}.#{v.name} has aliases"
+    end
+  end
+
+  test "a button with an icon is the icon part being there, not a variant" do
+    button = Enum.find(@design.components, &(&1.name == :button))
+
+    assert Enum.map(button.parts, &{&1.name, &1.component}) ==
+             [label: nil, icon: nil, spinner: :spinner]
+
+    assert for(v <- button.variants, w <- v.with_parts, do: {v.name, w.part}) ==
+             [primary: :icon, secondary: :icon, plain: :icon, soft: :icon]
+  end
+
+  # A tone colors the background of a primary button, and the text (and the
+  # border) of the others; a soft button gets the tone's light color behind it.
+  test "every tone colors every variant that takes a color, by one rule" do
+    button = Enum.find(@design.components, &(&1.name == :button))
+    tone = &Enum.find(button.variants, fn v -> v.name == &1 end)
+
+    colors = %{
+      success: {:success, :white, :successlight},
+      warning: {:warning, :white, :warninglight},
+      danger: {:error, :white, :errorlight},
+      neutral: {:grey1, :white, nil},
+      highlight: {:tertiary, :grey1, nil}
+    }
+
+    for {name, {color, on, light}} <- colors do
+      looks = Map.new(tone.(name).with_variants, &{&1.name, &1.style})
+      assert looks[:primary] == [background: color, foreground: on], "#{name} on primary"
+
+      assert looks[:secondary] == [foreground: color, border: [color: color]],
+             "#{name} on secondary"
+
+      for v <- [:plain, :link, :text],
+          do: assert(looks[v] == [foreground: color], "#{name} on #{v}")
+
+      if light,
+        do: assert(looks[:soft] == [background: light, foreground: color], "#{name} on soft"),
+        else: refute(Map.has_key?(looks, :soft), "#{name} has no light color")
+
+      refute Map.has_key?(looks, :icon), "an icon button takes no tone"
+    end
+  end
+
+  test "padded is on by default and lines a plain or text button up with a primary one" do
+    button = Enum.find(@design.components, &(&1.name == :button))
+    assert [%{name: :padded, default: true, style: [], with_variants: withs}] = button.flags
+    assert Enum.map(withs, & &1.name) == [:plain, :text]
+    primary = Enum.find(button.variants, &(&1.name == :primary))
+
+    for w <- withs, do: assert(w.style == Keyword.take(primary.style, [:padding]))
+
+    # Without padding, each keeps its 0.1.7 height and fits its text at the sides.
+    unpadded =
+      for v <- button.variants, v.name in [:plain, :text], do: {v.name, v.style[:padding]}
+
+    assert unpadded == [plain: [y: 4, x: 0], text: [y: 1, x: 0]]
+  end
+
+  # A button element has padding and a background of its own; the CSS doesn't rely
+  # on an app's reset to remove them.
+  test "an icon button has no padding and no background, in its own CSS" do
+    button = Enum.find(@design.components, &(&1.name == :button))
+    icon = Enum.find(button.variants, &(&1.name == :icon))
+    assert icon.style == [size: 24, padding: [y: 0, x: 0], background: :transparent]
+
+    {_, css, _} =
+      @design |> Prism.Generator.Web.files() |> List.keyfind("css/components.css", 0)
+
+    assert css =~
+             "\n.prism-button--icon {\n  width: 24px;\n  height: 24px;\n  padding: 0;\n  background-color: transparent;\n}\n"
+  end
+
+  test "the icon is at the start of the label unless the app puts it at the end" do
+    button = Enum.find(@design.components, &(&1.name == :button))
+    assert Enum.find(button.parts, &(&1.name == :icon)).position == :start
+  end
+
+  # ADR 0007: sizes by their px, a progress value, and 20px in the button.
+  test "the spinner's sizes are 16, 20, 24 and 32, its own 24" do
+    spinner = Enum.find(@design.components, &(&1.name == :spinner))
+
+    assert spinner.style[:size] == 24
+    assert [%{name: :size, default: 24}] = spinner.axes
+
+    assert for(%{axis: :size} = v <- spinner.variants, do: {v.name, v.style}) ==
+             [{16, [size: 16]}, {20, [size: 20]}, {32, [size: 32]}]
+  end
+
+  test "with a progress value, a grey4 track and a 16% stroke; the button's spinner is 20px" do
+    spinner = Enum.find(@design.components, &(&1.name == :spinner))
+
+    assert [%{name: :progress, style: [stroke: {16, :percent}, track: :grey4]}] =
+             spinner.values
+
+    button = Enum.find(@design.components, &(&1.name == :button))
+    assert Enum.find(button.parts, &(&1.name == :spinner)).variants == [size: 20]
+  end
+
+  # The inverse spinner's white arc on a white track at 20%, on any colored background.
+  test "the inverse spinner's progress has a white track at 20%" do
+    spinner = Enum.find(@design.components, &(&1.name == :spinner))
+    inverse = Enum.find(spinner.variants, &(&1.name == :inverse))
+
+    assert inverse.style == [foreground: :white]
+    assert [%{name: :progress, style: [track: {:white, 0.2}]}] = inverse.values
+    assert for(v <- spinner.variants, v.name != :inverse, do: v.values) |> Enum.all?(&(&1 == []))
+  end
+
+  test "the spinner's color is its foreground, a token" do
+    spinner = Enum.find(@design.components, &(&1.name == :spinner))
+
+    assert for(%{axis: :variant} = v <- spinner.variants, do: {v.name, {v.style, v.web}}) == [
+             accent: {[foreground: :primary], [doc: "Spinner colors"]},
+             inverse: {[foreground: :white], []}
+           ]
+  end
+
+  # Apps import components.css into their own stylesheet, so a relative URL would
+  # point into the app: every image is inline.
+  test "the component CSS has no relative URL" do
+    {_, css, _} =
+      @design |> Prism.Generator.Web.files() |> List.keyfind("css/components.css", 0)
+
+    urls = Regex.scan(~r/url\(([^)]*)\)/, css, capture: :all_but_first)
+    assert urls != []
+    assert Enum.all?(urls, fn [url] -> String.starts_with?(url, ~s("data:)) end)
+  end
+end
