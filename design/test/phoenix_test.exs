@@ -102,11 +102,10 @@ defmodule Prism.Design.PhoenixTest do
     end
   end
 
-  # The example in the README.
-  test "an app's page" do
-    assigns = %{saving: true, errors: ["can't be blank"]}
-
-    rendered = ~H"""
+  # The example in the README, as an app's function component: its assigns come from
+  # the caller.
+  defp page(assigns) do
+    ~H"""
     <UI.button variant={:primary} tone={:danger} loading={@saving} phx-click="save">
       Save
       <:icon><span class="hero-check"></span></:icon>
@@ -120,8 +119,10 @@ defmodule Prism.Design.PhoenixTest do
 
     <UI.tag tone={:success}>Done</UI.tag>
     """
+  end
 
-    html = rendered_to_string(rendered)
+  test "an app's page" do
+    html = rendered_to_string(page(%{saving: true, errors: ["can't be blank"]}))
 
     assert html =~
              ~s(class="prism-button prism-button--primary prism-button--danger prism-button--loading prism-button--with-icon")
