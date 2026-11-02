@@ -151,6 +151,7 @@ defmodule Prism.Design.PhoenixTest do
       <UI.radio_group><UI.radio checked disabled>x</UI.radio></UI.radio_group>
       <UI.select>x<:icon>v</:icon><:option selected>x</:option></UI.select>
       <UI.checkbox checked disabled />
+      <UI.image_picker shape={:round}><:preview>x</:preview><:button><UI.button variant={:primary}>x</UI.button></:button></UI.image_picker>
       """,
       for size <- [16, 20, 24, 32], variant <- [:accent, :inverse], progress <- [nil, 40] do
         assigns = %{size: size, variant: variant, progress: progress}

@@ -3,7 +3,7 @@ defmodule Prism.Design.ComponentsTest do
 
   @design Prism.Design.Components.__schema__()
 
-  test "the design has 0.1.7's eleven components, under their new names, in 0.1.7's order" do
+  test "the design has 0.1.7's eleven components, under their new names, in 0.1.7's order, then the image picker" do
     assert Enum.map(@design.components, & &1.name) == [
              :button,
              :text_field,
@@ -16,7 +16,8 @@ defmodule Prism.Design.ComponentsTest do
              :checkbox,
              :tag,
              :message_bar,
-             :step_indicator
+             :step_indicator,
+             :image_picker
            ]
   end
 
@@ -48,8 +49,22 @@ defmodule Prism.Design.ComponentsTest do
              checkbox: [],
              tag: [tone: [:accent, :success, :warning, :danger, :neutral]],
              message_bar: [tone: [:info, :success, :warning, :danger]],
-             step_indicator: [status: [:incomplete, :current, :complete]]
+             step_indicator: [status: [:incomplete, :current, :complete]],
+             image_picker: [shape: [:round]]
            }
+  end
+
+  # The consumer app's previews: 120×90 for an image, 120×120 and round for a profile
+  # photo, on grey4 with a 2px grey4 frame, 24px from the app's button.
+  test "an image picker: a rectangular or round preview, and the app's button" do
+    picker = Enum.find(@design.components, &(&1.name == :image_picker))
+    assert picker.style == [gap: 24]
+    assert [%{default: :rectangular, name: :shape}] = picker.axes
+    assert [preview, button] = picker.parts
+    assert preview.style[:width] == 120 and preview.style[:height] == 90
+    assert button.component == :button
+    [round] = picker.variants
+    assert [%{name: :preview, style: [height: 120, radius: :full]}] = round.parts
   end
 
   test "one tone vocabulary, and no aliases" do

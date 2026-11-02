@@ -663,10 +663,19 @@ defmodule Prism.Generator.DesignTools.Overview do
     defaults = defaults(c)
     base = List.wrap(Enum.find(own, &(&1.name == c.default)) || List.first(own))
 
+    # An axis whose default has no look of its own (an image picker's rectangular
+    # shape) is the component's own look, when no `:variant` axis draws it.
+    plain =
+      for a <- c.axes,
+          a.default != nil,
+          not Enum.any?(c.variants, &(&1.axis == a.name and &1.name == a.default)),
+          do: key(a.default)
+
     none =
       cond do
         own == [] and others == [] -> [{"default", []}]
         own != [] and c.default == nil -> [{"no variant", defaults.(:variant)}]
+        own == [] and plain != [] -> [{Enum.join(plain, " + "), defaults.(nil)}]
         true -> []
       end
 
@@ -985,6 +994,21 @@ defmodule Prism.Generator.DesignTools.Overview do
           if while_loading, do: [Map.put(nested, :absolute, :center)], else: [nested]
         end
 
+      # A part the app draws itself with another component (an image picker's button):
+      # that component as the app shows it first, its first variant when it has no
+      # default one.
+      %{as: :given, component: ref} ->
+        other = Enum.find(ctx.design.components, &(&1.name == ref))
+
+        first =
+          if other.default,
+            do: [],
+            else: Enum.take(Enum.filter(other.variants, &(&1.axis == :variant)), 1)
+
+        other_sel = defaults(other).(nil) ++ first
+        own = root_look(other, other_sel, nil)
+        [box(ctx, other, specs[other.name], specs, other_sel, nil, own, inherited)]
+
       %{as: :list, name: name, item: item} ->
         list = part_look(c, sel, state, name)
 
@@ -1159,6 +1183,7 @@ defmodule Prism.Generator.DesignTools.Overview do
     w = max(cw + pad.left + pad.right + 2 * border, min_w)
     h = ch + pad.top + pad.bottom + 2 * border
     {w, h} = if look[:size], do: {px(look[:size]), px(look[:size])}, else: {w, h}
+    w = if look[:width], do: px(look[:width]), else: w
     h = if look[:height], do: px(look[:height]), else: h
     h = if look[:min_height], do: max(h, px(look[:min_height])), else: h
     # Content that may grow (a text area) starts at the top; a line is centered.

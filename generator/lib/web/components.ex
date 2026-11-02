@@ -9,10 +9,11 @@ defmodule Prism.Generator.Web.Components do
   Its mechanics are keyed on component and part names. It knows these
   components (`kinds/0`): `:button`, `:text_field`, `:text_area`, `:field`,
   `:radio_group`, `:radio`, `:select`, `:spinner`, `:checkbox`, `:tag`,
-  `:message_bar` and `:step_indicator`, and these parts of them (`parts/0`):
+  `:message_bar`, `:step_indicator` and `:image_picker`, and these parts of them (`parts/0`):
   the button's `:label` and `:icon`, the field's `:label` and
   `:error_message`, the radio's `:control` and `:label`, the select's
-  `:field`, `:icon`, `:listbox` and `:option`, the tag's `:label`, and on any
+  `:field`, `:icon`, `:listbox` and `:option`, the tag's `:label`, the image
+  picker's `:preview`, and on any
   component a part that is another component, and these values (`values/0`):
   the spinner's `:progress`. A design component it doesn't know fails
   generation, and so does a part or a value it doesn't write. Each component
@@ -144,7 +145,8 @@ defmodule Prism.Generator.Web.Components do
     :checkbox,
     :tag,
     :message_bar,
-    :step_indicator
+    :step_indicator,
+    :image_picker
   ]
 
   # The parts each component writes, besides parts that are other components.
@@ -153,7 +155,8 @@ defmodule Prism.Generator.Web.Components do
     field: [:label, :error_message],
     radio: [:control, :label],
     select: [:field, :icon, :listbox, :option],
-    tag: [:label]
+    tag: [:label],
+    image_picker: [:preview]
   }
 
   # The values each component writes.
@@ -671,6 +674,35 @@ defmodule Prism.Generator.Web.Components do
         declarations(n),
         "font-variant-numeric: tabular-nums"
       ]),
+      own(n, c, pseudo(c)),
+      variants(c, fn _ -> true end, pseudo(c)),
+      flags(c, pseudo(c))
+    ]
+  end
+
+  # A preview of an image and the app's button beside it; the app's image covers the
+  # preview, which clips it to its shape.
+  defp blocks(%{name: :image_picker} = c) do
+    n = [c.name]
+
+    [
+      rule(n, ".#{class(n)}", [
+        "display: flex",
+        "flex-direction: row",
+        "align-items: center",
+        declarations(n)
+      ]),
+      part(c, :preview, &["flex-shrink: 0", "overflow: hidden", declarations(&1)]),
+      if(Enum.any?(c.parts, &(&1.name == :preview)),
+        do:
+          rule(".#{class([c.name, :preview])} > img", [
+            "display: block",
+            "width: 100%",
+            "height: 100%",
+            "object-fit: cover"
+          ]),
+        else: []
+      ),
       own(n, c, pseudo(c)),
       variants(c, fn _ -> true end, pseudo(c)),
       flags(c, pseudo(c))
@@ -1375,6 +1407,7 @@ defmodule Prism.Generator.Web.Components do
   defp declaration(:size, value),
     do: ["width: #{css_length(value)}", "height: #{css_length(value)}"]
 
+  defp declaration(:width, value), do: ["width: #{css_length(value)}"]
   defp declaration(:height, value), do: ["height: #{css_length(value)}"]
   defp declaration(:min_height, value), do: ["min-height: #{css_length(value)}"]
   defp declaration(:max_height, value), do: ["max-height: #{max_height(value)}"]

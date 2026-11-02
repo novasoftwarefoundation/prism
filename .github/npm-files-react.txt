@@ -6,6 +6,8 @@ dist/Checkbox.d.ts
 dist/Checkbox.js
 dist/Field.d.ts
 dist/Field.js
+dist/ImagePicker.d.ts
+dist/ImagePicker.js
 dist/MessageBar.d.ts
 dist/MessageBar.js
 dist/Radio.d.ts

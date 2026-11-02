@@ -367,3 +367,30 @@
 .kit-step-indicator--current {
   background-color: #1a73e8;
 }
+
+.kit-image-picker {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 16px;
+}
+
+.kit-image-picker__preview {
+  flex-shrink: 0;
+  overflow: hidden;
+  width: 80px;
+  height: 60px;
+  background-color: #fdfdfd;
+}
+
+.kit-image-picker__preview > img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.kit-image-picker--round .kit-image-picker__preview {
+  height: 80px;
+  border-radius: 50%;
+}

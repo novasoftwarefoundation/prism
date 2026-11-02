@@ -38,6 +38,7 @@ defmodule Prism.Generator.ReactTest do
              ~w(src/Button.tsx src/TextField.tsx src/TextArea.tsx src/Field.tsx
                 src/RadioGroup.tsx src/Radio.tsx src/Select.tsx src/Spinner.tsx
                 src/Checkbox.tsx src/Tag.tsx src/MessageBar.tsx src/StepIndicator.tsx
+                src/ImagePicker.tsx
                 src/helpers.ts src/index.ts)
 
     assert Enum.uniq(for {_, _, from} <- files, do: from) == [

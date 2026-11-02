@@ -264,6 +264,18 @@ defmodule Prism.Generator.DesignToolsTest do
       assert svg =~ ~r/<g id="checkbox\/default\/checked">(?:(?!<\/g>).)*<polyline/s
     end
 
+    test "an image picker: its preview in each shape, and the app's button as a button" do
+      svg = svg(ExampleComponents.__schema__())
+
+      [_, wide] = Regex.run(~r/<g id="image-picker\/wide\/enabled">(.*?)<\/g>/s, svg)
+      assert wide =~ ~r/<rect [^>]*width="80" height="60"/
+      assert wide =~ ">Preview<"
+      assert wide =~ ">Button<"
+
+      [_, round] = Regex.run(~r/<g id="image-picker\/round\/enabled">(.*?)<\/g>/s, svg)
+      assert round =~ ~r/<rect [^>]*width="80" height="80" rx="40"/
+    end
+
     test "a spinner's sizes by their numbers, and its progress as a ring at 40" do
       svg = svg(ExampleComponents.__schema__())
 

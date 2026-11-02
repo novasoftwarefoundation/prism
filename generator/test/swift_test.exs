@@ -31,7 +31,8 @@ defmodule Prism.Generator.SwiftTest do
                 Sources/Kit/Button.swift Sources/Kit/TextField.swift Sources/Kit/TextArea.swift
                 Sources/Kit/Field.swift Sources/Kit/RadioGroup.swift Sources/Kit/Radio.swift
                 Sources/Kit/Select.swift Sources/Kit/Spinner.swift Sources/Kit/Checkbox.swift
-                Sources/Kit/Tag.swift Sources/Kit/MessageBar.swift Sources/Kit/StepIndicator.swift)
+                Sources/Kit/Tag.swift Sources/Kit/MessageBar.swift Sources/Kit/StepIndicator.swift
+                Sources/Kit/ImagePicker.swift)
 
     assert Enum.uniq(for {_, _, from} <- files, do: from) == [
              "test/support/example_components.ex"
@@ -290,6 +291,15 @@ defmodule Prism.Generator.SwiftTest do
       assert spinner =~ "size: KitSpinnerSize = .size24,\n        progress: Double? = nil\n"
       assert spinner =~ "if variant == .inverse && progress != nil {"
       assert spinner =~ "stroke: .fraction(0.12)"
+    end
+
+    test "an image picker: the app's preview in its box and shape, and the app's button" do
+      picker = body(ExampleComponents.__schema__(), "Sources/Kit/ImagePicker.swift")
+      assert picker =~ "public struct KitImagePicker<Preview: View, ButtonContent: View>: View {"
+      assert picker =~ "width: 80, height: 60"
+      assert picker =~ ".clipShape(KitShape(radius: looks.preview.radius))"
+      # The app's button draws itself: no look of it here.
+      refute picker =~ "public var button = KitLook()"
     end
 
     test "a part that is a spinner is drawn with the variants the part picks" do

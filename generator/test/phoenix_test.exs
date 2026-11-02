@@ -263,6 +263,24 @@ defmodule Prism.Generator.PhoenixTest do
       assert states.(:select) == []
     end
 
+    test "an image picker: the app's image in its preview, and the app's own button" do
+      assigns = %{}
+
+      rendered = ~H"""
+      <Kit.image_picker shape={:round}>
+        <:preview><img src="/photo.png" alt="" /></:preview>
+        <:button><Kit.button variant={:quiet}>Change</Kit.button></:button>
+      </Kit.image_picker>
+      """
+
+      assert html(rendered) ==
+               norm(
+                 ~s(<div class="kit-image-picker kit-image-picker--round">) <>
+                   ~s(<div class="kit-image-picker__preview"><img alt="" src="/photo.png"></div>) <>
+                   ~s(<button class="kit-button kit-button--quiet kit-button--roomy"><span class="kit-button__label">Change</span></button></div>)
+               )
+    end
+
     test "a select's option takes selected, which adds its class" do
       assigns = %{}
 
