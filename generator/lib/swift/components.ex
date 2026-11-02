@@ -65,8 +65,8 @@ defmodule Prism.Generator.Swift.Components do
   modifier can't reach a `TextField`'s prompt; a step indicator has tabular
   numbers; a field, a text field and a message bar take the width they are
   given, as the web's block elements do; a text area, whose `TextEditor` takes
-  no height of its own, is at least one line of its text high, and the app
-  gives it its height.
+  no height of its own, is at least one line of its text high, with its text
+  view's inset, and the app gives it its height.
   """
 
   alias Prism.Generator.Swift
@@ -754,24 +754,25 @@ defmodule Prism.Generator.Swift.Components do
     args = own(c, spec, [])
     on = if k == :text_field, do: "TextField", else: "TextEditor"
     # A TextEditor takes no height of its own; the app gives it one, and it is at least
-    # one line of its text, which scales with Dynamic Type.
+    # one line of its text, which scales with Dynamic Type, with the text view's inset
+    # above and below it, so the line is never cut off.
     {hidden, line, size} =
       if k == :text_area,
         do:
-          {"\n            .scrollContentBackground(.hidden)",
-           "\n            .frame(minHeight: line(looks.root))",
-           "    @Environment(\\.dynamicTypeSize) private var dynamicTypeSize\n"},
+          {"\n            .scrollContentBackground(.hidden)\n            .frame(minHeight: line(looks.root))",
+           "", "    @Environment(\\.dynamicTypeSize) private var dynamicTypeSize\n"},
         else: {"", "", ""}
 
     least =
       if k == :text_area,
         do: """
 
-            /// One line of the look's text, as Dynamic Type scales it.
+            /// One line of the look's text, as Dynamic Type scales it, in the text view's
+            /// inset: `UITextView` draws its text 8pt below its top and needs 8pt below it.
             private func line(_ look: #{m}Look) -> CGFloat? {
                 let traits = UITraitCollection(
                     preferredContentSizeCategory: UIContentSizeCategory(dynamicTypeSize))
-                return look.font?.scaledLineHeight(compatibleWith: traits)
+                return look.font.map { ($0.uiFont(compatibleWith: traits).lineHeight).rounded(.up) + 16 }
             }
         """,
         else: ""

@@ -295,7 +295,8 @@ defmodule Prism.Generator.SwiftTest do
     test "a text area is at least one line of its text high; the app gives it its height" do
       text_area = body(ExampleComponents.__schema__(), "Sources/Kit/TextArea.swift")
       assert text_area =~ ".frame(minHeight: line(looks.root))"
-      assert text_area =~ "look.font?.scaledLineHeight(compatibleWith: traits)"
+      # A UITextView's 8pt inset above and below its text is in the minimum.
+      assert text_area =~ "$0.uiFont(compatibleWith: traits).lineHeight).rounded(.up) + 16"
 
       text_field = body(ExampleComponents.__schema__(), "Sources/Kit/TextField.swift")
       refute text_field =~ "minHeight: line("

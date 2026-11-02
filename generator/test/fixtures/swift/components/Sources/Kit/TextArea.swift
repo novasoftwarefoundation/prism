@@ -63,18 +63,19 @@ public struct KitTextAreaModifier: ViewModifier {
             variant, focused: focused, disabled: !isEnabled, invalid: invalid)
         content
             .scrollContentBackground(.hidden)
-            .kitText(looks.root)
             .frame(minHeight: line(looks.root))
+            .kitText(looks.root)
             .frame(maxWidth: .infinity, alignment: .leading)
             .kitBox(looks.root)
             .animation(looks.root.transition?.animation, value: looks)
     }
 
-    /// One line of the look's text, as Dynamic Type scales it.
+    /// One line of the look's text, as Dynamic Type scales it, in the text view's
+    /// inset: `UITextView` draws its text 8pt below its top and needs 8pt below it.
     private func line(_ look: KitLook) -> CGFloat? {
         let traits = UITraitCollection(
             preferredContentSizeCategory: UIContentSizeCategory(dynamicTypeSize))
-        return look.font?.scaledLineHeight(compatibleWith: traits)
+        return look.font.map { ($0.uiFont(compatibleWith: traits).lineHeight).rounded(.up) + 16 }
     }
 
     /// A prompt in the placeholder's color of `looks`, for the `TextEditor`'s `prompt:`.
