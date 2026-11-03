@@ -43,7 +43,7 @@ An Elixir app reads the design itself, so it needs no generated files: a module 
 defp deps do
   [
     {:prism_design,
-     git: "https://github.com/novasoftwarefoundation/prism.git", tag: "v0.2.0", subdir: "design"},
+     git: "https://github.com/novasoftwarefoundation/prism.git", tag: "v0.2.1", subdir: "design"},
     {:phoenix_live_view, "~> 1.1"}
   ]
 end
@@ -136,7 +136,7 @@ The props follow the same rules as the Phoenix components: axes are props typed 
 An iOS app (iOS 26 or later) depends on the Swift package `Prism`, from the `prism-swift` repository at Prism's version:
 
 ```swift
-.package(url: "https://github.com/novasoftwarefoundation/prism-swift.git", exact: "0.2.0")
+.package(url: "https://github.com/novasoftwarefoundation/prism-swift.git", exact: "0.2.1")
 ```
 
 ```swift
