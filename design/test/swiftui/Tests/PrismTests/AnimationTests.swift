@@ -182,6 +182,26 @@ import UIKit
         var settled: Bool
     }
 
+    /// Whether a try shows the look on its way: a frame of `change` between where
+    /// `start`, the wait before the try, ended and where `change` ended.
+    static func onItsWay(from start: Sampled, to change: Sampled) -> Bool {
+        guard let first = start.frames.last, let end = change.frames.last else { return false }
+        return change.frames.contains { $0.between(first, and: end) }
+    }
+
+    /// A try counts only when it starts and ends where what is drawn has settled: the
+    /// last frame of a wait that didn't settle is no look to start or end from.
+    @Test func aTryCountsOnlyBetweenSettledLooks() {
+        func sampled(_ looks: [CGFloat], settled: Bool) -> Sampled {
+            Sampled(frames: looks.map { Drawn(top: 0, look: [$0]) }, took: .zero, settled: settled)
+        }
+        // From 0 through 0.5 to 1: on its way.
+        #expect(Self.onItsWay(from: sampled([0], settled: true), to: sampled([0.5, 1], settled: true)))
+        // The same frames after a wait that didn't settle, or in one: not.
+        #expect(!Self.onItsWay(from: sampled([0], settled: false), to: sampled([0.5, 1], settled: true)))
+        #expect(!Self.onItsWay(from: sampled([0], settled: true), to: sampled([0.5, 1], settled: false)))
+    }
+
     /// What is drawn, sampled every 4 ms, from now until it has settled where `done`
     /// says or `limit` has passed.
     @MainActor static func settle(
@@ -221,9 +241,9 @@ import UIKit
             rootView: Screen(sample: sample, change: change))
         window.makeKeyAndVisible()
         window.layoutIfNeeded()
-        var waits = [Sampled]()
-        waits.append(try await Self.settle(in: window))
-        let before = try #require(Self.drawn(in: window), "\(sample): no box drawn")
+        let initial = try await Self.settle(in: window)
+        var waits = [initial]
+        let before = try #require(initial.frames.last, "\(sample): no box drawn")
         func moved(_ drawn: Drawn) -> Bool { abs(drawn.top - before.top - Self.space) < 0.5 }
 
         // A loaded runner can stall the main thread for longer than a transition, and
@@ -232,11 +252,12 @@ import UIKit
         // that doesn't in none. The first try stalls on purpose, as such a runner does.
         // A frame on its way also shows that the frames cover the transition, in which
         // a move that animates would slide.
-        var start = before
+        var from = initial
         var animated = false
         var tries = 0
         while tries < Self.tries {
             tries += 1
+            let start = try #require(from.frames.last)
             // One update, with no animation of its own: the space opens and the state
             // changes.
             change.on = true
@@ -260,13 +281,13 @@ import UIKit
                 "\(sample): slides to its place: \(frames.map { Int($0.top) })")
             #expect(after.differs(from: start), "\(sample): its look doesn't change")
 
-            animated = frames.contains { $0.between(start, and: after) }
+            animated = Self.onItsWay(from: from, to: sampled)
             if animated || tries == Self.tries { break }
             // Back, for the next try, which starts from where this one ends.
             change.on = false
             let back = try await Self.settle(in: window) { abs($0.top - before.top) < 0.5 }
             waits.append(back)
-            start = try #require(back.frames.last)
+            from = back
         }
         let report = waits.map { "\($0.took)\($0.settled ? "" : " (not settled)")" }
         print("AnimationTests \(sample): \(tries) tries; waits: \(report)")
