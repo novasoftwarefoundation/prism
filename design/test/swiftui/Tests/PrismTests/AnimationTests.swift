@@ -94,12 +94,21 @@ import UIKit
                 || zip(look, other.look).contains { abs($0 - $1) > tolerance }
         }
 
-        /// Whether this frame is on its way from `start` to `end`. A look that doesn't
-        /// animate is drawn exactly as one of them, so this takes a smaller difference
-        /// than `differs`: a small change, such as white to a light grey, is on its way
-        /// for longer than it differs by 0.005 from both.
+        /// Whether this frame is on its way from `start` to `end`: a value that changes
+        /// has come more than 1% and less than 99% of its way. By how far, not by how
+        /// much, so a small change, such as white to a light grey, is on its way as long
+        /// as a large one, and the last few milliseconds, when the move is already in
+        /// its place, aren't.
         func between(_ start: Drawn, and end: Drawn) -> Bool {
-            differs(from: start, by: 0.001) && differs(from: end, by: 0.001)
+            guard look.count == start.look.count, look.count == end.look.count else {
+                return false
+            }
+            return look.indices.contains { i in
+                let change = end.look[i] - start.look[i]
+                guard abs(change) > 0.005 else { return false }
+                let come = (look[i] - start.look[i]) / change
+                return come > 0.01 && come < 0.99
+            }
         }
     }
 
@@ -145,6 +154,18 @@ import UIKit
                 .components
         else { return [0, 0, 0, 0] }
         return components
+    }
+
+    /// A frame is on its way by how far its look has come, so the end of a transition,
+    /// when the move is already in its place, doesn't count.
+    @Test func onItsWayIsHowFarTheLookHasCome() {
+        let start = Drawn(top: 0, look: [0])
+        let end = Drawn(top: 0, look: [1])
+        #expect(Drawn(top: 0, look: [0.5]).between(start, and: end))
+        #expect(!Drawn(top: 0, look: [0.995]).between(start, and: end))
+        #expect(!Drawn(top: 0, look: [0.005]).between(start, and: end))
+        #expect(!Drawn(top: 0, look: [1]).between(start, and: end))
+        #expect(!Drawn(top: 0, look: [0]).between(start, and: end))
     }
 
     /// How often the change is made before the test says the look doesn't animate.
