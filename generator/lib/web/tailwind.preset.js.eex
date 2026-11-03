@@ -1,6 +1,4 @@
-<%= doc_block(web.preset_doc) %>const plugin = require("tailwindcss/plugin");
-
-module.exports = {
+<%= doc_block(web.preset_doc) %>module.exports = {
   theme: {
     colors: {
 <%= preset_colors(design) %>
@@ -27,7 +25,7 @@ module.exports = {
     },
   },
   plugins: [
-    plugin(function ({ addUtilities, addComponents }) {
+    function ({ addUtilities, addComponents }) {
       // Utility classes
       addUtilities({
         ".h-viewport": {
@@ -57,6 +55,6 @@ module.exports = {
 <%= line_comment(web.font_classes_doc, 6) %>      addComponents({
 <%= preset_font_classes(design) %>
       });
-    }),
+    },
   ],
 };

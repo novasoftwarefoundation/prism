@@ -15,12 +15,53 @@ defmodule Prism.Generator.WebTest do
     end
   end
 
+  # An app that gets the preset from a Mix dependency or a copy has no tailwindcss
+  # next to it, and Node tools that load the app's Tailwind config (Prettier's
+  # Tailwind plugin) require the preset from there: it needs nothing installed. Its
+  # plugin is a bare function, which Tailwind calls with its API.
+  test "the preset loads in plain Node with nothing installed next to it" do
+    node =
+      System.find_executable("node") || flunk("This test needs Node (.tool-versions: nodejs)")
+
+    # Outside the project, so no node_modules in its parents. A random name that
+    # mkdir! creates itself, so no folder planted there in advance is used.
+    random = Base.url_encode64(:crypto.strong_rand_bytes(12), padding: false)
+    dir = Path.join(System.tmp_dir!(), "prism-preset-#{random}")
+    File.mkdir!(dir)
+    on_exit(fn -> File.rm_rf!(dir) end)
+
+    # The preset is CommonJS, so a package.json in the temporary folder's parents
+    # (one with "type": "module") doesn't decide how Node reads it.
+    File.write!(Path.join(dir, "package.json"), "{}\n")
+    preset = Path.join(dir, "tailwind.preset.js")
+    File.write!(preset, bodies(Web.files(ExampleDesign.__schema__()))["tailwind.preset.js"])
+
+    script = """
+    const preset = require(process.argv[1]);
+    const added = [];
+    const add = (rules) => added.push(...Object.keys(rules));
+    for (const plugin of preset.plugins) plugin({ addUtilities: add, addComponents: add });
+    console.log(JSON.stringify(added));
+    """
+
+    {out, status} =
+      System.cmd(node, ["-e", script, preset],
+        env: [{"NODE_PATH", nil}],
+        stderr_to_stdout: true
+      )
+
+    assert status == 0, out
+    added = JSON.decode!(out)
+    assert ".h-viewport" in added
+    assert ".font-heading" in added
+  end
+
   test "without docs and line clamps the files have no comment blocks or clamp classes" do
     design = ExampleDesign.__schema__()
     web = %{design.web | preset_doc: nil, base_doc: nil, font_classes_doc: nil, line_clamps: 0}
     files = bodies(Web.files(%{design | web: web}))
 
-    assert files["tailwind.preset.js"] =~ ~r/\Aconst plugin/
+    assert files["tailwind.preset.js"] =~ ~r/\Amodule\.exports = \{/
     assert files["tailwind.preset.js"] =~ "      });\n\n      addComponents({"
     assert files["css/base.css"] =~ ~r/\A\/\* =====/
     refute files["css/base.css"] =~ "max-lines"

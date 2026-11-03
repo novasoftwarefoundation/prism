@@ -5,8 +5,6 @@
  * A fixture for the DSL's tests.
  */
 
-const plugin = require("tailwindcss/plugin");
-
 module.exports = {
   theme: {
     colors: {
@@ -51,7 +49,7 @@ module.exports = {
     },
   },
   plugins: [
-    plugin(function ({ addUtilities, addComponents }) {
+    function ({ addUtilities, addComponents }) {
       // Utility classes
       addUtilities({
         ".h-viewport": {
@@ -96,6 +94,6 @@ module.exports = {
           "font-style": "italic",
         },
       });
-    }),
+    },
   ],
 };

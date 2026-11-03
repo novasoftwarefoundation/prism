@@ -539,6 +539,11 @@ defmodule Prism.Generator.Swift.Components do
     /// #{String.capitalize(article(c.name))}'s look as a `ButtonStyle`:
     /// `Button("Save", action: save).buttonStyle(.#{ctx.lower}(#{example(spec)}))`. The action stays
     /// with the `Button`; pressed comes from it, disabled from `.disabled(_:)`.
+    ///
+    /// Put `.geometryGroup()` on a `Button` whose place can change, such as one below a
+    /// message that comes and goes: SwiftUI's `Button` animates its move along with its
+    /// look (the end of a press), and a style can't stop that. With the group, the
+    /// `Button` moves at once and its look still animates.
     public struct #{type}: ButtonStyle {
     #{stored(args)}
         public init(
@@ -738,6 +743,8 @@ defmodule Prism.Generator.Swift.Components do
                         .#{ctx.lower}Text(looks.root)
                         .#{ctx.lower}Box(looks.root)#{hover(c, spec)}
                         .animation(looks.root.transition?.animation, value: looks)
+                        // Its look animates; a move in the same update doesn't.
+                        .geometryGroup()
                     configuration.label
                 }
             }
@@ -822,12 +829,16 @@ defmodule Prism.Generator.Swift.Components do
                     .#{ctx.lower}Text(looks.root)
                     .#{ctx.lower}Box(looks.root.withoutPadding)
                     .animation(looks.root.transition?.animation, value: looks)
+                    // Its look animates; a move in the same update doesn't.
+                    .geometryGroup()
                 } else {
                     content
                         .#{ctx.lower}Text(looks.root)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .#{ctx.lower}Box(looks.root)
                         .animation(looks.root.transition?.animation, value: looks)
+                        // Its look animates; a move in the same update doesn't.
+                        .geometryGroup()
                 }
         """
       else
@@ -837,6 +848,8 @@ defmodule Prism.Generator.Swift.Components do
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .#{ctx.lower}Box(looks.root)
                     .animation(looks.root.transition?.animation, value: looks)
+                    // Its look animates; a move in the same update doesn't.
+                    .geometryGroup()
         """
       end
 
@@ -1000,6 +1013,8 @@ defmodule Prism.Generator.Swift.Components do
             }
             .#{ctx.lower}Look(looks.root)
             .animation(looks.control.transition?.animation, value: looks)
+            // Its look animates; a move in the same update doesn't.
+            .geometryGroup()
             .accessibilityElement(children: .combine)#{selected}
         }
     }

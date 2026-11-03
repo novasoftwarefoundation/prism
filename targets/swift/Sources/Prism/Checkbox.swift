@@ -61,6 +61,8 @@ private struct PrismCheckboxBody: View {
                     .prismText(looks.root)
                     .prismBox(looks.root)
                     .animation(looks.root.transition?.animation, value: looks)
+                    // Its look animates; a move in the same update doesn't.
+                    .geometryGroup()
                 configuration.label
             }
         }
