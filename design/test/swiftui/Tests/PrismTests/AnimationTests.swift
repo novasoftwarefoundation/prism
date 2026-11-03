@@ -147,34 +147,41 @@ import UIKit
     static let quiet: Duration = .milliseconds(400)
 
     /// What was drawn, sampled every 4 ms, from now until it has settled where `done`
-    /// says, or `limit` has passed, with the longest time between two samples.
+    /// says or `limit` has passed.
+    struct Sampled {
+        var frames: [Drawn]
+        /// How long it took, and whether it settled.
+        var took: Duration
+        var settled: Bool
+    }
+
     @MainActor static func settle(
         in window: UIWindow, limit: Duration = .seconds(10),
         until done: (Drawn) -> Bool = { _ in true }
-    ) async throws -> (frames: [Drawn], gap: Duration) {
+    ) async throws -> Sampled {
         let clock = ContinuousClock()
-        let end = clock.now + limit
-        var frames: [Drawn] = []
+        let start = clock.now
+        var sampled = Sampled(frames: [], took: .zero, settled: false)
         var anchor: Drawn?
-        var changed = clock.now
-        var sampled = clock.now
-        var gap = Duration.zero
-        while clock.now < end {
+        var changed = start
+        while clock.now - start < limit {
             try await Task.sleep(for: .milliseconds(4))
-            gap = max(gap, clock.now - sampled)
-            sampled = clock.now
             guard let drawn = drawn(in: window) else { continue }
-            frames.append(drawn)
+            sampled.frames.append(drawn)
             // Compared with the frame where it last changed, not the previous one, so a
             // slow end of an easing still counts as a change.
-            if let last = anchor, !last.differs(from: drawn), abs(last.top - drawn.top) <= 0.5 {
-                if done(drawn) && clock.now - changed >= quiet { break }
+            if let anchor, !anchor.differs(from: drawn), abs(anchor.top - drawn.top) <= 0.5 {
+                if done(drawn) && clock.now - changed >= quiet {
+                    sampled.settled = true
+                    break
+                }
             } else {
                 anchor = drawn
                 changed = clock.now
             }
         }
-        return (frames, gap)
+        sampled.took = clock.now - start
+        return sampled
     }
 
     @Test(arguments: samples)
@@ -185,7 +192,8 @@ import UIKit
             rootView: Screen(sample: sample, change: change))
         window.makeKeyAndVisible()
         window.layoutIfNeeded()
-        _ = try await Self.settle(in: window)
+        var waits = [Sampled]()
+        waits.append(try await Self.settle(in: window))
         let before = try #require(Self.drawn(in: window), "\(sample): no box drawn")
         func moved(_ drawn: Drawn) -> Bool { abs(drawn.top - before.top - Self.space) < 0.5 }
 
@@ -195,20 +203,23 @@ import UIKit
         // that doesn't in none. The first try stalls on purpose, as such a runner does.
         // A frame on its way also shows that the frames cover the transition, in which
         // a move that animates would slide.
+        var start = before
         var animated = false
-        var gaps: [Duration] = []
-        for attempt in 1...Self.tries {
+        var tries = 0
+        while tries < Self.tries {
+            tries += 1
             // One update, with no animation of its own: the space opens and the state
             // changes.
             change.on = true
-            if attempt == 1 {
+            if tries == 1 {
                 try await Task.sleep(for: .milliseconds(50))
                 Self.stall()
             }
-            let (frames, gap) = try await Self.settle(in: window) {
-                moved($0) && $0.differs(from: before)
+            let sampled = try await Self.settle(in: window) {
+                moved($0) && $0.differs(from: start)
             }
-            gaps.append(gap)
+            waits.append(sampled)
+            let frames = sampled.frames
             let after = try #require(frames.last)
 
             #expect(moved(after), "\(sample): didn't move")
@@ -218,20 +229,22 @@ import UIKit
             #expect(
                 sliding.isEmpty,
                 "\(sample): slides to its place: \(frames.map { Int($0.top) })")
-            #expect(after.differs(from: before), "\(sample): its look doesn't change")
+            #expect(after.differs(from: start), "\(sample): its look doesn't change")
 
-            animated = frames.contains { $0.differs(from: before) && $0.differs(from: after) }
-            if animated || attempt == Self.tries { break }
+            animated = frames.contains { $0.differs(from: start) && $0.differs(from: after) }
+            if animated || tries == Self.tries { break }
+            // Back, for the next try, which starts from where this one ends.
             change.on = false
-            _ = try await Self.settle(in: window) {
-                abs($0.top - before.top) < 0.5 && !$0.differs(from: before)
-            }
+            let back = try await Self.settle(in: window) { abs($0.top - before.top) < 0.5 }
+            waits.append(back)
+            start = try #require(back.frames.last)
         }
+        let report = waits.map { "\($0.took)\($0.settled ? "" : " (not settled)")" }
+        print("AnimationTests \(sample): \(tries) tries; waits: \(report)")
         withKnownIssue("A checkbox's checked look comes at once, also when it doesn't move") {
             #expect(
                 animated,
-                "\(sample): its look doesn't animate in \(Self.tries) tries (longest time between two frames, per try: \(gaps))"
-            )
+                "\(sample): its look doesn't animate in \(tries) tries; waits: \(report)")
         } when: {
             sample.component == "checkbox" && sample.state == "checked"
         }
