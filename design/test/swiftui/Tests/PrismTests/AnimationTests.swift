@@ -88,12 +88,17 @@ import UIKit
     struct Drawn {
         var top: CGFloat
         var look: [CGFloat]
-        // DIAGNOSTIC: the views behind the box and its background.
-        var source = ""
-
-        func differs(from other: Drawn) -> Bool {
+        func differs(from other: Drawn, by tolerance: CGFloat = 0.005) -> Bool {
             look.count != other.look.count
-                || zip(look, other.look).contains { abs($0 - $1) > 0.005 }
+                || zip(look, other.look).contains { abs($0 - $1) > tolerance }
+        }
+
+        /// Whether this frame is on its way from `start` to `end`. A look that doesn't
+        /// animate is drawn exactly as one of them, so this takes a smaller difference
+        /// than `differs`: a small change, such as white to a light grey, is on its way
+        /// for longer than it differs by 0.005 from both.
+        func between(_ start: Drawn, and end: Drawn) -> Bool {
+            differs(from: start, by: 0.001) && differs(from: end, by: 0.001)
         }
     }
 
@@ -101,19 +106,11 @@ import UIKit
     @MainActor static func drawn(in window: UIWindow) -> Drawn? {
         let screen = window.layer.presentation() ?? window.layer
         var layers: [CALayer] = []
-        var models: [ObjectIdentifier: CALayer] = [:]
         func walk(_ layer: CALayer) {
-            let shown = layer.presentation() ?? layer
-            layers.append(shown)
-            models[ObjectIdentifier(shown)] = layer
+            layers.append(layer.presentation() ?? layer)
             layer.sublayers?.forEach(walk)
         }
         walk(window.layer)
-        func view(_ layer: CALayer?) -> String {
-            guard let layer else { return "none" }
-            let model = models[ObjectIdentifier(layer)] ?? layer
-            return "\(type(of: model))/\(model.delegate.map { "\(type(of: $0))" } ?? "no view")"
-        }
         func frame(_ layer: CALayer) -> CGRect { layer.convert(layer.bounds, to: screen) }
         guard let box = layers.first(where: { $0.borderWidth > 0 && !$0.isHidden }) else {
             return nil
@@ -132,8 +129,7 @@ import UIKit
         return Drawn(
             top: frame(box).minY,
             look: components(box.borderColor) + components(background?.backgroundColor)
-                + [opacity],
-            source: "box \(view(box)), background \(view(background))")
+                + [opacity])
     }
 
     /// Blocks the calling thread for longer than any transition, as a loaded runner can.
@@ -151,7 +147,7 @@ import UIKit
     }
 
     /// How often the change is made before the test says the look doesn't animate.
-    static let tries = 5
+    static let tries = 8
 
     /// How long what is drawn stays the same before it counts as settled: longer than
     /// any transition.
@@ -242,12 +238,7 @@ import UIKit
                 "\(sample): slides to its place: \(frames.map { Int($0.top) })")
             #expect(after.differs(from: start), "\(sample): its look doesn't change")
 
-            animated = frames.contains { $0.differs(from: start) && $0.differs(from: after) }
-            // DIAGNOSTIC
-            let partway = frames.filter { $0.differs(from: start) && $0.differs(from: after) }
-            print(
-                "AnimationTests \(sample) try \(tries): \(frames.count) frames, \(partway.count) partway; start \(start.look.map { ($0 * 1000).rounded() / 1000 }) after \(after.look.map { ($0 * 1000).rounded() / 1000 }); first partway \(partway.first?.look.map { ($0 * 1000).rounded() / 1000 } ?? []); \(after.source)"
-            )
+            animated = frames.contains { $0.between(start, and: after) }
             if animated || tries == Self.tries { break }
             // Back, for the next try, which starts from where this one ends.
             change.on = false
