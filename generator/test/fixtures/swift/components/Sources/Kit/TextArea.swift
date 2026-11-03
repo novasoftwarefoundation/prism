@@ -80,6 +80,8 @@ public struct KitTextAreaModifier: ViewModifier {
             .frame(maxWidth: .infinity, alignment: .leading)
             .kitBox(looks.root)
             .animation(looks.root.transition?.animation, value: looks)
+            // Its look animates; a move in the same update doesn't.
+            .geometryGroup()
     }
 
     /// One line of the look's text, as Dynamic Type scales it, in the text view's

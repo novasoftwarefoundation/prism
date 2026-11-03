@@ -88,12 +88,16 @@ public struct PrismTextFieldModifier: ViewModifier {
             .prismText(looks.root)
             .prismBox(looks.root.withoutPadding)
             .animation(looks.root.transition?.animation, value: looks)
+            // Its look animates; a move in the same update doesn't.
+            .geometryGroup()
         } else {
             content
                 .prismText(looks.root)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .prismBox(looks.root)
                 .animation(looks.root.transition?.animation, value: looks)
+                // Its look animates; a move in the same update doesn't.
+                .geometryGroup()
         }
     }
 
