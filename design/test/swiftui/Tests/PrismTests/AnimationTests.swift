@@ -88,6 +88,7 @@ import UIKit
     struct Drawn {
         var top: CGFloat
         var look: [CGFloat]
+
         func differs(from other: Drawn, by tolerance: CGFloat = 0.005) -> Bool {
             look.count != other.look.count
                 || zip(look, other.look).contains { abs($0 - $1) > tolerance }
@@ -153,15 +154,15 @@ import UIKit
     /// any transition.
     static let quiet: Duration = .milliseconds(400)
 
-    /// What was drawn, sampled every 4 ms, from now until it has settled where `done`
-    /// says or `limit` has passed.
+    /// The frames that `settle` sampled, how long it took, and whether it settled.
     struct Sampled {
         var frames: [Drawn]
-        /// How long it took, and whether it settled.
         var took: Duration
         var settled: Bool
     }
 
+    /// What is drawn, sampled every 4 ms, from now until it has settled where `done`
+    /// says or `limit` has passed.
     @MainActor static func settle(
         in window: UIWindow, limit: Duration = .seconds(10),
         until done: (Drawn) -> Bool = { _ in true }
