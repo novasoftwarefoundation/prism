@@ -213,16 +213,18 @@ import UIKit
             return ["nothing drawn"]
         }
         var problems: [String] = []
-        if abs(after.top - before.top - space) >= 0.5 {
-            problems.append("didn't move: \(describe(before)) to \(describe(after))")
-        }
         if change.frames.contains(where: {
             abs($0.top - before.top) > 0.5 && abs($0.top - after.top) > 0.5
         }) {
             problems.append("slides to its place: \(change.frames.map { Int($0.top) })")
         }
-        // After a wait that didn't settle, `before` is no look to compare with.
-        if start.settled && !after.differs(from: before) {
+        // The last frame of a wait that didn't settle is no look and no place: a try
+        // with one is made again, and a look that never changes doesn't animate either.
+        guard start.settled, change.settled else { return problems }
+        if abs(after.top - before.top - space) >= 0.5 {
+            problems.append("didn't move: \(describe(before)) to \(describe(after))")
+        }
+        if !after.differs(from: before) {
             problems.append("its look doesn't change: \(describe(before)) to \(describe(after))")
         }
         return problems
