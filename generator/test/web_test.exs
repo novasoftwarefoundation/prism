@@ -20,8 +20,14 @@ defmodule Prism.Generator.WebTest do
   # Tailwind plugin) require the preset from there: it needs nothing installed. Its
   # plugin is a bare function, which Tailwind calls with its API.
   test "the preset loads in plain Node with nothing installed next to it" do
-    dir = Path.join(System.tmp_dir!(), "prism-preset-#{System.unique_integer([:positive])}")
-    File.mkdir_p!(dir)
+    node =
+      System.find_executable("node") || flunk("This test needs Node (.tool-versions: nodejs)")
+
+    # Outside the project, so no node_modules in its parents. A random name that
+    # mkdir! creates itself, so no folder planted there in advance is used.
+    random = Base.url_encode64(:crypto.strong_rand_bytes(12), padding: false)
+    dir = Path.join(System.tmp_dir!(), "prism-preset-#{random}")
+    File.mkdir!(dir)
     on_exit(fn -> File.rm_rf!(dir) end)
 
     # The preset is CommonJS, so a package.json in the temporary folder's parents
@@ -39,7 +45,7 @@ defmodule Prism.Generator.WebTest do
     """
 
     {out, status} =
-      System.cmd("node", ["-e", script, preset],
+      System.cmd(node, ["-e", script, preset],
         env: [{"NODE_PATH", nil}],
         stderr_to_stdout: true
       )
