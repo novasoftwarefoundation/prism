@@ -125,6 +125,11 @@ import UIKit
                 + [opacity])
     }
 
+    /// Blocks the calling thread for longer than any transition, as a loaded runner can.
+    static func stall() {
+        Thread.sleep(forTimeInterval: 0.5)
+    }
+
     static func components(_ color: CGColor?) -> [CGFloat] {
         guard let color,
             let srgb = CGColorSpace(name: CGColorSpace.extendedSRGB),
@@ -147,6 +152,10 @@ import UIKit
 
         // One update, with no animation of its own: the space opens and the state changes.
         change.on = true
+        // A loaded runner: the update starts, then the main thread stalls for longer
+        // than a transition.
+        try await Task.sleep(for: .milliseconds(50))
+        Self.stall()
         var frames: [Drawn] = []
         let clock = ContinuousClock()
         let end = clock.now + .milliseconds(500)
