@@ -182,6 +182,30 @@ import UIKit
         var settled: Bool
     }
 
+    /// Whether a try shows the look on its way: a frame of `change` between where
+    /// `start`, the wait before the try, ended and where `change` ended.
+    /// Both waits must have settled: the last frame of one that didn't is no look to
+    /// start or end from.
+    static func onItsWay(from start: Sampled, to change: Sampled) -> Bool {
+        guard start.settled, change.settled, let first = start.frames.last,
+            let end = change.frames.last
+        else { return false }
+        return change.frames.contains { $0.between(first, and: end) }
+    }
+
+    /// A try counts only when it starts and ends where what is drawn has settled: the
+    /// last frame of a wait that didn't settle is no look to start or end from.
+    @Test func aTryCountsOnlyBetweenSettledLooks() {
+        func sampled(_ looks: [CGFloat], settled: Bool) -> Sampled {
+            Sampled(frames: looks.map { Drawn(top: 0, look: [$0]) }, took: .zero, settled: settled)
+        }
+        // From 0 through 0.5 to 1: on its way.
+        #expect(Self.onItsWay(from: sampled([0], settled: true), to: sampled([0.5, 1], settled: true)))
+        // The same frames after a wait that didn't settle, or in one: not.
+        #expect(!Self.onItsWay(from: sampled([0], settled: false), to: sampled([0.5, 1], settled: true)))
+        #expect(!Self.onItsWay(from: sampled([0], settled: true), to: sampled([0.5, 1], settled: false)))
+    }
+
     /// What is drawn, sampled every 4 ms, from now until it has settled where `done`
     /// says or `limit` has passed.
     @MainActor static func settle(
@@ -213,30 +237,42 @@ import UIKit
         return sampled
     }
 
-    @Test(arguments: samples)
-    @MainActor func onlyTheLookAnimates(_ sample: Sample) async throws {
-        let change = Change()
+    /// A window with the sample's screen, before its change.
+    @MainActor static func show(_ sample: Sample, _ change: Change) -> UIWindow {
         let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
         window.rootViewController = UIHostingController(
             rootView: Screen(sample: sample, change: change))
         window.makeKeyAndVisible()
         window.layoutIfNeeded()
-        var waits = [Sampled]()
-        waits.append(try await Self.settle(in: window))
-        let before = try #require(Self.drawn(in: window), "\(sample): no box drawn")
-        func moved(_ drawn: Drawn) -> Bool { abs(drawn.top - before.top - Self.space) < 0.5 }
+        return window
+    }
 
+    @Test(arguments: samples)
+    @MainActor func onlyTheLookAnimates(_ sample: Sample) async throws {
         // A loaded runner can stall the main thread for longer than a transition, and
         // then no frame shows the look on its way. So the change is made up to `tries`
         // times: a look that animates shows a frame on its way in one of them, a look
         // that doesn't in none. The first try stalls on purpose, as such a runner does.
         // A frame on its way also shows that the frames cover the transition, in which
-        // a move that animates would slide.
-        var start = before
+        // a move that animates would slide. Each try has a window of its own, whose
+        // look has settled before the change: the test says nothing about going back.
+        var waits: [Sampled] = []
+        var seen = ""
         var animated = false
         var tries = 0
         while tries < Self.tries {
             tries += 1
+            let change = Change()
+            let window = Self.show(sample, change)
+            defer {
+                window.isHidden = true
+                window.rootViewController = nil
+            }
+            let initial = try await Self.settle(in: window)
+            waits.append(initial)
+            let before = try #require(initial.frames.last, "\(sample): no box drawn")
+            func moved(_ drawn: Drawn) -> Bool { abs(drawn.top - before.top - Self.space) < 0.5 }
+
             // One update, with no animation of its own: the space opens and the state
             // changes.
             change.on = true
@@ -245,7 +281,7 @@ import UIKit
                 Self.stall()
             }
             let sampled = try await Self.settle(in: window) {
-                moved($0) && $0.differs(from: start)
+                moved($0) && $0.differs(from: before)
             }
             waits.append(sampled)
             let frames = sampled.frames
@@ -258,18 +294,25 @@ import UIKit
             #expect(
                 sliding.isEmpty,
                 "\(sample): slides to its place: \(frames.map { Int($0.top) })")
-            #expect(after.differs(from: start), "\(sample): its look doesn't change")
+            if initial.settled {
+                #expect(after.differs(from: before), "\(sample): its look doesn't change")
+            }
 
-            animated = frames.contains { $0.between(start, and: after) }
-            if animated || tries == Self.tries { break }
-            // Back, for the next try, which starts from where this one ends.
-            change.on = false
-            let back = try await Self.settle(in: window) { abs($0.top - before.top) < 0.5 }
-            waits.append(back)
-            start = try #require(back.frames.last)
+            animated = Self.onItsWay(from: initial, to: sampled)
+            if animated {
+                // The frame that counts, between where the try started and ended.
+                let on = frames.first { $0.between(before, and: after) }
+                seen = "; on its way in try \(tries): \(Self.describe(before)) → "
+                    + "\(on.map(Self.describe) ?? "?") → \(Self.describe(after))"
+                break
+            }
         }
-        let report = waits.map { "\($0.took)\($0.settled ? "" : " (not settled)")" }
-        print("AnimationTests \(sample): \(tries) tries; waits: \(report)")
+        // A wait that didn't settle shows its last frames: where the box was and its look.
+        let report = waits.map { wait in
+            if wait.settled { return "\(wait.took)" }
+            return "\(wait.took) (not settled; last frames: \(wait.frames.suffix(3).map(Self.describe)))"
+        }
+        print("AnimationTests \(sample): \(tries) tries; waits: \(report)\(seen)")
         withKnownIssue("A checkbox's checked look comes at once, also when it doesn't move") {
             #expect(
                 animated,
@@ -277,5 +320,10 @@ import UIKit
         } when: {
             sample.component == "checkbox" && sample.state == "checked"
         }
+    }
+
+    /// A frame as the log shows it: the box's top and its look, to three decimals.
+    static func describe(_ frame: Drawn) -> String {
+        "\(Int(frame.top)) \(frame.look.map { ($0 * 1000).rounded() / 1000 })"
     }
 }
