@@ -206,6 +206,51 @@ import UIKit
         #expect(!Self.onItsWay(from: sampled([0], settled: true), to: sampled([0.5, 1], settled: false)))
     }
 
+    /// What is wrong with a try: `change`, the wait after the change, against `start`,
+    /// the wait before it. A frame on its way between the two places is a slide.
+    static func problems(in change: Sampled, from start: Sampled) -> [String] {
+        guard let before = start.frames.last, let after = change.frames.last else {
+            return ["nothing drawn"]
+        }
+        var problems: [String] = []
+        if abs(after.top - before.top - space) >= 0.5 {
+            problems.append("didn't move: \(describe(before)) to \(describe(after))")
+        }
+        if change.frames.contains(where: {
+            abs($0.top - before.top) > 0.5 && abs($0.top - after.top) > 0.5
+        }) {
+            problems.append("slides to its place: \(change.frames.map { Int($0.top) })")
+        }
+        // After a wait that didn't settle, `before` is no look to compare with.
+        if start.settled && !after.differs(from: before) {
+            problems.append("its look doesn't change: \(describe(before)) to \(describe(after))")
+        }
+        return problems
+    }
+
+    /// A try is judged only by waits that settled: the last frame of one that didn't
+    /// is no look and no place. A frame between the two places is a slide all the same.
+    @Test func aTryIsJudgedOnlyByWaitsThatSettled() {
+        func sampled(_ frames: [(CGFloat, CGFloat)], settled: Bool) -> Sampled {
+            Sampled(
+                frames: frames.map { Drawn(top: $0.0, look: [$0.1]) }, took: .zero,
+                settled: settled)
+        }
+        let start = sampled([(78, 0)], settled: true)
+        // Moved, and its look changed: nothing wrong.
+        #expect(Self.problems(in: sampled([(138, 1)], settled: true), from: start).isEmpty)
+        // Its look didn't change, in a wait that settled: that is wrong.
+        #expect(Self.problems(in: sampled([(138, 0)], settled: true), from: start).count == 1)
+        // The same last frame of a wait that didn't settle (the simulator froze): no
+        // look and no place to judge by.
+        #expect(Self.problems(in: sampled([(138, 0)], settled: false), from: start).isEmpty)
+        #expect(Self.problems(in: sampled([(78, 0)], settled: false), from: start).isEmpty)
+        // A frame between the two places is a slide, settled or not.
+        #expect(
+            Self.problems(in: sampled([(108, 1), (138, 1)], settled: false), from: start).count
+                == 1)
+    }
+
     /// What is drawn, sampled every 4 ms, from now until it has settled where `done`
     /// says or `limit` has passed.
     @MainActor static func settle(
@@ -287,15 +332,8 @@ import UIKit
             let frames = sampled.frames
             let after = try #require(frames.last)
 
-            #expect(moved(after), "\(sample): didn't move")
-            let sliding = frames.filter {
-                abs($0.top - before.top) > 0.5 && abs($0.top - after.top) > 0.5
-            }
-            #expect(
-                sliding.isEmpty,
-                "\(sample): slides to its place: \(frames.map { Int($0.top) })")
-            if initial.settled {
-                #expect(after.differs(from: before), "\(sample): its look doesn't change")
+            for problem in Self.problems(in: sampled, from: initial) {
+                Issue.record("\(sample): \(problem)")
             }
 
             animated = Self.onItsWay(from: initial, to: sampled)
