@@ -184,8 +184,12 @@ import UIKit
 
     /// Whether a try shows the look on its way: a frame of `change` between where
     /// `start`, the wait before the try, ended and where `change` ended.
+    /// Both waits must have settled: the last frame of one that didn't is no look to
+    /// start or end from.
     static func onItsWay(from start: Sampled, to change: Sampled) -> Bool {
-        guard let first = start.frames.last, let end = change.frames.last else { return false }
+        guard start.settled, change.settled, let first = start.frames.last,
+            let end = change.frames.last
+        else { return false }
         return change.frames.contains { $0.between(first, and: end) }
     }
 
@@ -279,7 +283,10 @@ import UIKit
             #expect(
                 sliding.isEmpty,
                 "\(sample): slides to its place: \(frames.map { Int($0.top) })")
-            #expect(after.differs(from: start), "\(sample): its look doesn't change")
+            // After a wait that didn't settle, `start` is no look to compare with.
+            if from.settled {
+                #expect(after.differs(from: start), "\(sample): its look doesn't change")
+            }
 
             animated = Self.onItsWay(from: from, to: sampled)
             if animated || tries == Self.tries { break }
@@ -289,7 +296,14 @@ import UIKit
             waits.append(back)
             from = back
         }
-        let report = waits.map { "\($0.took)\($0.settled ? "" : " (not settled)")" }
+        // A wait that didn't settle shows its last frames: where the box was and its look.
+        let report = waits.map { wait in
+            if wait.settled { return "\(wait.took)" }
+            let last = wait.frames.suffix(3).map { frame in
+                "\(Int(frame.top)) \(frame.look.map { ($0 * 1000).rounded() / 1000 })"
+            }
+            return "\(wait.took) (not settled; last frames: \(last))"
+        }
         print("AnimationTests \(sample): \(tries) tries; waits: \(report)")
         withKnownIssue("A checkbox's checked look comes at once, also when it doesn't move") {
             #expect(
