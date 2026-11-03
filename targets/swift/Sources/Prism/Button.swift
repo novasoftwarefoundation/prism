@@ -234,6 +234,11 @@ public struct PrismButtonLooks: Sendable, Hashable {
 /// A button's look as a `ButtonStyle`:
 /// `Button("Save", action: save).buttonStyle(.prism(.icon))`. The action stays
 /// with the `Button`; pressed comes from it, disabled from `.disabled(_:)`.
+///
+/// Put `.geometryGroup()` on a `Button` whose place can change, such as one below a
+/// message that comes and goes: SwiftUI's `Button` animates its move along with its
+/// look (the end of a press), and a style can't stop that. With the group, the
+/// `Button` moves at once and its look still animates.
 public struct PrismButtonStyle: ButtonStyle {
     public var variant: PrismButtonVariant?
     public var tone: PrismButtonTone
