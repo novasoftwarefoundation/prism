@@ -89,9 +89,26 @@ import UIKit
         var top: CGFloat
         var look: [CGFloat]
 
-        func differs(from other: Drawn) -> Bool {
+        func differs(from other: Drawn, by tolerance: CGFloat = 0.005) -> Bool {
             look.count != other.look.count
-                || zip(look, other.look).contains { abs($0 - $1) > 0.005 }
+                || zip(look, other.look).contains { abs($0 - $1) > tolerance }
+        }
+
+        /// Whether this frame is on its way from `start` to `end`: a value that changes
+        /// has come more than 1% and less than 99% of its way. By how far, not by how
+        /// much, so a small change, such as white to a light grey, is on its way as long
+        /// as a large one, and the last few milliseconds, when the move is already in
+        /// its place, aren't.
+        func between(_ start: Drawn, and end: Drawn) -> Bool {
+            guard look.count == start.look.count, look.count == end.look.count else {
+                return false
+            }
+            return look.indices.contains { i in
+                let change = end.look[i] - start.look[i]
+                guard abs(change) > 0.005 else { return false }
+                let come = (look[i] - start.look[i]) / change
+                return come > 0.01 && come < 0.99
+            }
         }
     }
 
@@ -125,6 +142,11 @@ import UIKit
                 + [opacity])
     }
 
+    /// Blocks the calling thread for longer than any transition, as a loaded runner can.
+    static func stall() {
+        Thread.sleep(forTimeInterval: 0.5)
+    }
+
     static func components(_ color: CGColor?) -> [CGFloat] {
         guard let color,
             let srgb = CGColorSpace(name: CGColorSpace.extendedSRGB),
@@ -132,6 +154,63 @@ import UIKit
                 .components
         else { return [0, 0, 0, 0] }
         return components
+    }
+
+    /// A frame is on its way by how far its look has come, so the end of a transition,
+    /// when the move is already in its place, doesn't count.
+    @Test func onItsWayIsHowFarTheLookHasCome() {
+        let start = Drawn(top: 0, look: [0])
+        let end = Drawn(top: 0, look: [1])
+        #expect(Drawn(top: 0, look: [0.5]).between(start, and: end))
+        #expect(!Drawn(top: 0, look: [0.995]).between(start, and: end))
+        #expect(!Drawn(top: 0, look: [0.005]).between(start, and: end))
+        #expect(!Drawn(top: 0, look: [1]).between(start, and: end))
+        #expect(!Drawn(top: 0, look: [0]).between(start, and: end))
+    }
+
+    /// How often the change is made before the test says the look doesn't animate.
+    static let tries = 8
+
+    /// How long what is drawn stays the same before it counts as settled: longer than
+    /// any transition.
+    static let quiet: Duration = .milliseconds(400)
+
+    /// The frames that `settle` sampled, how long it took, and whether it settled.
+    struct Sampled {
+        var frames: [Drawn]
+        var took: Duration
+        var settled: Bool
+    }
+
+    /// What is drawn, sampled every 4 ms, from now until it has settled where `done`
+    /// says or `limit` has passed.
+    @MainActor static func settle(
+        in window: UIWindow, limit: Duration = .seconds(10),
+        until done: (Drawn) -> Bool = { _ in true }
+    ) async throws -> Sampled {
+        let clock = ContinuousClock()
+        let start = clock.now
+        var sampled = Sampled(frames: [], took: .zero, settled: false)
+        var anchor: Drawn?
+        var changed = start
+        while clock.now - start < limit {
+            try await Task.sleep(for: .milliseconds(4))
+            guard let drawn = drawn(in: window) else { continue }
+            sampled.frames.append(drawn)
+            // Compared with the frame where it last changed, not the previous one, so a
+            // slow end of an easing still counts as a change.
+            if let anchor, !anchor.differs(from: drawn), abs(anchor.top - drawn.top) <= 0.5 {
+                if done(drawn) && clock.now - changed >= quiet {
+                    sampled.settled = true
+                    break
+                }
+            } else {
+                anchor = drawn
+                changed = clock.now
+            }
+        }
+        sampled.took = clock.now - start
+        return sampled
     }
 
     @Test(arguments: samples)
@@ -142,33 +221,59 @@ import UIKit
             rootView: Screen(sample: sample, change: change))
         window.makeKeyAndVisible()
         window.layoutIfNeeded()
-        try await Task.sleep(for: .milliseconds(300))
+        var waits = [Sampled]()
+        waits.append(try await Self.settle(in: window))
         let before = try #require(Self.drawn(in: window), "\(sample): no box drawn")
+        func moved(_ drawn: Drawn) -> Bool { abs(drawn.top - before.top - Self.space) < 0.5 }
 
-        // One update, with no animation of its own: the space opens and the state changes.
-        change.on = true
-        var frames: [Drawn] = []
-        let clock = ContinuousClock()
-        let end = clock.now + .milliseconds(500)
-        while clock.now < end {
-            try await Task.sleep(for: .milliseconds(4))
-            if let drawn = Self.drawn(in: window) { frames.append(drawn) }
+        // A loaded runner can stall the main thread for longer than a transition, and
+        // then no frame shows the look on its way. So the change is made up to `tries`
+        // times: a look that animates shows a frame on its way in one of them, a look
+        // that doesn't in none. The first try stalls on purpose, as such a runner does.
+        // A frame on its way also shows that the frames cover the transition, in which
+        // a move that animates would slide.
+        var start = before
+        var animated = false
+        var tries = 0
+        while tries < Self.tries {
+            tries += 1
+            // One update, with no animation of its own: the space opens and the state
+            // changes.
+            change.on = true
+            if tries == 1 {
+                try await Task.sleep(for: .milliseconds(50))
+                Self.stall()
+            }
+            let sampled = try await Self.settle(in: window) {
+                moved($0) && $0.differs(from: start)
+            }
+            waits.append(sampled)
+            let frames = sampled.frames
+            let after = try #require(frames.last)
+
+            #expect(moved(after), "\(sample): didn't move")
+            let sliding = frames.filter {
+                abs($0.top - before.top) > 0.5 && abs($0.top - after.top) > 0.5
+            }
+            #expect(
+                sliding.isEmpty,
+                "\(sample): slides to its place: \(frames.map { Int($0.top) })")
+            #expect(after.differs(from: start), "\(sample): its look doesn't change")
+
+            animated = frames.contains { $0.between(start, and: after) }
+            if animated || tries == Self.tries { break }
+            // Back, for the next try, which starts from where this one ends.
+            change.on = false
+            let back = try await Self.settle(in: window) { abs($0.top - before.top) < 0.5 }
+            waits.append(back)
+            start = try #require(back.frames.last)
         }
-        let after = try #require(frames.last)
-
-        #expect(abs(after.top - before.top - Self.space) < 0.5, "\(sample): didn't move")
-        let sliding = frames.filter {
-            abs($0.top - before.top) > 0.5 && abs($0.top - after.top) > 0.5
-        }
-        #expect(
-            sliding.isEmpty,
-            "\(sample): slides to its place: \(frames.map { Int($0.top) })")
-
-        #expect(after.differs(from: before), "\(sample): its look doesn't change")
+        let report = waits.map { "\($0.took)\($0.settled ? "" : " (not settled)")" }
+        print("AnimationTests \(sample): \(tries) tries; waits: \(report)")
         withKnownIssue("A checkbox's checked look comes at once, also when it doesn't move") {
             #expect(
-                frames.contains { $0.differs(from: before) && $0.differs(from: after) },
-                "\(sample): its look doesn't animate: \(before.look) to \(after.look)")
+                animated,
+                "\(sample): its look doesn't animate in \(tries) tries; waits: \(report)")
         } when: {
             sample.component == "checkbox" && sample.state == "checked"
         }
