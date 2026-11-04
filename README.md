@@ -214,32 +214,40 @@ Each step is checked against the tool's documentation (October 2026), not tried 
 
 Install Prism from npm. The repository root is no longer the package (it lives in `targets/web/`), so installing from git or linking to files at the root of the repository no longer works.
 
-Publishing is manual for now: the npm packages from `targets/web/` and `targets/react/`, with the same version for both, the design-tool files as release assets, and the Swift package in the `prism-swift` repository, at the same version:
+Releases are started by pushing a version tag after the release commit reaches `main`:
 
-1. Bump the version in `design/mix.exs`, `targets/web/package.json`, and in `targets/react/package.json` both its version and its peer dependency on `@novasoftwarefoundation/prism`. Then update the React package's lockfiles: `cd targets/react && npm install --package-lock-only && ../../.github/react18.sh --update` (the second writes CI's React 18 lockfile from the bumped files, and leaves them as they are). A test checks that all of them are equal. Merge it.
-2. Check the packages: `cd targets/web && npm pack --dry-run` lists the files in `.github/npm-files.txt`, and `cd targets/react && npm ci && npm pack --dry-run` (which builds `dist/`) those in `.github/npm-files-react.txt`.
-3. Publish the CSS first, since the components depend on it: `cd targets/web && npm publish --access public`.
-4. Then the components: `cd targets/react && npm publish --access public`.
-5. Attach the design-tool files to the release, from the tag:
-   1. Tag the merge `vX.Y.Z`, push the tag, and check it out: `git checkout vX.Y.Z`.
-   2. Check that the tree is the tag's, with no local changes or untracked files, and that the files are the design's: `test -z "$(git status --porcelain)" && (cd design && mix prism.gen --check)`. The commands here run from the repository root.
-   3. Create a GitHub release for the tag with `targets/design-tools/tokens.json`, `tokens.css` and `overview.svg` as its assets: `gh release create vX.Y.Z targets/design-tools/tokens.json targets/design-tools/tokens.css targets/design-tools/overview.svg`. If the release exists already (a rerun), upload them again instead: `gh release upload vX.Y.Z targets/design-tools/tokens.json targets/design-tools/tokens.css targets/design-tools/overview.svg --clobber`.
+```sh
+git tag -a vX.Y.Z -m "Prism vX.Y.Z"
+git push origin vX.Y.Z
+```
 
-6. Release the Swift package, still from the tag: mirror `targets/swift/` to the root of a clone of `prism-swift`, commit it, tag it `vX.Y.Z` and push the branch and the tag:
+Before tagging, bump the version in `design/mix.exs`, `targets/web/package.json`, and both the version and Prism peer dependency in `targets/react/package.json`. Update React's lockfiles with `cd targets/react && npm install --package-lock-only && ../../.github/react18.sh --update`, then regenerate and commit the design output. Follow the normal `spec` → `develop` → `main` review and merge flow before tagging.
 
-   ```sh
-   git clone git@github.com:novasoftwarefoundation/prism-swift.git ../prism-swift
-   .github/swift-release.sh vX.Y.Z ../prism-swift
-   ```
+`.github/workflows/release.yml` runs the full CI suite at the tag. It requires the tagged commit to be on `main`, checks all versions, verifies generated output and both npm package file lists, then:
 
-   - It mirrors only the files the tag tracks in `targets/swift/`, so no ignored or untracked file ships.
-   - Before it changes anything it checks Prism (the tag checked out, a clean tree, `design/mix.exs` at the version) and the clone (on a branch, clean, equal to `origin`, and without the tag, locally or on `origin`). `prism-swift` needs a first commit (a README) before the first release, so the clone has a branch.
-   - It pushes the branch and the tag in one atomic push: both or neither.
-   - **When it fails**, nothing is pushed and the clone is put back as it was (no commit, no tag): fix the cause (credentials, network, a pull) and run it again. With `SWIFT_RELEASE_PUSH=no` it commits and tags but pushes nothing, so the commit can be looked at first; to undo that, `git -C ../prism-swift tag -d vX.Y.Z && git -C ../prism-swift reset --hard origin/<branch>`.
-   - **A pushed release is never moved or deleted**: apps' `Package.resolved` point at it. Fix a broken release with a patch release (`vX.Y.Z+1`).
-   - SwiftPM resolves `exact: "X.Y.Z"` to the tag `vX.Y.Z`.
+1. Publishes `targets/web/` and `targets/react/`, in that order. It waits for npm's processing to finish and verifies package hashes. npm trusted publishing provides authentication.
+2. Mirrors the tag's tracked `targets/swift/` files into `prism-swift` using `.github/swift-release.sh`, committing and pushing the branch and tag atomically.
+3. Creates the GitHub release and attaches `tokens.json`, `tokens.css` and `overview.svg`.
 
-There is no release automation yet.
+Stable tags use `vX.Y.Z` and npm's `latest` dist-tag. Release candidates use `vX.Y.Z-rc.N`, npm's `next` dist-tag and a GitHub prerelease. Candidates do not move `latest`.
+
+### One-time release setup
+
+- On each npm package (`@novasoftwarefoundation/prism` and `@novasoftwarefoundation/prism-react`), configure GitHub Actions trusted publishing: owner `novasoftwarefoundation`, repository `prism`, workflow filename `release.yml`, no environment restriction. Enable publishing for that trusted publisher. The job uses `id-token: write`; no npm token secret is needed. The pinned Node version includes a compatible npm CLI (11.5.1 or later).
+- Create a write-enabled deploy key on `novasoftwarefoundation/prism-swift` only. Store its private half in the `novasoftwarefoundation/prism` Actions secret `PRISM_SWIFT_DEPLOY_KEY`. The workflow pins the SSH host keys from GitHub's HTTPS metadata API and removes the temporary private key when the step ends.
+- GitHub's workflow token creates the Prism release/assets with `contents: write`.
+
+### Failed or partial releases
+
+Check the failed step before rerunning the workflow. Published npm versions are reused only when their hashes match the prepared packages. An existing Swift tag must contain exactly the expected tracked files and belong to its main branch. Existing GitHub releases receive the tag's design assets again. Nothing moves or deletes a published version tag. If npm accepted an upload but is still processing it, wait for processing to finish before rerunning; do not submit another upload manually. Fix incorrect published content in a new patch version.
+
+The local release checks can be run without publishing:
+
+```sh
+node --test .github/release-version.test.mjs .github/release-publish.test.mjs
+# After npm ci in targets/react; choose an existing directory outside the checkout:
+RELEASE_TAG=vX.Y.Z RUNNER_TEMP=/path/to/temp node .github/release-prepare.mjs
+```
 
 ## License
 
