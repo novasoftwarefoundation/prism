@@ -258,9 +258,9 @@ import UIKit
     }
 
     /// Whether a sample was judged at all: some try had its wait before the change and
-    /// its wait after it settled. The test doesn't ask this yet: every sample counts.
+    /// its wait after it settled.
     static func judged(_ tries: [(start: Sampled, change: Sampled)]) -> Bool {
-        true
+        tries.contains { $0.start.settled && $0.change.settled }
     }
 
     /// A sample whose waits never settled wasn't judged: a look or a move that never
@@ -324,6 +324,7 @@ import UIKit
         // a move that animates would slide. Each try has a window of its own, whose
         // look has settled before the change: the test says nothing about going back.
         var waits: [Sampled] = []
+        var pairs: [(start: Sampled, change: Sampled)] = []
         var seen = ""
         var animated = false
         var tries = 0
@@ -351,6 +352,7 @@ import UIKit
                 moved($0) && $0.differs(from: before)
             }
             waits.append(sampled)
+            pairs.append((initial, sampled))
             let frames = sampled.frames
             let after = try #require(frames.last)
 
@@ -373,6 +375,9 @@ import UIKit
             return "\(wait.took) (not settled; last frames: \(wait.frames.suffix(3).map(Self.describe)))"
         }
         print("AnimationTests \(sample): \(tries) tries; waits: \(report)\(seen)")
+        // Outside the known issue: a look or a move that never comes leaves every wait
+        // unsettled, and no try is judged.
+        #expect(Self.judged(pairs), "\(sample): no try settled; waits: \(report)")
         withKnownIssue("A checkbox's checked look comes at once, also when it doesn't move") {
             #expect(
                 animated,
