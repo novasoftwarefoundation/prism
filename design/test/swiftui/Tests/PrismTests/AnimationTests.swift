@@ -206,6 +206,73 @@ import UIKit
         #expect(!Self.onItsWay(from: sampled([0], settled: true), to: sampled([0.5, 1], settled: false)))
     }
 
+    /// What is wrong with a try: `change`, the wait after the change, against `start`,
+    /// the wait before it. A frame on its way between the two places is a slide.
+    static func problems(in change: Sampled, from start: Sampled) -> [String] {
+        guard let before = start.frames.last, let after = change.frames.last else {
+            return ["nothing drawn"]
+        }
+        var problems: [String] = []
+        if change.frames.contains(where: {
+            abs($0.top - before.top) > 0.5 && abs($0.top - after.top) > 0.5
+        }) {
+            problems.append("slides to its place: \(change.frames.map { Int($0.top) })")
+        }
+        // The last frame of a wait that didn't settle is no look and no place: a try
+        // with one is made again, and a look that never changes doesn't animate either.
+        guard start.settled, change.settled else { return problems }
+        if abs(after.top - before.top - space) >= 0.5 {
+            problems.append("didn't move: \(describe(before)) to \(describe(after))")
+        }
+        if !after.differs(from: before) {
+            problems.append("its look doesn't change: \(describe(before)) to \(describe(after))")
+        }
+        return problems
+    }
+
+    /// A try is judged only by waits that settled: the last frame of one that didn't
+    /// is no look and no place. A frame between the two places is a slide all the same.
+    @Test func aTryIsJudgedOnlyByWaitsThatSettled() {
+        func sampled(_ frames: [(CGFloat, CGFloat)], settled: Bool) -> Sampled {
+            Sampled(
+                frames: frames.map { Drawn(top: $0.0, look: [$0.1]) }, took: .zero,
+                settled: settled)
+        }
+        let start = sampled([(78, 0)], settled: true)
+        // Moved, and its look changed: nothing wrong.
+        #expect(Self.problems(in: sampled([(138, 1)], settled: true), from: start).isEmpty)
+        // Its look didn't change, in a wait that settled: that is wrong.
+        #expect(Self.problems(in: sampled([(138, 0)], settled: true), from: start).count == 1)
+        // The same last frame of a wait that didn't settle (the simulator froze): no
+        // look and no place to judge by.
+        #expect(Self.problems(in: sampled([(138, 0)], settled: false), from: start).isEmpty)
+        #expect(Self.problems(in: sampled([(78, 0)], settled: false), from: start).isEmpty)
+        // A wait before the change that didn't settle: no look and no place to start from.
+        #expect(
+            Self.problems(in: sampled([(138, 0)], settled: true), from: sampled([(78, 0)], settled: false))
+                .isEmpty)
+        // A frame between the two places is a slide, settled or not.
+        #expect(
+            Self.problems(in: sampled([(108, 1), (138, 1)], settled: false), from: start).count
+                == 1)
+    }
+
+    /// Whether a sample was judged at all: some try had its wait before the change and
+    /// its wait after it settled.
+    static func judged(_ tries: [(start: Sampled, change: Sampled)]) -> Bool {
+        tries.contains { $0.start.settled && $0.change.settled }
+    }
+
+    /// A sample whose waits never settled wasn't judged: a look or a move that never
+    /// comes leaves every wait unsettled, and that must fail, also for a known issue.
+    @Test func aSampleIsJudgedOnlyWhenATrySettled() {
+        let settled = Sampled(frames: [], took: .zero, settled: true)
+        let unsettled = Sampled(frames: [], took: .zero, settled: false)
+        #expect(!Self.judged([]))
+        #expect(!Self.judged([(unsettled, unsettled), (settled, unsettled), (unsettled, settled)]))
+        #expect(Self.judged([(unsettled, unsettled), (settled, settled)]))
+    }
+
     /// What is drawn, sampled every 4 ms, from now until it has settled where `done`
     /// says or `limit` has passed.
     @MainActor static func settle(
@@ -257,6 +324,7 @@ import UIKit
         // a move that animates would slide. Each try has a window of its own, whose
         // look has settled before the change: the test says nothing about going back.
         var waits: [Sampled] = []
+        var pairs: [(start: Sampled, change: Sampled)] = []
         var seen = ""
         var animated = false
         var tries = 0
@@ -284,18 +352,12 @@ import UIKit
                 moved($0) && $0.differs(from: before)
             }
             waits.append(sampled)
+            pairs.append((initial, sampled))
             let frames = sampled.frames
             let after = try #require(frames.last)
 
-            #expect(moved(after), "\(sample): didn't move")
-            let sliding = frames.filter {
-                abs($0.top - before.top) > 0.5 && abs($0.top - after.top) > 0.5
-            }
-            #expect(
-                sliding.isEmpty,
-                "\(sample): slides to its place: \(frames.map { Int($0.top) })")
-            if initial.settled {
-                #expect(after.differs(from: before), "\(sample): its look doesn't change")
+            for problem in Self.problems(in: sampled, from: initial) {
+                Issue.record("\(sample): \(problem)")
             }
 
             animated = Self.onItsWay(from: initial, to: sampled)
@@ -313,6 +375,9 @@ import UIKit
             return "\(wait.took) (not settled; last frames: \(wait.frames.suffix(3).map(Self.describe)))"
         }
         print("AnimationTests \(sample): \(tries) tries; waits: \(report)\(seen)")
+        // Outside the known issue: a look or a move that never comes leaves every wait
+        // unsettled, and no try is judged.
+        #expect(Self.judged(pairs), "\(sample): no try settled; waits: \(report)")
         withKnownIssue("A checkbox's checked look comes at once, also when it doesn't move") {
             #expect(
                 animated,
