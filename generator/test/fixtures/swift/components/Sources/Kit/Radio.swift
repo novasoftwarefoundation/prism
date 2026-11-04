@@ -48,6 +48,8 @@ public struct KitRadio<Label: View>: View {
         }
         .kitLook(looks.root)
         .animation(looks.control.transition?.animation, value: looks)
+        // Its look animates; a move in the same update doesn't.
+        .geometryGroup()
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(checked ? .isSelected : [])
     }

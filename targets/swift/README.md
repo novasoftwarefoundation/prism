@@ -11,7 +11,7 @@ This package is generated in [novasoftwarefoundation/prism](https://github.com/n
 Swift Package Manager, iOS 26 or later:
 
 ```swift
-.package(url: "https://github.com/novasoftwarefoundation/prism-swift.git", exact: "0.2.0")
+.package(url: "https://github.com/novasoftwarefoundation/prism-swift.git", exact: "0.2.1")
 ```
 
 In Xcode: File > Add Package Dependencies, with the same URL, and add the `Prism` library to the app's target.
@@ -80,6 +80,13 @@ PrismSelect(icon: Image(systemName: "chevron.down")) {
 - **States SwiftUI knows come from SwiftUI:** pressed from the button, checked from the toggle, disabled from `.disabled(_:)`, hovered from the pointer. The app gives the others: `loading`, `invalid`, a text field's, a text area's, a select's and a field's `focused` (from its `@FocusState`; a field's is its control's), a radio's `checked`. A select is disabled with `.disabled(_:)` too.
 - **A text field with a prefix** takes it after the modifier: `TextField(…).prismTextField(focused: focused) { Text("€") }`, or the app's `Picker` there. The prefix fills the field's height before the text, and the field's border goes around both.
 - **A button with an icon** gets `icon: .start` or `icon: .end` and a `Label` as its label; the icon goes at that side of the title, and the button takes its look with an icon.
+- **A look animates, a move doesn't.** When a text field's border turns to the warning color as a message appears above it, the field moves to its new place at once and only its border animates; so do a text area, a checkbox and a radio. A button can't do this from its style: SwiftUI's `Button` animates its move along with its look (the end of a press). Put `.geometryGroup()` on a Prism button whose place can change, such as one below a message that comes and goes:
+
+  ```swift
+  Button("Continue", action: submit)
+      .buttonStyle(.prism(.primary, loading: busy))
+      .geometryGroup()
+  ```
 - **A spinner** keeps the `ProgressView`'s label for VoiceOver: `ProgressView("Uploading", value: 0.4)`.
 - **A text area's editor** is `.plain` or `.richText` (16pt on every side). A rich-text editor on iOS is a `TextEditor` on an `AttributedString`, whose formatting controls are the system's: `.prismTextArea(editor: .richText)` gives it the box. Prism draws no toolbar.
 - **A text area's height** is the app's (`.frame(height: 128)`); it is at least one line of its text, so that line is never cut off.

@@ -82,12 +82,16 @@ public struct KitTextFieldModifier: ViewModifier {
             .kitText(looks.root)
             .kitBox(looks.root.withoutPadding)
             .animation(looks.root.transition?.animation, value: looks)
+            // Its look animates; a move in the same update doesn't.
+            .geometryGroup()
         } else {
             content
                 .kitText(looks.root)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .kitBox(looks.root)
                 .animation(looks.root.transition?.animation, value: looks)
+                // Its look animates; a move in the same update doesn't.
+                .geometryGroup()
         }
     }
 
