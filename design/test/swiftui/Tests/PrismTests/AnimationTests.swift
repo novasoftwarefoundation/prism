@@ -247,10 +247,30 @@ import UIKit
         // look and no place to judge by.
         #expect(Self.problems(in: sampled([(138, 0)], settled: false), from: start).isEmpty)
         #expect(Self.problems(in: sampled([(78, 0)], settled: false), from: start).isEmpty)
+        // A wait before the change that didn't settle: no look and no place to start from.
+        #expect(
+            Self.problems(in: sampled([(138, 0)], settled: true), from: sampled([(78, 0)], settled: false))
+                .isEmpty)
         // A frame between the two places is a slide, settled or not.
         #expect(
             Self.problems(in: sampled([(108, 1), (138, 1)], settled: false), from: start).count
                 == 1)
+    }
+
+    /// Whether a sample was judged at all: some try had its wait before the change and
+    /// its wait after it settled. The test doesn't ask this yet: every sample counts.
+    static func judged(_ tries: [(start: Sampled, change: Sampled)]) -> Bool {
+        true
+    }
+
+    /// A sample whose waits never settled wasn't judged: a look or a move that never
+    /// comes leaves every wait unsettled, and that must fail, also for a known issue.
+    @Test func aSampleIsJudgedOnlyWhenATrySettled() {
+        let settled = Sampled(frames: [], took: .zero, settled: true)
+        let unsettled = Sampled(frames: [], took: .zero, settled: false)
+        #expect(!Self.judged([]))
+        #expect(!Self.judged([(unsettled, unsettled), (settled, unsettled), (unsettled, settled)]))
+        #expect(Self.judged([(unsettled, unsettled), (settled, settled)]))
     }
 
     /// What is drawn, sampled every 4 ms, from now until it has settled where `done`
