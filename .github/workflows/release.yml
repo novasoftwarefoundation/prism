@@ -1,0 +1,96 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: prism-release
+  cancel-in-progress: false
+
+jobs:
+  checks:
+    uses: ./.github/workflows/ci.yml
+
+  release:
+    needs: checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      id-token: write
+    env:
+      RELEASE_TAG: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
+        with:
+          version-file: .tool-versions
+          version-type: strict
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .tool-versions
+          registry-url: https://registry.npmjs.org
+      - name: Require a clean tag from main
+        run: |
+          test -z "$(git status --porcelain)"
+          test "$(git rev-parse HEAD)" = "$(git rev-parse "$RELEASE_TAG^{commit}")"
+          git merge-base --is-ancestor HEAD origin/main
+      - name: Build and check generated output
+        working-directory: design
+        run: |
+          mix deps.get
+          mix prism.gen --check
+      - name: Build React package
+        working-directory: targets/react
+        run: npm ci
+      - name: Validate versions and exact package contents
+        run: node .github/release-prepare.mjs
+      - name: Publish web then React with npm trusted publishing
+        run: node .github/release-publish.mjs
+      - name: Release Swift package
+        env:
+          SWIFT_DEPLOY_KEY: ${{ secrets.PRISM_SWIFT_DEPLOY_KEY }}
+          GH_TOKEN: ${{ github.token }}
+          GIT_AUTHOR_NAME: github-actions[bot]
+          GIT_AUTHOR_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
+          GIT_COMMITTER_NAME: github-actions[bot]
+          GIT_COMMITTER_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
+        run: |
+          key="$RUNNER_TEMP/swift-release-key"
+          known_hosts="$RUNNER_TEMP/github-known-hosts"
+          trap 'rm -f "$key" "$known_hosts"' EXIT
+          umask 077
+          test -n "$SWIFT_DEPLOY_KEY"
+          printf '%s\n' "$SWIFT_DEPLOY_KEY" > "$key"
+          gh api meta --jq '.ssh_keys[] | "github.com " + .' > "$known_hosts"
+          export GIT_SSH_COMMAND="ssh -i $key -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$known_hosts"
+          clone="$RUNNER_TEMP/prism-swift"
+          git clone git@github.com:novasoftwarefoundation/prism-swift.git "$clone"
+          if git -C "$clone" rev-parse --verify "refs/tags/$RELEASE_TAG" >/dev/null 2>&1; then
+            # A rerun verifies the immutable Swift tag instead of moving it.
+            mkdir "$RUNNER_TEMP/expected-swift" "$RUNNER_TEMP/released-swift"
+            git archive "$RELEASE_TAG" targets/swift | tar -x -C "$RUNNER_TEMP/expected-swift"
+            git -C "$clone" archive "$RELEASE_TAG" | tar -x -C "$RUNNER_TEMP/released-swift"
+            diff -r "$RUNNER_TEMP/expected-swift/targets/swift" "$RUNNER_TEMP/released-swift"
+            git -C "$clone" merge-base --is-ancestor "$RELEASE_TAG" origin/main
+          else
+            .github/swift-release.sh "$RELEASE_TAG" "$clone"
+          fi
+      - name: Create GitHub release with design assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            flags=()
+            case "$RELEASE_TAG" in *-rc.*) flags+=(--prerelease) ;; esac
+            gh release create "$RELEASE_TAG" --verify-tag --generate-notes "${flags[@]}"
+          fi
+          gh release upload "$RELEASE_TAG" targets/design-tools/tokens.json \
+            targets/design-tools/tokens.css targets/design-tools/overview.svg --clobber
