@@ -1,6 +1,7 @@
 name: CI
 
 on:
+  workflow_call:
   push:
     branches: [main, develop, spec]
   pull_request:
@@ -217,6 +218,8 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .tool-versions
+      - name: Release validation tests
+        run: node --test .github/release-version.test.mjs .github/release-publish.test.mjs
       - name: The package ships exactly the reviewed files
         working-directory: targets/web
         run: |
