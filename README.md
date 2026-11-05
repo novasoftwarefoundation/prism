@@ -210,6 +210,16 @@ Each step is checked against the tool's documentation (October 2026), not tried 
 - Its `mix test` needs Node (`nodejs` in `.tool-versions`): a test loads the generated preset in plain Node.
 - **Moving it to its own repository:** move `generator/` out as it is, and change one line in `design/mix.exs` from `path: "../generator"` to a git or Hex dependency.
 
+## Swift validation in CI
+
+Swift builds and simulator tests run when their tested inputs or environment have no matching successful validation record. CI always runs the generator tests and checks generated files first. Thus a design/generator change that changes Swift must update the committed package or fixtures; stale output cannot use a prior Swift pass. A design change with identical Swift output needs no second simulator run.
+
+The fingerprint covers all tracked files in `targets/swift/` (except its README, license and gitignore), `generator/test/fixtures/swift/`, and `design/test/swiftui/`, plus the tool versions, CI/release workflows and validation scripts/tests. Added/deleted files count too. Runner image/OS/architecture, exact Xcode build, Node version, simulator runtime build and selected iPhone type also belong to the fingerprint. Version metadata, web/React-only changes and documentation outside those inputs leave it unchanged.
+
+A matching record can be reused across an internal PR, branch promotion and release tag. CI verifies the artifact digest and its full input/environment manifest, the same repository and CI/release workflow paths, the original successful run/attempt, and that the original Swift build/render steps actually ran and passed. Fork evidence and records from skipped, failed, in-progress or unrelated runs are refused. A reused job links the original run in its summary and does not issue a new test record. This keeps the evidence tied to the run that actually executed the suite.
+
+Records are retained for 30 days. Missing, expired, corrupt or inaccessible evidence runs the full suite; lookup problems never count as a pass. The macOS job still selects/identifies its environment on a cache hit, but skips the expensive builds and simulator tests. A changed environment or validation implementation requires a new full run.
+
 ## Publish
 
 Install Prism from npm. The repository root is no longer the package (it lives in `targets/web/`), so installing from git or linking to files at the root of the repository no longer works.
