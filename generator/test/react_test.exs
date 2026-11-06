@@ -39,7 +39,7 @@ defmodule Prism.Generator.ReactTest do
                 src/RadioGroup.tsx src/Radio.tsx src/Select.tsx src/Spinner.tsx
                 src/Checkbox.tsx src/Tag.tsx src/MessageBar.tsx src/StepIndicator.tsx
                 src/ImagePicker.tsx
-                src/helpers.ts src/index.ts)
+                src/input-metadata.ts src/helpers.ts src/index.ts)
 
     assert Enum.uniq(for {_, _, from} <- files, do: from) == [
              "test/support/example_components.ex"
