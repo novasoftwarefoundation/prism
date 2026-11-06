@@ -23,6 +23,25 @@ Prism's look is written once, as a design in Elixir, and generated into code for
 
 ## Change the design
 
+Optional per-input auto-submit metadata is described in
+[ADR 0012](docs/adr/0012-semantic-input-metadata.md). `text_field` and `text_area`
+declare `auto_submit_delay_ms`: integer milliseconds 1..2147483647, with
+absence/null/nil disabling it. Prism validates this semantic data; the containing
+Form consumer implements debounce, validation and submission.
+
+```elixir
+Prism.Generator.InputMetadata.validate!(
+  Prism.Design.Components.__schema__(), :text_field, %{auto_submit_delay_ms: 500}
+)
+```
+
+React consumers import `textFieldInputMetadata({ autoSubmitDelayMs: 500 })`
+and `TextFieldInputMetadata` from `@novasoftwarefoundation/prism-react`.
+Swift consumers construct `try PrismTextFieldInputMetadata(autoSubmitDelayMs: 500)`
+or decode that Codable type from snake_case input metadata. Text areas have the
+corresponding `TextArea` APIs. These data types belong in the Form's input model;
+they do not change styled field APIs or submit forms by themselves.
+
 `targets/web/tailwind.preset.js`, `targets/web/css/base.css`, `targets/web/css/components.css`, `targets/react/src/`, the three files in `targets/design-tools/`, and `targets/swift/Package.swift` and `targets/swift/Sources/` are generated: don't edit them by hand. Change `design/lib/tokens.ex` (tokens) or `design/lib/components.ex` (components), then regenerate and commit the result. An app adjusts a component through the component's own API, never by editing a generated file.
 
 ```sh

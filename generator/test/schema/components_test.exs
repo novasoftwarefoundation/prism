@@ -71,6 +71,64 @@ defmodule Prism.Generator.Schema.ComponentsTest do
     assert [%{name: :d}] = compile("  component :d").components
   end
 
+  test "semantic input properties are data, not visual values, and default to disabled" do
+    [c] =
+      compile("""
+        component :text_field do
+          input_property :settle_ms, type: :integer, unit: :millisecond,
+            min: 1, max: 2147483647
+        end
+      """).components
+
+    assert c.input_properties == [
+             %{
+               name: :settle_ms,
+               type: :integer,
+               unit: :millisecond,
+               min: 1,
+               max: 2_147_483_647,
+               default: nil
+             }
+           ]
+
+    assert c.style == []
+    assert c.values == []
+    assert hd(compile("component :text_field").components).input_properties == []
+  end
+
+  test "semantic declarations reject invalid bounds, types, defaults and unknown options" do
+    for options <- [
+          "type: :number, unit: :millisecond, min: 1, max: 10",
+          "type: :integer, unit: :second, min: 1, max: 10",
+          "type: :integer, unit: :millisecond, min: 0, max: 10",
+          "type: :integer, unit: :millisecond, min: 1, max: 2147483648",
+          "type: :integer, unit: :millisecond, min: 10, max: 1",
+          "type: :integer, unit: :millisecond, min: 1.0, max: 10",
+          "type: :integer, unit: :millisecond, min: 1, max: 10, default: 5",
+          "type: :integer, unit: :millisecond, min: 1",
+          "type: :integer, unit: :millisecond, min: 1, max: 10, padding: 4",
+          "type: :integer, unit: :millisecond, min: 1, max: 10, min: 2"
+        ] do
+      assert_raise CompileError, fn ->
+        compile("component :text_field do\n input_property :settle_ms, #{options}\nend")
+      end
+    end
+  end
+
+  test "semantic properties cannot be duplicated or nested in visual nodes" do
+    property = "input_property :settle_ms, type: :integer, unit: :millisecond, min: 1, max: 10"
+
+    assert_raise CompileError, fn ->
+      compile("component :text_field do\n #{property}\n #{property}\nend")
+    end
+
+    for node <- ["variant :inverse", "state :disabled", "part :prefix"] do
+      assert_raise CompileError, fn ->
+        compile("component :text_field do\n #{node} do\n #{property}\nend\nend")
+      end
+    end
+  end
+
   test "a name that isn't a snake_case atom fails" do
     assert_compile_error("  component :Tag", "component :Tag: name must be a snake_case atom", 12)
 

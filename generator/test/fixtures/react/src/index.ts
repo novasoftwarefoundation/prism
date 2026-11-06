@@ -12,3 +12,4 @@ export * from "./Tag.js";
 export * from "./MessageBar.js";
 export * from "./StepIndicator.js";
 export * from "./ImagePicker.js";
+export * from "./input-metadata.js";

@@ -30,6 +30,8 @@ defmodule Prism.Generator.Schema.Components do
 
   A component is one concept, such as a button or a checkbox: how it looks and
   how its look changes in a state. What it does is never part of a design.
+  `input_property` separately describes optional semantic data on input instances;
+  form consumers own its behavior. It never affects styles or visual values.
 
   - `style` is the component's own look, once per component.
   - A `variant` is a look to choose. Variants outside a `variants` block form
@@ -149,7 +151,8 @@ defmodule Prism.Generator.Schema.Components do
     with_variant: @targets,
     flag: [:default | @targets],
     state: @targets,
-    value: @targets
+    value: @targets,
+    input_property: [:type, :unit, :min, :max, :default]
   }
 
   # The sides a part with `position:` may have.
@@ -158,7 +161,17 @@ defmodule Prism.Generator.Schema.Components do
   # What may be declared directly inside what; `nil` is the top of the design.
   @children %{
     nil => [:component],
-    component: [:style, :variants, :variant, :part, :with_part, :flag, :state, :value],
+    component: [
+      :style,
+      :variants,
+      :variant,
+      :part,
+      :with_part,
+      :flag,
+      :state,
+      :value,
+      :input_property
+    ],
     variants: [:variant],
     variant: [:part, :with_part, :with_variant, :state, :value],
     part: [:state],
@@ -166,7 +179,8 @@ defmodule Prism.Generator.Schema.Components do
     with_variant: [:state],
     flag: [:with_variant, :state],
     state: [:part],
-    value: []
+    value: [],
+    input_property: []
   }
 
   @doc "The states, with what each means: `[{name, meaning}]`."
@@ -262,6 +276,18 @@ defmodule Prism.Generator.Schema.Components do
   """
   defmacro value(name, props \\ []),
     do: node(:value, name, props, [], __CALLER__)
+
+  @doc """
+  Optional semantic data on an input instance, separate from its look. Integer
+  millisecond properties have explicit inclusive bounds and default to nil:
+
+      input_property :settle_ms, type: :integer, unit: :millisecond,
+        min: 1, max: 1000, default: nil
+
+  This declares a data contract. Form consumers own all scheduling and actions.
+  """
+  defmacro input_property(name, opts \\ []),
+    do: node(:input_property, name, opts, [], __CALLER__)
 
   # `variant :dark do … end` passes the block as the second argument.
   defp node(kind, name, [do: block], [], caller), do: node(kind, name, [], [do: block], caller)
@@ -686,10 +712,38 @@ defmodule Prism.Generator.Schema.Components do
         with_parts: with_parts,
         flags: flags,
         states: states,
-        values: values
+        values: values,
+        input_properties: input_properties!(nodes, c, file)
       },
       bindings!(c, opts, known, file)
     )
+  end
+
+  defp input_properties!(nodes, component, file) do
+    properties = children(nodes, component, :input_property)
+    unique!(Enum.map(properties, &{&1.name, "input property"}), component, file)
+
+    for property <- properties do
+      {opts, []} = split!(property, file)
+      fail = &fail(file, property.line, "#{path_label(property)}: #{&1}")
+      unless opts[:type] == :integer, do: fail.("type: must be :integer")
+      unless opts[:unit] == :millisecond, do: fail.("unit: must be :millisecond")
+
+      unless is_integer(opts[:min]) and is_integer(opts[:max]) and
+               opts[:min] >= 1 and opts[:max] <= 2_147_483_647 and opts[:min] <= opts[:max],
+             do: fail.("min/max: require 1 <= min <= max <= 2147483647, both integers")
+
+      unless opts[:default] == nil, do: fail.("default: must be nil (disabled)")
+
+      %{
+        name: property.name,
+        type: :integer,
+        unit: :millisecond,
+        min: opts[:min],
+        max: opts[:max],
+        default: nil
+      }
+    end
   end
 
   # A variant's or a flag's looks with another variant: each names a variant of the
@@ -927,7 +981,9 @@ defmodule Prism.Generator.Schema.Components do
 
     # Only a part the component declares can be another component.
     options = if kind == :part and length(node.parent) > 1, do: @targets, else: @options[kind]
-    properties = if kind in [:component, :variants], do: [], else: Keyword.keys(@properties)
+
+    properties =
+      if kind in [:component, :variants, :input_property], do: [], else: Keyword.keys(@properties)
 
     case keys -- (options ++ properties) do
       [] -> :ok
