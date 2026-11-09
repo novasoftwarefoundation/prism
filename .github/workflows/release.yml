@@ -55,6 +55,14 @@ jobs:
         run: npm ci
       - name: Validate versions and exact package contents
         run: node .github/release-prepare.mjs
+      - name: Bundle the Webflow Designer Extension
+        working-directory: targets/webflow
+        env:
+          DO_NOT_TRACK: "1"
+        run: |
+          npm ci
+          npm run bundle
+          mv bundle.zip "$RUNNER_TEMP/prism-tokens-webflow.zip"
       - name: Publish web then React with npm trusted publishing
         run: node .github/release-publish.mjs
       - name: Release Swift package
@@ -96,4 +104,5 @@ jobs:
             gh release create "$RELEASE_TAG" --verify-tag --generate-notes "${flags[@]}"
           fi
           gh release upload "$RELEASE_TAG" targets/design-tools/tokens.json \
-            targets/design-tools/tokens.css targets/design-tools/overview.svg --clobber
+            targets/design-tools/tokens.css targets/design-tools/overview.svg \
+            "$RUNNER_TEMP/prism-tokens-webflow.zip" --clobber
