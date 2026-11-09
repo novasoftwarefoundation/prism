@@ -89,6 +89,22 @@ defmodule Prism.Design.Tokens do
   radius :default, {0.25, :rem}
   radius :full, {50, :percent}
 
+  # Emphases: what a font's text is for, and so how much it stands out, lightest
+  # first: running text, table data, text that goes with the content (captions,
+  # footnotes, intros, links), subheadings, text of strong importance (actions, labels,
+  # short titles), a page's large titles. Each family's binding gives every emphasis a
+  # weight of its font (`scale:`), so a title looks as heavy in SF Pro on iOS as in
+  # Nunito on the web (ADR 0013).
+  emphases [:reading, :data, :supporting, :subheading, :strong, :headline]
+
+  # 0.1.7's weights, which Nunito and Nunito Sans keep.
+  @nunito [reading: 300, data: 400, supporting: 500, subheading: 600, strong: 700, headline: 800]
+  # SF Pro as heavy as Nunito and Nunito Sans: the stem of each emphasis's weight,
+  # measured at each Typography's size and at a large Dynamic Type size (ADR 0013).
+  @sf_pro [reading: 300, data: 400, supporting: 400, subheading: 500, strong: 600, headline: 700]
+  # No Android target reads these yet: today's weights until one does.
+  @android @nunito
+
   # Families are roles; each platform binds them to a font. The web keeps 0.1.7's
   # Nunito and Nunito Sans; iOS and Android use their system fonts.
   family :display,
@@ -96,10 +112,11 @@ defmodule Prism.Design.Tokens do
     web: [
       name: "Nunito",
       fallback: "sans-serif",
-      faces: [[file: "Nunito-VariableFont_wght", weights: {200, 900}, style: :normal]]
+      faces: [[file: "Nunito-VariableFont_wght", weights: {200, 900}, style: :normal]],
+      scale: @nunito
     ],
-    ios: :system,
-    android: :system
+    ios: {:system, scale: @sf_pro},
+    android: {:system, scale: @android}
 
   family :text,
     doc: "Body text (≤ 20px)",
@@ -109,36 +126,37 @@ defmodule Prism.Design.Tokens do
       faces: [
         [file: "NunitoSans-VariableFont_wght", weights: {200, 1000}, style: :normal],
         [file: "NunitoSans-Italic-VariableFont_wght", weights: {200, 1000}, style: :italic]
-      ]
+      ],
+      scale: @nunito
     ],
-    ios: :system,
-    android: :system
+    ios: {:system, scale: @sf_pro},
+    android: {:system, scale: @android}
 
-  # Fonts: family and weight (`font-…`). Sizes are separate (`text-…`).
-  font :title0, :display, 800
-  font :title1, :display, 800
-  font :title2, :display, 800
-  font :title3, :display, 800
-  font :title4, :display, 800
-  font :title5, :display, 700
-  font :bodylarge, :display, 300
-  font :introdesktop, :display, 500
-  font :quote, :display, 700
-  font :title6, :text, 700
-  font :title7, :text, 700
-  font :caption, :text, 500
-  font :link, :text, 500
-  font :subhead, :text, 600
-  font :button, :text, 700
-  font :footnote, :text, 500
-  font :intro, :text, 500
-  font :label, :text, 700
-  font :body, :text, 300
-  font :hint, :text, 300, italic: true
-  font :tablehead, :text, 700
-  font :tablerow, :text, 400
-  font :bold, :text, 700
-  font :mono, :text, 300
+  # Fonts: family and emphasis (`font-…`). Sizes are separate (`text-…`).
+  font :title0, :display, :headline
+  font :title1, :display, :headline
+  font :title2, :display, :headline
+  font :title3, :display, :headline
+  font :title4, :display, :headline
+  font :title5, :display, :strong
+  font :bodylarge, :display, :reading
+  font :introdesktop, :display, :supporting
+  font :quote, :display, :strong
+  font :title6, :text, :strong
+  font :title7, :text, :strong
+  font :caption, :text, :supporting
+  font :link, :text, :supporting
+  font :subhead, :text, :subheading
+  font :button, :text, :strong
+  font :footnote, :text, :supporting
+  font :intro, :text, :supporting
+  font :label, :text, :strong
+  font :body, :text, :reading
+  font :hint, :text, :reading, italic: true
+  font :tablehead, :text, :strong
+  font :tablerow, :text, :data
+  font :bold, :text, :strong
+  font :mono, :text, :reading
 
   # Text sizes: size and line height in px (`text-…`).
   text :title0, 64, 68

@@ -65,12 +65,41 @@ defmodule Prism.Generator.SwiftTest do
       assert button =~ "radius: Kit.Radii.default,"
     end
 
-    test "a typography is its family's iOS binding, weight, italic, size and text style" do
+    test "a typography is its family's iOS binding, emphasis, italic, size and text style" do
       tokens = body(ExampleDesign.__schema__(), "Sources/Acme/Tokens.swift")
-      assert tokens =~ "public static let display = AcmeFontFamily.system\n"
 
       assert tokens =~
-               "family: Families.text, weight: 300, italic: true, size: 16, lineHeight: 24"
+               "family: Families.text, emphasis: .aside, italic: true, size: 16, lineHeight: 24"
+    end
+
+    # The design's emphases are an enum; each family gives every one the weight of its iOS
+    # scale, not the web's, and a typography's font is drawn at that weight.
+    test "an emphasis is a case; a family has its iOS scale's weight of each" do
+      tokens = body(ExampleDesign.__schema__(), "Sources/Acme/Tokens.swift")
+      look = body(ExampleDesign.__schema__(), "Sources/Acme/Look.swift")
+
+      assert look =~
+               "public enum AcmeEmphasis: Sendable, Hashable, CaseIterable {\n" <>
+                 "    case aside\n    case reading\n    case headline\n}\n"
+
+      assert look =~ "        case .headline: headline\n"
+      assert look =~ "    public var weight: Int {\n        family.weight(emphasis)\n    }\n"
+      assert look =~ "        switch weight {\n"
+      assert look =~ "variation: [0x7767_6874: weight]"
+
+      # Display's headline is 800 on the web and 700 on iOS; text's aside and reading share 400.
+      assert tokens =~
+               "public static let display = AcmeFontFamily(.system, aside: 300, reading: 400, headline: 700)\n"
+
+      assert tokens =~
+               "public static let text = AcmeFontFamily(.system, aside: 400, reading: 400, headline: 600)\n"
+
+      assert tokens =~ "family: Families.display, emphasis: .headline,"
+    end
+
+    test "a component's emphasis is a case too" do
+      button = body(ExampleComponents.__schema__(), "Sources/Kit/Button.swift")
+      assert button =~ "root.apply(KitLook(emphasis: .strong))"
     end
 
     test "Dynamic Type scales body text up to 20 pt as a body style, larger text as a title" do
@@ -401,11 +430,12 @@ defmodule Prism.Generator.SwiftTest do
 
   describe "fonts" do
     @fonts """
+    emphases [:reading, :strong]
     family :text,
       doc: "Text",
-      web: [name: "Fonty", fallback: "sans-serif", faces: [[file: "Fonty", weights: {100, 900}, style: :normal]]],
-      ios: [name: "Fonty", faces: [[file: "Fonty.woff2", weights: {100, 900}, style: :normal]]],
-      android: :system
+      web: [name: "Fonty", fallback: "sans-serif", faces: [[file: "Fonty", weights: {100, 900}, style: :normal]], scale: [reading: 400, strong: 700]],
+      ios: [name: "Fonty", faces: [[file: "Fonty.woff2", weights: {100, 900}, style: :normal]], scale: [reading: 400, strong: 600]],
+      android: {:system, scale: [reading: 400, strong: 700]}
     """
 
     test "a family bound to a named iOS font: its files are copied, Fonts.swift registers them" do
@@ -432,7 +462,9 @@ defmodule Prism.Generator.SwiftTest do
       assert look =~ "            FontyFonts.register()\n"
 
       {_, tokens, _} = List.keyfind(files, "Sources/Fonty/Tokens.swift", 0)
-      assert tokens =~ ~s|public static let text = FontyFontFamily.named("Fonty")|
+
+      assert tokens =~
+               ~s|public static let text = FontyFontFamily(.named("Fonty"), reading: 400, strong: 600)|
     end
 
     test "with the system font, nothing is copied and nothing registers" do

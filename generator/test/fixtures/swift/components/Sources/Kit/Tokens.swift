@@ -24,13 +24,13 @@ public enum Kit {
     /// The font families, as iOS binds them.
     public enum Families {
         /// Text
-        public static let text = KitFontFamily.system
+        public static let text = KitFontFamily(.system, reading: 400, strong: 600)
     }
 
     /// The typography tokens.
     public enum Typography {
         public static let body = KitTypography(
-            family: Families.text, weight: 400, italic: false, size: 16, lineHeight: 24,
+            family: Families.text, emphasis: .reading, italic: false, size: 16, lineHeight: 24,
             textStyle: .callout)
     }
 }

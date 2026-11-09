@@ -16,7 +16,7 @@ defmodule Prism.Generator.DesignTools do
   |---|---|---|---|
   | `color` | `color` | colors; an alias is a reference | `#RRGGBB`, or `var(…)` for an alias |
   | `font-family` | `fontFamily` | families: the web font's name | the name and its fallback |
-  | `font-weight` | `fontWeight` | fonts: their weight, with the family | the weight |
+  | `font-weight` | `fontWeight` | fonts: their emphasis's weight in the family's web font, with the family | the weight |
   | `font-size`, `line-height` | `dimension` | text sizes | px |
   | `typography` | `typography` | typography tokens, referring to the four groups above | the `font` shorthand, of `var(…)`s |
   | `spacing`, `height` | `dimension` | spacing and height steps, under their web key (`2px`, `15`) | px |
@@ -41,6 +41,7 @@ defmodule Prism.Generator.DesignTools do
   """
 
   alias Prism.Generator.DesignTools.Overview
+  alias Prism.Generator.Schema
   alias Prism.Generator.Web
 
   @extension "prism"
@@ -81,7 +82,7 @@ defmodule Prism.Generator.DesignTools do
     list =
       Enum.map(of.(:color), &color/1) ++
         Enum.map(of.(:family), &family/1) ++
-        Enum.map(of.(:font), &font/1) ++
+        Enum.map(of.(:font), &font(&1, tokens)) ++
         Enum.map(of.(:text), &token(["font-size", &1.name], "dimension", {:px, &1.size}, &1)) ++
         Enum.map(
           of.(:text),
@@ -146,13 +147,16 @@ defmodule Prism.Generator.DesignTools do
     })
   end
 
-  defp native(:system), do: "system"
+  defp native({:system, _}), do: "system"
   defp native(font), do: [name: font[:name]]
 
-  defp font(t) do
+  # Its emphasis's weight in the family's web font.
+  defp font(t, tokens) do
     italic = if t[:italic], do: [italic: true], else: []
+    family = Enum.find(tokens, &(&1.kind == :family and &1.name == t.family))
+    weight = Schema.weight(family, :web, t.emphasis)
 
-    token(["font-weight", t.name], "fontWeight", {:number, t.weight}, t, %{
+    token(["font-weight", t.name], "fontWeight", {:number, weight}, t, %{
       extensions: [family: {:ref, ["font-family", t.family]}] ++ italic
     })
   end

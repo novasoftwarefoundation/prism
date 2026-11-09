@@ -19,7 +19,7 @@ Prism's look is written once, as a design in Elixir, and generated into code for
 | `targets/swift/` | The Swift package `Prism`, released as the `prism-swift` repository: the generated `Package.swift` and `Sources/Prism/` (the tokens, the looks and one file per component), with a hand-written `README.md` and `LICENSE`. |
 | `targets/design-tools/` | Files for design tools, attached to each release: the generated `tokens.json` (DTCG), `tokens.css` (CSS custom properties) and `overview.svg`, and their checks (`package.json`, `test/`). |
 
-`design/` depends on `generator/` with `{:prism_generator, path: "../generator"}`; there is no Mix project at the root. Decisions are in `docs/adr/`: [0001: design format](docs/adr/0001-design-format.md), [0002: Prism's design](docs/adr/0002-prism-design.md), [0003: Phoenix components at compile time](docs/adr/0003-phoenix-components.md), [0004: React components](docs/adr/0004-react-components.md), [0005: files for design tools](docs/adr/0005-design-tools.md), [0006: button looks](docs/adr/0006-button-looks.md), [0007: spinner sizes and progress](docs/adr/0007-spinner-sizes-progress.md), [0008: a state the app sets outweighs the pointer and the focus](docs/adr/0008-app-state-over-interaction.md), [0009: the Swift target](docs/adr/0009-swift-target.md), [0010: the text field's prefix](docs/adr/0010-text-field-prefix.md) and [0011: the image picker](docs/adr/0011-image-picker.md).
+`design/` depends on `generator/` with `{:prism_generator, path: "../generator"}`; there is no Mix project at the root. Decisions are in `docs/adr/`: [0001: design format](docs/adr/0001-design-format.md), [0002: Prism's design](docs/adr/0002-prism-design.md), [0003: Phoenix components at compile time](docs/adr/0003-phoenix-components.md), [0004: React components](docs/adr/0004-react-components.md), [0005: files for design tools](docs/adr/0005-design-tools.md), [0006: button looks](docs/adr/0006-button-looks.md), [0007: spinner sizes and progress](docs/adr/0007-spinner-sizes-progress.md), [0008: a state the app sets outweighs the pointer and the focus](docs/adr/0008-app-state-over-interaction.md), [0009: the Swift target](docs/adr/0009-swift-target.md), [0010: the text field's prefix](docs/adr/0010-text-field-prefix.md), [0011: the image picker](docs/adr/0011-image-picker.md) and [0013: an emphasis per font, a weight per family](docs/adr/0013-emphasis-per-family.md).
 
 ## Change the design
 
@@ -63,7 +63,7 @@ An Elixir app reads the design itself, so it needs no generated files: a module 
 defp deps do
   [
     {:prism_design,
-     git: "https://github.com/novasoftwarefoundation/prism.git", tag: "v0.3.0", subdir: "design"},
+     git: "https://github.com/novasoftwarefoundation/prism.git", tag: "v0.4.0", subdir: "design"},
     {:phoenix_live_view, "~> 1.1"}
   ]
 end
@@ -156,7 +156,7 @@ The props follow the same rules as the Phoenix components: axes are props typed 
 An iOS app (iOS 26 or later) depends on the Swift package `Prism`, from the `prism-swift` repository at Prism's version:
 
 ```swift
-.package(url: "https://github.com/novasoftwarefoundation/prism-swift.git", exact: "0.3.0")
+.package(url: "https://github.com/novasoftwarefoundation/prism-swift.git", exact: "0.4.0")
 ```
 
 ```swift

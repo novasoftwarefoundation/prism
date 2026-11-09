@@ -20,13 +20,15 @@ if Code.ensure_loaded?(Phoenix.Component) do
           assign(assigns,
             prism_wrap: wrap.element,
             prism_attrs: attrs,
-            prism_children: [{:slot, assigns[:inner_block] || []}]
+            prism_children: [{:slot, assigns[:inner_block] || []}],
+            prism_changed: assigns[:__changed__]
           )
 
         ~H"""
         <.dynamic_tag tag_name={@prism_wrap} {@prism_attrs}><.child
             :for={child <- @prism_children}
             child={child}
+            slots_changed={@prism_changed}
           /></.dynamic_tag>
         """
       else
@@ -60,13 +62,15 @@ if Code.ensure_loaded?(Phoenix.Component) do
                 [
                   {:void, control.element,
                    natives ++ Map.to_list(assigns.rest) ++ [class: [control.class]]}
-                ]
+                ],
+            prism_changed: assigns[:__changed__]
           )
 
         ~H"""
         <.dynamic_tag tag_name={@prism_wrap} {@prism_attrs}><.child
             :for={child <- @prism_children}
             child={child}
+            slots_changed={@prism_changed}
           /></.dynamic_tag>
         """
       else
@@ -92,7 +96,8 @@ if Code.ensure_loaded?(Phoenix.Component) do
           prism_attrs: root_attrs(spec, assigns, values),
           prism_children:
             Enum.flat_map(spec.children, &child(&1, spec, assigns)) ++
-              for({v, n} <- values, tree <- v.children, drawn <- tree(tree, v, n), do: drawn)
+              for({v, n} <- values, tree <- v.children, drawn <- tree(tree, v, n), do: drawn),
+          prism_changed: assigns[:__changed__]
         )
 
       ~H"""
@@ -100,6 +105,7 @@ if Code.ensure_loaded?(Phoenix.Component) do
       <.dynamic_tag :if={!@prism_void} tag_name={@prism_tag} {@prism_attrs}><.child
           :for={child <- @prism_children}
           child={child}
+          slots_changed={@prism_changed}
         /></.dynamic_tag>
       """
     end
@@ -163,20 +169,29 @@ if Code.ensure_loaded?(Phoenix.Component) do
     defp child(assigns) do
       ~H"""
       <%= case @child do %>
-        <% {:element, tag, attrs, entries} -> %><.dynamic_tag tag_name={tag} {attrs}>{render_slot(
-            entries
+        <% {:element, tag, attrs, entries} -> %><.dynamic_tag tag_name={tag} {attrs}>{slot_entries(
+            entries,
+            @slots_changed
           )}</.dynamic_tag>
         <% {:tree, tag, attrs, items} -> %><.dynamic_tag tag_name={tag} {attrs}><.child
             :for={item <- items}
             child={item}
+            slots_changed={@slots_changed}
           /></.dynamic_tag>
         <% {:empty, tag, attrs} -> %><.dynamic_tag tag_name={tag} {attrs}>{""}</.dynamic_tag>
         <% {:void, tag, attrs} -> %><.dynamic_tag tag_name={tag} {attrs} />
-        <% {:slot, entries} -> %>{render_slot(entries)}
+        <% {:slot, entries} -> %>{slot_entries(entries, @slots_changed)}
         <% {:text, text} -> %>{text}
       <% end %>
       """
     end
+
+    # A slot's entries, with the changes of the component the app gave them to.
+    # `render_slot/1` here would take this child's changes, which never name the
+    # slot, so LiveView would take the entries as unchanged and keep their first
+    # render.
+    defp slot_entries(entries, changed),
+      do: Phoenix.Component.__render_slot__(changed, entries, nil)
 
     # The values the app gives, each with its number clamped to the value's range.
     defp values(spec, assigns) do

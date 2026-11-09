@@ -2,19 +2,20 @@ defmodule Prism.Generator.SchemaTest do
   use ExUnit.Case, async: true
 
   @faces ~s([[file: "F", weights: {200, 900}, style: :normal]])
+  @scale "[reading: 400, strong: 700]"
 
-  # A one-line family :f; an option set to nil is left out.
+  # The emphases and a family :f, on one line; an option set to nil is left out.
   defp family(opts \\ []) do
     [
       doc: ~s("F"),
-      web: ~s([name: "F", fallback: "serif", faces: #{@faces}]),
-      ios: ":system",
-      android: ":system"
+      web: ~s([name: "F", fallback: "serif", faces: #{@faces}, scale: #{@scale}]),
+      ios: "{:system, scale: #{@scale}}",
+      android: "{:system, scale: #{@scale}}"
     ]
     |> Keyword.merge(opts)
     |> Enum.reject(fn {_, v} -> is_nil(v) end)
     |> Enum.map_join(", ", fn {k, v} -> "#{k}: #{v}" end)
-    |> then(&"  family :f, #{&1}")
+    |> then(&"  emphases [:reading, :strong]; family :f, #{&1}")
   end
 
   defp compile(body) do
@@ -77,19 +78,88 @@ defmodule Prism.Generator.SchemaTest do
   end
 
   test "a font of an unknown family fails" do
-    assert_compile_error("  font :button, :display, 700", "unknown family :display", 3)
+    assert_compile_error(
+      family() <> "\n  font :button, :display, :strong",
+      "unknown family :display",
+      4
+    )
   end
 
-  test "a font weight is one of 100, 200, …, 1000" do
-    compile(family() <> ~s(\n  font :b, :f, 100\n  font :c, :f, 1000))
+  test "a font names one of the emphases, not a weight" do
+    compile(family() <> ~s(\n  font :b, :f, :reading\n  font :c, :f, :strong))
 
-    for weight <- [0, 450, 750, 1100] do
+    for emphasis <- ["700", ":bold", ~s("strong")] do
       assert_compile_error(
-        family() <> ~s(\n  font :b, :f, #{weight}),
-        "weight #{weight} is not one of 100, 200, …, 1000",
+        family() <> ~s(\n  font :b, :f, #{emphasis}),
+        "font :b: unknown emphasis #{emphasis}",
         4
       )
     end
+  end
+
+  # A family is `font` and one member per emphasis in Swift: `font` would be declared twice.
+  test "an emphasis can't be named font" do
+    assert_compile_error(
+      "  emphases [:reading, :font]",
+      "emphasis :font: the name is taken: a family's font is `font` in the Swift target",
+      3
+    )
+  end
+
+  test "the emphases come before the families, which give each one a weight in order" do
+    assert_compile_error(
+      "  family :f, " <> (family() |> String.split("family :f, ") |> List.last()),
+      "family :f: declare the emphases before it",
+      3
+    )
+
+    assert_compile_error(
+      family() <> "\n  emphases [:loud]",
+      "emphasis :loud: declare the emphases before the families",
+      4
+    )
+
+    for {scale, message} <- [
+          {"[reading: 400]", "scale: gives every emphasis in order (:reading, :strong)"},
+          {"[strong: 700, reading: 400]", "scale: gives every emphasis in order"},
+          {"[reading: 400, strong: 700, loud: 900]", "scale: gives every emphasis in order"},
+          {"[reading: 450, strong: 700]", "scale: each weight is one of 100, 200, …, 1000"},
+          {"[reading: 400, strong: 1100]", "scale: each weight is one of 100, 200, …, 1000"},
+          {"[reading: 700, strong: 400]",
+           "scale: an emphasis's weight is never lighter than the one before it"}
+        ] do
+      assert_compile_error(
+        family(ios: "{:system, scale: #{scale}}"),
+        "family :f: ios: #{message}",
+        3
+      )
+
+      assert_compile_error(
+        family(web: ~s([name: "F", fallback: "serif", faces: #{@faces}, scale: #{scale}])),
+        "family :f: web: #{message}",
+        3
+      )
+    end
+
+    # Two emphases may share a weight, as SF Pro gives data and supporting one.
+    compile(family(ios: "{:system, scale: [reading: 400, strong: 400]}"))
+  end
+
+  test "an emphasis's weight is the family's on that platform" do
+    [{module, _}] =
+      compile(
+        family(
+          ios: "{:system, scale: [reading: 400, strong: 600]}",
+          android: ~s([name: "Brand", faces: #{@faces}, scale: [reading: 300, strong: 800]])
+        )
+      )
+
+    [_reading, _strong, family] = module.__schema__().tokens
+
+    assert for(p <- [:web, :ios, :android], do: Prism.Generator.Schema.weight(family, p, :strong)) ==
+             [700, 600, 800]
+
+    assert Prism.Generator.Schema.weight(family, :ios, :reading) == 400
   end
 
   test "a typography is a font and a text size, by name" do
@@ -99,7 +169,7 @@ defmodule Prism.Generator.SchemaTest do
 
   # A family :f, a font :b and a text size :t, so a typography on line 6 can name them.
   defp typography(opts),
-    do: family() <> "\n  font :b, :f, 700\n  text :t, 16, 20\n  typography :x, #{opts}"
+    do: family() <> "\n  font :b, :f, :strong\n  text :t, 16, 20\n  typography :x, #{opts}"
 
   test "a typography names a font and a text size" do
     compile(typography("font: :b, text: :t"))
@@ -123,7 +193,8 @@ defmodule Prism.Generator.SchemaTest do
 
   test "a typography comes after the font and text size it names" do
     assert_compile_error(
-      family() <> "\n  typography :x, font: :b, text: :t\n  font :b, :f, 700\n  text :t, 16, 20",
+      family() <>
+        "\n  typography :x, font: :b, text: :t\n  font :b, :f, :strong\n  text :t, 16, 20",
       "typography :x: unknown font :b",
       4
     )
@@ -131,7 +202,8 @@ defmodule Prism.Generator.SchemaTest do
 
   test "a typography is defined once, but may share its name with a font and a text size" do
     compile(
-      family() <> "\n  font :x, :f, 700\n  text :x, 16, 20\n  typography :x, font: :x, text: :x"
+      family() <>
+        "\n  font :x, :f, :strong\n  text :x, 16, 20\n  typography :x, font: :x, text: :x"
     )
 
     assert_compile_error(
@@ -145,7 +217,7 @@ defmodule Prism.Generator.SchemaTest do
     assert_compile_error(family(doc: nil), "family :f: doc: must be a one-line string", 3)
 
     assert_compile_error(
-      family(web: ~s([name: "F", fallback: 42, faces: #{@faces}])),
+      family(web: ~s([name: "F", fallback: 42, faces: #{@faces}, scale: #{@scale}])),
       "family :f: web: fallback: must be a CSS family name",
       3
     )
@@ -162,51 +234,56 @@ defmodule Prism.Generator.SchemaTest do
       )
     end
 
-    assert_compile_error(family(windows: ":system"), "unknown option :windows", 3)
+    assert_compile_error(family(windows: "{:system, scale: []}"), "unknown option :windows", 3)
   end
 
-  test "a platform binds :system or a named font with its faces" do
+  test "a platform binds the system font or a named font with its faces, each with a scale" do
     compile(
       family(
-        ios: ~s([name: "Brand", faces: #{@faces}]),
-        android: ~s([name: "Brand", faces: #{@faces}])
+        ios: ~s([name: "Brand", faces: #{@faces}, scale: #{@scale}]),
+        android: ~s([name: "Brand", faces: #{@faces}, scale: #{@scale}])
       )
     )
 
     assert_compile_error(
       family(ios: ~s("SF Pro")),
-      "family :f: ios: is :system or [name:, faces: [...]]",
+      "family :f: ios: is {:system, scale: [...]} or [name:, faces: [...], scale: [...]]",
       3
     )
+
+    # Without a scale, a binding gives no emphasis a weight.
+    for binding <- [":system", "{:system, []}", ~s([name: "Brand", faces: #{@faces}])] do
+      assert_compile_error(family(ios: binding), "family :f: ios: is {:system, scale:", 3)
+    end
 
     assert_compile_error(
       family(android: ~s([name: "Brand"])),
-      "family :f: android: is :system or",
+      "family :f: android: is {:system, scale:",
       3
     )
 
     assert_compile_error(
-      family(ios: ~s([name: "Brand", fallback: "serif", faces: #{@faces}])),
-      "family :f: ios: is :system or",
+      family(ios: ~s([name: "Brand", fallback: "serif", faces: #{@faces}, scale: #{@scale}])),
+      "family :f: ios: is {:system, scale:",
       3
     )
 
     assert_compile_error(
-      family(ios: ~s([name: "Brand", faces: []])),
+      family(ios: ~s([name: "Brand", faces: [], scale: #{@scale}])),
       "family :f: ios: a face is",
       3
     )
 
     assert_compile_error(
-      family(web: ":system"),
-      "web: :system is not supported on the web yet",
+      family(web: "{:system, scale: #{@scale}}"),
+      "web: the system font is not supported on the web yet",
       3
     )
   end
 
   test "design text can't break out of a JS or CSS string or comment" do
     assert_compile_error(
-      family(web: ~s([name: "F\\"oo", fallback: "serif", faces: #{@faces}])),
+      family(web: ~s([name: "F\\"oo", fallback: "serif", faces: #{@faces}, scale: #{@scale}])),
       "web: name: must be a CSS family name",
       3
     )
@@ -216,7 +293,7 @@ defmodule Prism.Generator.SchemaTest do
     assert_compile_error(
       family(
         web:
-          ~s|[name: "F", fallback: "serif", faces: [[file: "F\\")", weights: {200, 900}, style: :normal]]]|
+          ~s|[name: "F", fallback: "serif", faces: [[file: "F\\")", weights: {200, 900}, style: :normal]], scale: #{@scale}]|
       ),
       "file in A-Z a-z 0-9 . _ -",
       3
@@ -259,8 +336,8 @@ defmodule Prism.Generator.SchemaTest do
     )
 
     assert_compile_error(
-      family() <> ~s(\n  font :b, :f, 700, weight: 300),
-      ":weight is an argument, not an option",
+      family() <> ~s(\n  font :b, :f, :strong, emphasis: :reading),
+      ":emphasis is an argument, not an option",
       4
     )
   end
@@ -291,7 +368,7 @@ defmodule Prism.Generator.SchemaTest do
   end
 
   test "a font's options can't set its name, group, kind or line" do
-    assert_reserved_refused(family() <> "\n  font :hint, :f, 300, italic: true", 1)
+    assert_reserved_refused(family() <> "\n  font :hint, :f, :reading, italic: true", 1)
   end
 
   test "a typography's options can't set its name, group, kind or line" do
@@ -323,20 +400,20 @@ defmodule Prism.Generator.SchemaTest do
     assert_compile_error(
       family(
         web:
-          ~s([name: "F", fallback: "sans-serif; color: red } body { display: none", faces: #{@faces}])
+          ~s([name: "F", fallback: "sans-serif; color: red } body { display: none", faces: #{@faces}, scale: #{@scale}])
       ),
       "web: fallback: must be a CSS family name",
       3
     )
 
     assert_compile_error(
-      family(web: ~s([name: "F", fallback: "", faces: #{@faces}])),
+      family(web: ~s([name: "F", fallback: "", faces: #{@faces}, scale: #{@scale}])),
       "web: fallback: must be a CSS family name",
       3
     )
 
     assert_compile_error(
-      family(ios: ~s([name: "Brand;", faces: #{@faces}])),
+      family(ios: ~s([name: "Brand;", faces: #{@faces}, scale: #{@scale}])),
       "ios: name: must be a CSS family name",
       3
     )
@@ -354,7 +431,7 @@ defmodule Prism.Generator.SchemaTest do
     assert_compile_error(
       family(
         web:
-          ~s([name: "F", fallback: "serif", faces: [[file: "F\\n", weights: {200, 900}, style: :normal]]])
+          ~s([name: "F", fallback: "serif", faces: [[file: "F\\n", weights: {200, 900}, style: :normal]], scale: #{@scale}])
       ),
       "file in A-Z a-z 0-9 . _ -",
       3
@@ -366,7 +443,7 @@ defmodule Prism.Generator.SchemaTest do
       assert_compile_error(
         family(
           web:
-            ~s([name: "F", fallback: "serif", faces: [[file: "F", weights: #{weights}, style: :normal]]])
+            ~s([name: "F", fallback: "serif", faces: [[file: "F", weights: #{weights}, style: :normal]], scale: #{@scale}])
         ),
         "web: weights: {from, to} with 1 <= from <= to <= 1000",
         3

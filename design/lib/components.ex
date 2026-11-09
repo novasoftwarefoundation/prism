@@ -11,7 +11,7 @@ defmodule Prism.Design.Components do
   are tokens, and the names.
 
   The names are the ones design systems share (ADR 0002): a component, its
-  parts, and separate axes for `variant` (emphasis), `tone` (color meaning),
+  parts, and separate axes for `variant` (prominence), `tone` (color meaning),
   `size` and `status`; a spinner's sizes are named by their px (ADR 0007).
   Tones are `accent`, `neutral`, `highlight`, `info`,
   `success`, `warning` and `danger`. The web target's mechanics are keyed on the
@@ -88,7 +88,7 @@ defmodule Prism.Design.Components do
       foreground: :primary,
       decoration: :underline,
       padding: [y: 0, x: 0],
-      weight: 500,
+      emphasis: :supporting,
       web: [doc: "Link button - looks like a text link"] do
       state :hovered, decoration: :none
     end

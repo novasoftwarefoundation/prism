@@ -7,7 +7,61 @@ defmodule Prism.Design.TokensTest do
     assert [{:display, "Nunito"}, {:text, "Nunito Sans"}] ==
              Enum.map(families, &{&1.name, &1.web[:name]})
 
-    assert Enum.all?(families, &(&1.ios == :system and &1.android == :system))
+    assert Enum.all?(
+             families,
+             &(match?({:system, _}, &1.ios) and match?({:system, _}, &1.android))
+           )
+  end
+
+  # The fonts' weights before they named an emphasis (prism 0.3.0): the web keeps them.
+  @numbers [
+    title0: 800,
+    title1: 800,
+    title2: 800,
+    title3: 800,
+    title4: 800,
+    title5: 700,
+    bodylarge: 300,
+    introdesktop: 500,
+    quote: 700,
+    title6: 700,
+    title7: 700,
+    caption: 500,
+    link: 500,
+    subhead: 600,
+    button: 700,
+    footnote: 500,
+    intro: 500,
+    label: 700,
+    body: 300,
+    hint: 300,
+    tablehead: 700,
+    tablerow: 400,
+    bold: 700,
+    mono: 300
+  ]
+
+  test "a font names an emphasis: Nunito and Nunito Sans keep its weight, SF Pro has its own" do
+    tokens = Prism.Design.Tokens.__schema__().tokens
+    family = fn name -> Enum.find(tokens, &(&1.kind == :family and &1.name == name)) end
+
+    weigh = fn font, platform ->
+      Prism.Generator.Schema.weight(family.(font.family), platform, font.emphasis)
+    end
+
+    fonts = for %{kind: :font} = f <- tokens, do: f
+    assert Enum.map(fonts, &{&1.name, weigh.(&1, :web)}) == @numbers
+
+    sf_pro = [
+      reading: 300,
+      data: 400,
+      supporting: 400,
+      subheading: 500,
+      strong: 600,
+      headline: 700
+    ]
+
+    for font <- fonts, do: assert(weigh.(font, :ios) == sf_pro[font.emphasis], "#{font.name}")
   end
 
   # Native targets read type only from the typography tokens, so every role in either

@@ -172,28 +172,60 @@ public struct AcmeMotion: Sendable, Hashable {
     }
 }
 
-/// A font family: the system font, or a font by its family name.
-public enum AcmeFontFamily: Sendable, Hashable {
-    case system
-    case named(String)
+/// An emphasis a font names: what its text is for, lightest first. Each family gives it
+/// a weight of its font.
+public enum AcmeEmphasis: Sendable, Hashable, CaseIterable {
+    case aside
+    case reading
+    case headline
 }
 
-/// A typography token: a font (family, weight, italic) at a size and line height in
+/// A font family: its font, the system font or a font by its family name, and the
+/// weight of each emphasis in that font (100 to 1000).
+public struct AcmeFontFamily: Sendable, Hashable {
+    public enum Font: Sendable, Hashable {
+        case system
+        case named(String)
+    }
+
+    public var font: Font
+    public var aside: Int
+    public var reading: Int
+    public var headline: Int
+
+    public init(_ font: Font, aside: Int, reading: Int, headline: Int) {
+        self.font = font
+        self.aside = aside
+        self.reading = reading
+        self.headline = headline
+    }
+
+    /// The weight of `emphasis` in the font.
+    public func weight(_ emphasis: AcmeEmphasis) -> Int {
+        switch emphasis {
+        case .aside: aside
+        case .reading: reading
+        case .headline: headline
+        }
+    }
+}
+
+/// A typography token: a font (family, emphasis, italic) at a size and line height in
 /// points, scaled by Dynamic Type as `textStyle` is.
 public struct AcmeTypography: Sendable, Hashable {
     public var family: AcmeFontFamily
-    public var weight: Int
+    public var emphasis: AcmeEmphasis
     public var italic: Bool
     public var size: CGFloat
     public var lineHeight: CGFloat
     public var textStyle: Font.TextStyle
 
     public init(
-        family: AcmeFontFamily, weight: Int, italic: Bool, size: CGFloat, lineHeight: CGFloat,
-        textStyle: Font.TextStyle
+        family: AcmeFontFamily, emphasis: AcmeEmphasis, italic: Bool, size: CGFloat,
+        lineHeight: CGFloat, textStyle: Font.TextStyle
     ) {
         self.family = family
-        self.weight = weight
+        self.emphasis = emphasis
         self.italic = italic
         self.size = size
         self.lineHeight = lineHeight
@@ -203,7 +235,7 @@ public struct AcmeTypography: Sendable, Hashable {
     /// The font at the text size of `traits` (the app's, without them).
     public func uiFont(compatibleWith traits: UITraitCollection? = nil) -> UIFont {
         let base: UIFont
-        switch family {
+        switch family.font {
         case .system:
             base = UIFont.systemFont(ofSize: size, weight: uiWeight)
         case .named(let name):
@@ -233,11 +265,16 @@ public struct AcmeTypography: Sendable, Hashable {
         Font(uiFont())
     }
 
-    /// This typography with another weight.
-    public func weight(_ weight: Int) -> AcmeTypography {
+    /// This typography with another emphasis.
+    public func emphasis(_ emphasis: AcmeEmphasis) -> AcmeTypography {
         var typography = self
-        typography.weight = weight
+        typography.emphasis = emphasis
         return typography
+    }
+
+    /// The emphasis's weight in the family's font.
+    public var weight: Int {
+        family.weight(emphasis)
     }
 
     var uiWeight: UIFont.Weight {
@@ -295,7 +332,7 @@ public struct AcmeLook: Sendable, Hashable {
     public var minHeight: CGFloat?
     public var maxHeight: CGFloat?
     public var typography: AcmeTypography?
-    public var weight: Int?
+    public var emphasis: AcmeEmphasis?
     public var decoration: AcmeDecoration?
     public var shadow: AcmeShadow?
     public var opacity: Double?
@@ -326,7 +363,7 @@ public struct AcmeLook: Sendable, Hashable {
         minHeight: CGFloat? = nil,
         maxHeight: CGFloat? = nil,
         typography: AcmeTypography? = nil,
-        weight: Int? = nil,
+        emphasis: AcmeEmphasis? = nil,
         decoration: AcmeDecoration? = nil,
         shadow: AcmeShadow? = nil,
         opacity: Double? = nil,
@@ -355,7 +392,7 @@ public struct AcmeLook: Sendable, Hashable {
         self.minHeight = minHeight
         self.maxHeight = maxHeight
         self.typography = typography
-        self.weight = weight
+        self.emphasis = emphasis
         self.decoration = decoration
         self.shadow = shadow
         self.opacity = opacity
@@ -388,7 +425,7 @@ public struct AcmeLook: Sendable, Hashable {
         minHeight = other.minHeight ?? minHeight
         maxHeight = other.maxHeight ?? maxHeight
         typography = other.typography ?? typography
-        weight = other.weight ?? weight
+        emphasis = other.emphasis ?? emphasis
         decoration = other.decoration ?? decoration
         shadow = other.shadow ?? shadow
         opacity = other.opacity ?? opacity
@@ -405,15 +442,15 @@ public struct AcmeLook: Sendable, Hashable {
         return look
     }
 
-    /// The typography with the look's weight on top.
+    /// The typography with the look's emphasis on top.
     public var font: AcmeTypography? {
         guard let typography else { return nil }
-        return weight.map { typography.weight($0) } ?? typography
+        return emphasis.map { typography.emphasis($0) } ?? typography
     }
 }
 
 extension View {
-    /// The text of `look`: its typography (with its weight), color and decoration.
+    /// The text of `look`: its typography (with its emphasis), color and decoration.
     public func acmeText(_ look: AcmeLook) -> some View {
         modifier(AcmeTextModifier(look: look))
     }

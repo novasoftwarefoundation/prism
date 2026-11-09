@@ -58,21 +58,21 @@ public enum Acme {
     /// The font families, as iOS binds them.
     public enum Families {
         /// Headings (> 24px)
-        public static let display = AcmeFontFamily.system
+        public static let display = AcmeFontFamily(.system, aside: 300, reading: 400, headline: 700)
         /// Body text
-        public static let text = AcmeFontFamily.system
+        public static let text = AcmeFontFamily(.system, aside: 400, reading: 400, headline: 600)
     }
 
     /// The typography tokens.
     public enum Typography {
         public static let heading = AcmeTypography(
-            family: Families.display, weight: 800, italic: false, size: 32, lineHeight: 40,
+            family: Families.display, emphasis: .headline, italic: false, size: 32, lineHeight: 40,
             textStyle: .title)
         public static let body = AcmeTypography(
-            family: Families.text, weight: 400, italic: false, size: 16, lineHeight: 24,
+            family: Families.text, emphasis: .reading, italic: false, size: 16, lineHeight: 24,
             textStyle: .callout)
         public static let note = AcmeTypography(
-            family: Families.text, weight: 300, italic: true, size: 16, lineHeight: 24,
+            family: Families.text, emphasis: .aside, italic: true, size: 16, lineHeight: 24,
             textStyle: .callout)
     }
 }

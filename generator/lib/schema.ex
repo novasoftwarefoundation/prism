@@ -15,18 +15,21 @@ defmodule Prism.Generator.Schema do
       end
       shadow :card, y: 5, blur: 20, color: {:black, 0.1}
       shadow :raised, :card, deprecated: true
+      emphases [:reading, :strong]         # what a font's text is for, lightest first
       family :text,
         doc: "Body text (≤ 20px)",
-        web: [name: "Acme Sans", fallback: "sans-serif", faces: [...]],
-        ios: :system,
-        android: :system
-      font :button, :text, 700             # family and weight (`font-button`)
+        web: [name: "Acme Sans", fallback: "sans-serif", faces: [...], scale: [reading: 400, strong: 700]],
+        ios: {:system, scale: [reading: 400, strong: 600]},
+        android: {:system, scale: [reading: 400, strong: 700]}
+      font :button, :text, :strong         # family and emphasis (`font-button`)
       text :button, 18, 18                 # size and line height (`text-button`)
       typography :button, font: :button, text: :button
       radius :default, {0.25, :rem}
 
   Fonts and text sizes are two low-level lists, named as the web names its
-  `font-…` and `text-…` classes. A `typography` token is one font and
+  `font-…` and `text-…` classes. A font names an emphasis, what its text is
+  for, not a weight: each family's binding gives every emphasis a weight of
+  its font (`scale:`), so one design looks as heavy in each platform's font. A `typography` token is one font and
   one text size, so no target pairs them on its own. Native targets read
   type only from the `typography` tokens.
 
@@ -56,9 +59,13 @@ defmodule Prism.Generator.Schema do
     - `:space` and `:height`: `key` (the web key, `"2px"` or an integer step)
       and `value` (px);
     - `:max_height`: `value` (px); `:radius`: `value` (a length);
-    - `:family`: `doc`, and `web`, `ios`, `android` (each `:system` or a
-      keyword list with `name`, `faces` and, on the web, `fallback`);
-    - `:font`: `family`, `weight`, and `italic` when given;
+    - `:emphasis`: no value of its own; the emphases are in the design's
+      order, lightest first;
+    - `:family`: `doc`, and `web`, `ios`, `android` (each `{:system, [scale:
+      scale]}` or a keyword list with `name`, `faces`, `scale` and, on the web,
+      `fallback`); a scale is `[{emphasis, weight}]`, every emphasis in order
+      (`weight/3` reads it);
+    - `:font`: `family`, `emphasis` (an emphasis's name), and `italic` when given;
     - `:text`: `size` and `line_height` (px);
     - `:typography`: `font` and `text` (the names of a font and a text size).
   - Every component is a map, in the order of the design:
@@ -132,8 +139,9 @@ defmodule Prism.Generator.Schema do
     height: [:key, :value],
     max_height: [:value],
     radius: [:value],
+    emphasis: [],
     family: [:doc | @platforms],
-    font: [:family, :weight, :italic],
+    font: [:family, :emphasis, :italic],
     text: [:size, :line_height],
     typography: [:font, :text]
   }
@@ -141,7 +149,7 @@ defmodule Prism.Generator.Schema do
   @text_rule ~s(must be a one-line string without ", \\ or */)
   @face_rule "a face is [file:, weights: {from, to}, style: :normal | :italic], file in A-Z a-z 0-9 . _ -"
 
-  @font_rule "is :system or [name:, faces: [...]] (on web also fallback:)"
+  @font_rule "is {:system, scale: [...]} or [name:, faces: [...], scale: [...]] (on web also fallback:)"
   @family_name_rule "must be a CSS family name: letters, digits, spaces, _ and -"
   @weight_rule "weights: {from, to} with 1 <= from <= to <= 1000"
 
@@ -276,24 +284,52 @@ defmodule Prism.Generator.Schema do
     do: token(:max_height, name, [value: value], [], __CALLER__)
 
   @doc """
+  The emphases a font names, lightest first: `emphases [:reading, :strong]`.
+  An emphasis says what a text is for, and so how much it stands out; it has
+  no weight of its own. Each family's binding gives it one (`scale:`), so a
+  font looks as heavy in each platform's font. Before the families.
+  """
+  defmacro emphases(names) when is_list(names) do
+    for name <- names, do: token(:emphasis, name, [], [], __CALLER__)
+  end
+
+  @doc """
   A font family: a role (`:display`, `:text`) that each platform binds to a
   font. Options, all required:
 
   - `doc:` what the role is for; a trailing `(…)` such as `(> 20px)` is the
     size range the web comments name.
   - `web:`, `ios:`, `android:` one per platform, so a new platform forces a
-    choice. A binding is `:system` (the platform's system font) or a named font
-    `[name:, faces: [[file:, weights: {from, to}, style:]]]`; on the web also
-    `fallback:` (a generic CSS family). The web has no `:system` binding yet.
+    choice. A binding is `{:system, scale: scale}` (the platform's system font)
+    or a named font `[name:, faces: [[file:, weights: {from, to}, style:]],
+    scale:]`; on the web also `fallback:` (a generic CSS family). The web has
+    no system binding yet.
 
-  Weights and italic belong to the fonts that use the family, so every platform
-  shares them.
+  A scale gives every emphasis, in order, a weight of the font: `[reading: 400,
+  strong: 700]`, each one of 100, 200, …, 1000 and none lighter than the one
+  before. Italic belongs to the fonts that use the family, so every platform
+  shares it.
   """
   defmacro family(name, opts), do: token(:family, name, [], opts, __CALLER__)
 
-  @doc "A font: a family and a weight, optionally `italic: true`."
-  defmacro font(name, family, weight, opts \\ []),
-    do: token(:font, name, [family: family, weight: weight], opts, __CALLER__)
+  @doc "A font: a family and an emphasis (its name), optionally `italic: true`."
+  defmacro font(name, family, emphasis, opts \\ []),
+    do: token(:font, name, [family: family, emphasis: emphasis], opts, __CALLER__)
+
+  @doc """
+  The weight of `emphasis` in the scale of `family` (a family token) on
+  `platform` (`:web`, `:ios` or `:android`): `weight(family, :ios, :strong)`
+  gives `600`.
+  """
+  def weight(%{kind: :family} = family, platform, emphasis) do
+    scale =
+      case Map.fetch!(family, platform) do
+        {:system, opts} -> opts[:scale]
+        font -> font[:scale]
+      end
+
+    Keyword.fetch!(scale, emphasis)
+  end
 
   @doc "A text size: size and line height in px."
   defmacro text(name, size, line_height),
@@ -439,8 +475,9 @@ defmodule Prism.Generator.Schema do
   end
 
   # Tokens are checked in order, so an alias or reference must come after what it names.
+  # `seen` is the tokens before, last first.
   defp validate!(tokens, file) do
-    Enum.map_reduce(tokens, MapSet.new(), fn t, seen ->
+    Enum.map_reduce(tokens, [], fn t, seen ->
       fail = &__fail__(file, t.line, "#{t.kind} #{inspect(t.name)}#{&1}")
       if {t.kind, t.name} in seen, do: fail.(" is defined twice")
       t = merge_opts!(t, fail)
@@ -450,7 +487,7 @@ defmodule Prism.Generator.Schema do
         {:error, message} -> fail.(": " <> message)
       end
 
-      {t, MapSet.put(seen, {t.kind, t.name})}
+      {t, [{t.kind, t.name} | seen]}
     end)
     |> elem(0)
   end
@@ -535,15 +572,28 @@ defmodule Prism.Generator.Schema do
     end
   end
 
-  defp check(%{kind: :family} = family, _) do
-    with :ok <- if(text?(Map.get(family, :doc)), do: :ok, else: {:error, "doc: " <> @text_rule}) do
+  # In Swift a family is its `font` and a member per emphasis.
+  defp check(%{kind: :emphasis, name: :font}, _),
+    do: {:error, "the name is taken: a family's font is `font` in the Swift target"}
+
+  defp check(%{kind: :emphasis}, seen) do
+    if Enum.any?(seen, &match?({:family, _}, &1)),
+      do: {:error, "declare the emphases before the families, which give each one a weight"},
+      else: :ok
+  end
+
+  defp check(%{kind: :family} = family, seen) do
+    emphases = for {:emphasis, name} <- Enum.reverse(seen), do: name
+
+    with :ok <- if(text?(Map.get(family, :doc)), do: :ok, else: {:error, "doc: " <> @text_rule}),
+         :ok <- if(emphases != [], do: :ok, else: {:error, "declare the emphases before it"}) do
       Enum.find_value(@platforms, :ok, fn platform ->
         case Map.fetch(family, platform) do
           :error ->
             {:error, "missing #{platform}: (every family names #{Enum.join(@platforms, ", ")})"}
 
           {:ok, binding} ->
-            case binding(platform, binding) do
+            case binding(platform, binding, emphases) do
               :ok -> nil
               {:error, message} -> {:error, "#{platform}: #{message}"}
             end
@@ -554,8 +604,8 @@ defmodule Prism.Generator.Schema do
 
   defp check(%{kind: :font} = font, seen) do
     cond do
-      font.weight not in 100..1000//100 ->
-        {:error, "weight #{inspect(font.weight)} is not one of 100, 200, …, 1000"}
+      {:emphasis, font.emphasis} not in seen ->
+        {:error, "unknown emphasis #{inspect(font.emphasis)}"}
 
       Map.get(font, :italic, false) not in [true, false] ->
         {:error, "italic is a boolean"}
@@ -583,13 +633,18 @@ defmodule Prism.Generator.Schema do
     end)
   end
 
-  defp binding(:web, :system),
-    do: {:error, ":system is not supported on the web yet; name a font"}
+  defp binding(:web, {:system, _}, _),
+    do: {:error, "the system font is not supported on the web yet; name a font"}
 
-  defp binding(_, :system), do: :ok
+  defp binding(_, {:system, opts} = font, emphases) do
+    if Keyword.keyword?(opts) and Keyword.keys(opts) == [:scale],
+      do: scale(opts[:scale], emphases),
+      else: {:error, @font_rule <> ", got #{inspect(font)}"}
+  end
 
-  defp binding(platform, font) do
-    keys = if platform == :web, do: [:faces, :fallback, :name], else: [:faces, :name]
+  defp binding(platform, font, emphases) do
+    keys =
+      if platform == :web, do: [:faces, :fallback, :name, :scale], else: [:faces, :name, :scale]
 
     cond do
       not (Keyword.keyword?(font) and Enum.sort(Keyword.keys(font)) == keys) ->
@@ -606,6 +661,24 @@ defmodule Prism.Generator.Schema do
 
       not Enum.all?(font[:faces], &weights?(&1[:weights])) ->
         {:error, @weight_rule}
+
+      true ->
+        scale(font[:scale], emphases)
+    end
+  end
+
+  # Every emphasis in the design's order, each a weight no lighter than the one before.
+  defp scale(scale, emphases) do
+    cond do
+      not (Keyword.keyword?(scale) and Keyword.keys(scale) == emphases) ->
+        {:error,
+         "scale: gives every emphasis in order (#{Enum.map_join(emphases, ", ", &inspect/1)}), got #{inspect(scale)}"}
+
+      not Enum.all?(Keyword.values(scale), &(&1 in 100..1000//100)) ->
+        {:error, "scale: each weight is one of 100, 200, …, 1000"}
+
+      Keyword.values(scale) != Enum.sort(Keyword.values(scale)) ->
+        {:error, "scale: an emphasis's weight is never lighter than the one before it"}
 
       true ->
         :ok
