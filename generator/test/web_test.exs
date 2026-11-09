@@ -140,10 +140,10 @@ defmodule Prism.Generator.WebTest do
     end
   end
 
-  # A font names a weight, and the web writes the number of its family's web scale.
-  test "a font's weight is its family's number on the web" do
+  # A font names an emphasis, and the web writes its weight in the family's web scale.
+  test "a font's emphasis is its family's weight on the web" do
     %{tokens: tokens} = design = ExampleDesign.__schema__()
-    scale = [light: 200, regular: 500, heavy: 900]
+    scale = [aside: 200, reading: 500, headline: 900]
 
     other =
       Enum.map(tokens, fn

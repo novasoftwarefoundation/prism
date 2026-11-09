@@ -1434,7 +1434,7 @@ defmodule Prism.Generator.Web.Components do
     |> Enum.flat_map(fn {key, value} ->
       read({:value, path, key})
 
-      if key == :weight,
+      if key == :emphasis,
         do: ["font-weight: #{weight(path, value)}"],
         else: declaration(key, value)
     end)
@@ -1534,7 +1534,7 @@ defmodule Prism.Generator.Web.Components do
 
     [
       "font-family: #{Web.css_str(family[:name])}, #{family[:fallback]}",
-      "font-weight: #{Schema.weight(token!(:family, font.family), :web, font.weight)}"
+      "font-weight: #{Schema.weight(token!(:family, font.family), :web, font.emphasis)}"
     ] ++ italic ++ ["font-size: #{css_length(size)}", "line-height: #{css_length(line_height)}"]
   end
 
@@ -1616,10 +1616,10 @@ defmodule Prism.Generator.Web.Components do
   defp motion({ms, easing}),
     do: "#{Web.number(ms / 1000)}s #{easing |> Atom.to_string() |> String.replace("_", "-")}"
 
-  # A weight's number in the font of the typography its element has: the node's own,
+  # An emphasis's weight in the font of the typography its element has: the node's own,
   # else the nearest along its path (for a part, the part's own look before the
   # variant's or the component's).
-  defp weight(path, weight) do
+  defp weight(path, emphasis) do
     nodes = nodes!(path)
     [{:component, c} | _] = nodes
 
@@ -1632,10 +1632,10 @@ defmodule Prism.Generator.Web.Components do
       end)
       |> Enum.find_value(&web_style(&1)[:typography]) ||
         raise ArgumentError,
-              "#{label(path)}: weight #{inspect(weight)} has no typography to weigh"
+              "#{label(path)}: emphasis #{inspect(emphasis)} has no typography to weigh"
 
     {font, _} = typography(typography)
-    Schema.weight(token!(:family, font.family), :web, weight)
+    Schema.weight(token!(:family, font.family), :web, emphasis)
   end
 
   # A typography token or [font:, text:] to the font token and {size, line height}.

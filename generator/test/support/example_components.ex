@@ -17,7 +17,7 @@ defmodule Prism.Generator.ExampleComponents do
   shadow :pressed, inset: true, y: 2, color: {:ink, 0.2}
   radius :default, 4
 
-  weights [:regular, :bold]
+  emphases [:reading, :strong]
 
   family :text,
     doc: "Text",
@@ -25,12 +25,12 @@ defmodule Prism.Generator.ExampleComponents do
       name: "Kit Sans",
       fallback: "sans-serif",
       faces: [[file: "KitSans", weights: {100, 900}, style: :normal]],
-      scale: [regular: 400, bold: 700]
+      scale: [reading: 400, strong: 700]
     ],
-    ios: {:system, scale: [regular: 400, bold: 600]},
-    android: {:system, scale: [regular: 400, bold: 700]}
+    ios: {:system, scale: [reading: 400, strong: 600]},
+    android: {:system, scale: [reading: 400, strong: 700]}
 
-  font :body, :text, :regular
+  font :body, :text, :reading
   text :body, 16, 24
   typography(:body, font: :body, text: :body)
 
@@ -76,7 +76,7 @@ defmodule Prism.Generator.ExampleComponents do
       with_variant(:quiet, padding: [y: 8, x: 12])
     end
 
-    flag(:strong, weight: :bold)
+    flag(:strong, emphasis: :strong)
   end
 
   # With a prefix, a wrapper around it and the input; the prefix has a line at its end.

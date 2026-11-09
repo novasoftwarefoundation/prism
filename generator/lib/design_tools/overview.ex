@@ -245,7 +245,7 @@ defmodule Prism.Generator.DesignTools.Overview do
     items =
       for t <- ctx.by.(:font) do
         family = ctx.families[t.family].web[:name]
-        weight = Schema.weight(ctx.families[t.family], :web, t.weight)
+        weight = Schema.weight(ctx.families[t.family], :web, t.emphasis)
         italic = if t[:italic], do: " italic", else: ""
 
         {"font-weight/#{key(t.name)}", 264, 52,
@@ -806,7 +806,7 @@ defmodule Prism.Generator.DesignTools.Overview do
   defp specimen(ctx, c, specs, sel, state) do
     spec = specs[c.name]
     look = root_look(c, sel, state)
-    inherited = %{foreground: "#000000", typography: nil, weight: nil, decoration: nil}
+    inherited = %{foreground: "#000000", typography: nil, emphasis: nil, decoration: nil}
     box = box(ctx, c, spec, specs, sel, state, look, inherited)
 
     Map.put(
@@ -1104,7 +1104,7 @@ defmodule Prism.Generator.DesignTools.Overview do
   end
 
   defp inherit(inherited, look) do
-    for key <- [:foreground, :typography, :weight, :decoration],
+    for key <- [:foreground, :typography, :emphasis, :decoration],
         value = look[key],
         value != nil,
         into: inherited,
@@ -1142,7 +1142,7 @@ defmodule Prism.Generator.DesignTools.Overview do
   # `:middle` at the box's center.
   defp text_box(ctx, text, inherited, opts) do
     type = type_of(ctx, inherited.typography)
-    weight = if inherited.weight, do: type.weigh.(inherited.weight), else: type.weight
+    weight = if inherited.emphasis, do: type.weigh.(inherited.emphasis), else: type.weight
     fill = opts[:color] || inherited.foreground
     w = estimate(text, type.size, weight)
 
@@ -1531,7 +1531,7 @@ defmodule Prism.Generator.DesignTools.Overview do
   defp css_length({n, :percent}), do: "#{num(n)}%"
 
   # A typography token, or the inherited default without one: `%{family, weight, weigh, italic,
-  # size, line_height}`, `weigh` giving a weight's number in its family's web font.
+  # size, line_height}`, `weigh` giving an emphasis's weight in its family's web font.
   defp type_of(ctx, nil) do
     %{
       family: ctx.caption,
@@ -1558,7 +1558,7 @@ defmodule Prism.Generator.DesignTools.Overview do
 
     %{
       family: family.web[:name],
-      weight: Schema.weight(family, :web, font.weight),
+      weight: Schema.weight(family, :web, font.emphasis),
       weigh: &Schema.weight(family, :web, &1),
       italic: font[:italic] == true,
       size: size,

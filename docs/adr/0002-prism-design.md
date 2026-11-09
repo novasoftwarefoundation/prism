@@ -20,7 +20,7 @@ Prism is a look for scientific software: a Tailwind preset plus component CSS, p
    - `:display` for headings (> 20px): Nunito on the web;
    - `:text` for body text (≤ 20px): Nunito Sans on the web.
 
-   Both are the system font on iOS and Android, with SF Pro's numbers of the weights on iOS ([ADR 0013](0013-weights-per-family.md)). While iOS uses the system font, the Swift package bundles no fonts. Whether iOS binds Nunito and Nunito Sans instead is not decided yet; the Swift target supports it, as a change to the iOS binding and the `swift` declaration ([ADR 0009](0009-swift-target.md), decision 7). `font :mono` stays as it is in 0.1.7 for now: the `:text` role at `:light` (300 on the web), not a monospaced font.
+   Both are the system font on iOS and Android, with SF Pro's weight of each emphasis on iOS ([ADR 0013](0013-emphasis-per-family.md)). While iOS uses the system font, the Swift package bundles no fonts. Whether iOS binds Nunito and Nunito Sans instead is not decided yet; the Swift target supports it, as a change to the iOS binding and the `swift` declaration ([ADR 0009](0009-swift-target.md), decision 7). `font :mono` stays as it is in 0.1.7 for now: the `:text` role at `:reading` (300 on the web), not a monospaced font.
 
 5. **Compatibility with 0.1.7, recorded.** The generator's web spelling matches 0.1.7 (upper-case hex and two-decimal alphas in the preset, `0px` in text shadows, `0` in box shadows, prettier's 80-column wrap). `design/test/golden/0.1.7/` holds 0.1.7's files, and `design/test/golden_test.exs` compares the generated files with them:
 
@@ -78,7 +78,7 @@ Prism is a look for scientific software: a Tailwind preset plus component CSS, p
      - lengths (padding, gaps, sizes, heights, margins, offsets) are px: the spacing tokens are the preset's Tailwind steps and don't cover them (16px, 12px, 32px);
      - the checkbox's `4px` radius is a literal; `radius :default` is `0.25rem`, the same size at the default root font size but another CSS value;
      - opacities (0.5, 0) and durations (150ms, 100ms, 1s) have no tokens in the format;
-     - the link button's `:medium` (500 on the web) is a weight on top of the button's typography;
+     - the link button's `:supporting` (500 on the web) is an emphasis on top of the button's typography;
      - tags and message bars write 600 at 14/16 (the `subhead` font with the `tablehead` text size) and the step indicator 700 at 12/12 (the `label` font, and 12/12, which is no text size). No typography token has these, so each is a literal pair. New typography tokens would break decision 8's rule that the typography tokens are the roles of the two lists, and a new 12/12 text size would add a `text-…` class to the preset.
      - The other components use typography tokens: `button` for the button and the select's options, `body` for the text field, text area and select field, `title6` for the field's label (700 at 20/22), `caption` for its error message, `label` for the radio's label.
    - **The deprecated `top2px`** is the secondary buttons' pressed shadow, as in 0.1.7; it has no replacement yet.

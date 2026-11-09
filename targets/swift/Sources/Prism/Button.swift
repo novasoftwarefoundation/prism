@@ -51,7 +51,7 @@ public struct PrismButtonLooks: Sendable, Hashable {
         if variant == .link {
             root.apply(PrismLook(
                 background: Color.clear, foreground: Prism.Colors.primary,
-                padding: .init(top: 0, leading: 0, bottom: 0, trailing: 0), weight: .medium,
+                padding: .init(top: 0, leading: 0, bottom: 0, trailing: 0), emphasis: .supporting,
                 decoration: PrismDecoration.underline))
         }
         if variant == .text {

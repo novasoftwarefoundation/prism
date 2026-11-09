@@ -16,7 +16,7 @@ defmodule Prism.Generator.DesignTools do
   |---|---|---|---|
   | `color` | `color` | colors; an alias is a reference | `#RRGGBB`, or `var(…)` for an alias |
   | `font-family` | `fontFamily` | families: the web font's name | the name and its fallback |
-  | `font-weight` | `fontWeight` | fonts: their weight in the family's web font, with the family | the weight |
+  | `font-weight` | `fontWeight` | fonts: their emphasis's weight in the family's web font, with the family | the weight |
   | `font-size`, `line-height` | `dimension` | text sizes | px |
   | `typography` | `typography` | typography tokens, referring to the four groups above | the `font` shorthand, of `var(…)`s |
   | `spacing`, `height` | `dimension` | spacing and height steps, under their web key (`2px`, `15`) | px |
@@ -150,11 +150,11 @@ defmodule Prism.Generator.DesignTools do
   defp native({:system, _}), do: "system"
   defp native(font), do: [name: font[:name]]
 
-  # Its weight in the family's web font.
+  # Its emphasis's weight in the family's web font.
   defp font(t, tokens) do
     italic = if t[:italic], do: [italic: true], else: []
     family = Enum.find(tokens, &(&1.kind == :family and &1.name == t.family))
-    weight = Schema.weight(family, :web, t.weight)
+    weight = Schema.weight(family, :web, t.emphasis)
 
     token(["font-weight", t.name], "fontWeight", {:number, weight}, t, %{
       extensions: [family: {:ref, ["font-family", t.family]}] ++ italic

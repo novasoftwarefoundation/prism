@@ -39,8 +39,8 @@ defmodule Prism.Generator.Swift do
 
   Type comes only from the typography tokens and the components' typography
   pairs. A typography is its font's family as `ios:` binds it (the system
-  font or a named one, with the iOS scale's number of each weight), its
-  weight (`<module>Weight`, drawn at the family's number for it) and italic,
+  font or a named one, with the iOS scale's weight of each emphasis), its
+  emphasis (`<module>Emphasis`, drawn at the family's weight for it) and italic,
   and its size and line height in points. Dynamic Type scales the size and the line height as the text style
   whose default size is the closest below it: text up to 20 pt as body text
   (body 17, callout 16, subheadline 15, footnote 13, caption 12, caption 2
@@ -154,8 +154,8 @@ defmodule Prism.Generator.Swift do
   end
 
   defp look(ctx, fonts?) do
-    weights = for %{kind: :weight, name: name} <- ctx.design.tokens, do: ident(name)
-    params = ["_ font: Font" | Enum.map(weights, &"#{&1}: Int")]
+    emphases = for %{kind: :emphasis, name: name} <- ctx.design.tokens, do: ident(name)
+    params = ["_ font: Font" | Enum.map(emphases, &"#{&1}: Int")]
     init = fill("    ", "public init(", params, ") {")
 
     init =
@@ -167,7 +167,7 @@ defmodule Prism.Generator.Swift do
       m: ctx.m,
       lower: ctx.lower,
       fonts: fonts?,
-      weights: weights,
+      emphases: emphases,
       family_init: init
     })
   end
@@ -343,7 +343,7 @@ defmodule Prism.Generator.Swift do
   defp radius_token(ctx, t),
     do: static(t.name, "#{ctx.m}Radius" <> radius(ctx, t.value, "radius #{inspect(t.name)}"))
 
-  # The family's iOS font, with the number of each weight in it.
+  # The family's iOS font, with the weight of each emphasis in it.
   defp family_token(ctx, t) do
     font =
       case t.ios do
@@ -352,8 +352,8 @@ defmodule Prism.Generator.Swift do
       end
 
     scale =
-      for %{kind: :weight, name: w} <- ctx.design.tokens,
-          do: "#{ident(w)}: #{Schema.weight(t, :ios, w)}"
+      for %{kind: :emphasis, name: e} <- ctx.design.tokens,
+          do: "#{ident(e)}: #{Schema.weight(t, :ios, e)}"
 
     "        /// #{t.doc}\n" <>
       fill(
@@ -410,8 +410,8 @@ defmodule Prism.Generator.Swift do
         {head, args} = typography_args(ctx, value, "#{ctx.m}.Families.")
         [{"typography", {:call, head, args}}]
 
-      :weight ->
-        [{"weight", ".#{member(value)}"}]
+      :emphasis ->
+        [{"emphasis", ".#{member(value)}"}]
 
       :decoration ->
         [{"decoration", "#{ctx.m}Decoration.#{value}"}]
@@ -525,7 +525,7 @@ defmodule Prism.Generator.Swift do
     {"#{ctx.m}Typography(",
      [
        "family: #{families}#{member(font.family)}",
-       "weight: .#{member(font.weight)}",
+       "emphasis: .#{member(font.emphasis)}",
        "italic: #{Map.get(font, :italic, false)}",
        "size: #{number(size)}",
        "lineHeight: #{number(line_height)}",

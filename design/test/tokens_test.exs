@@ -13,7 +13,7 @@ defmodule Prism.Design.TokensTest do
            )
   end
 
-  # The fonts' numbers before they named a weight (prism 0.3.0): the web keeps them.
+  # The fonts' weights before they named an emphasis (prism 0.3.0): the web keeps them.
   @numbers [
     title0: 800,
     title1: 800,
@@ -41,19 +41,27 @@ defmodule Prism.Design.TokensTest do
     mono: 300
   ]
 
-  test "a font names a weight: Nunito and Nunito Sans keep its number, SF Pro has its own" do
+  test "a font names an emphasis: Nunito and Nunito Sans keep its weight, SF Pro has its own" do
     tokens = Prism.Design.Tokens.__schema__().tokens
     family = fn name -> Enum.find(tokens, &(&1.kind == :family and &1.name == name)) end
 
     weigh = fn font, platform ->
-      Prism.Generator.Schema.weight(family.(font.family), platform, font.weight)
+      Prism.Generator.Schema.weight(family.(font.family), platform, font.emphasis)
     end
 
     fonts = for %{kind: :font} = f <- tokens, do: f
     assert Enum.map(fonts, &{&1.name, weigh.(&1, :web)}) == @numbers
 
-    sf_pro = [light: 300, regular: 400, medium: 400, semibold: 500, bold: 600, extrabold: 700]
-    for font <- fonts, do: assert(weigh.(font, :ios) == sf_pro[font.weight], "#{font.name}")
+    sf_pro = [
+      reading: 300,
+      data: 400,
+      supporting: 400,
+      subheading: 500,
+      strong: 600,
+      headline: 700
+    ]
+
+    for font <- fonts, do: assert(weigh.(font, :ios) == sf_pro[font.emphasis], "#{font.name}")
   end
 
   # Native targets read type only from the typography tokens, so every role in either

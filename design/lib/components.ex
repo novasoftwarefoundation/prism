@@ -88,7 +88,7 @@ defmodule Prism.Design.Components do
       foreground: :primary,
       decoration: :underline,
       padding: [y: 0, x: 0],
-      weight: :medium,
+      emphasis: :supporting,
       web: [doc: "Link button - looks like a text link"] do
       state :hovered, decoration: :none
     end

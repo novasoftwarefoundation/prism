@@ -2,9 +2,9 @@ defmodule Prism.Generator.SchemaTest do
   use ExUnit.Case, async: true
 
   @faces ~s([[file: "F", weights: {200, 900}, style: :normal]])
-  @scale "[regular: 400, bold: 700]"
+  @scale "[reading: 400, strong: 700]"
 
-  # The weights and a family :f, on one line; an option set to nil is left out.
+  # The emphases and a family :f, on one line; an option set to nil is left out.
   defp family(opts \\ []) do
     [
       doc: ~s("F"),
@@ -15,7 +15,7 @@ defmodule Prism.Generator.SchemaTest do
     |> Keyword.merge(opts)
     |> Enum.reject(fn {_, v} -> is_nil(v) end)
     |> Enum.map_join(", ", fn {k, v} -> "#{k}: #{v}" end)
-    |> then(&"  weights [:regular, :bold]; family :f, #{&1}")
+    |> then(&"  emphases [:reading, :strong]; family :f, #{&1}")
   end
 
   defp compile(body) do
@@ -79,44 +79,45 @@ defmodule Prism.Generator.SchemaTest do
 
   test "a font of an unknown family fails" do
     assert_compile_error(
-      family() <> "\n  font :button, :display, :bold",
+      family() <> "\n  font :button, :display, :strong",
       "unknown family :display",
       4
     )
   end
 
-  test "a font names one of the weights, not a number" do
-    compile(family() <> ~s(\n  font :b, :f, :regular\n  font :c, :f, :bold))
+  test "a font names one of the emphases, not a weight" do
+    compile(family() <> ~s(\n  font :b, :f, :reading\n  font :c, :f, :strong))
 
-    for weight <- ["700", ":heavy", ~s("bold")] do
+    for emphasis <- ["700", ":bold", ~s("strong")] do
       assert_compile_error(
-        family() <> ~s(\n  font :b, :f, #{weight}),
-        "font :b: unknown weight #{weight}",
+        family() <> ~s(\n  font :b, :f, #{emphasis}),
+        "font :b: unknown emphasis #{emphasis}",
         4
       )
     end
   end
 
-  test "the weights come before the families, which give each one a number in order" do
+  test "the emphases come before the families, which give each one a weight in order" do
     assert_compile_error(
       "  family :f, " <> (family() |> String.split("family :f, ") |> List.last()),
-      "family :f: declare the weights before it",
+      "family :f: declare the emphases before it",
       3
     )
 
     assert_compile_error(
-      family() <> "\n  weights [:black]",
-      "weight :black: declare the weights before the families",
+      family() <> "\n  emphases [:loud]",
+      "emphasis :loud: declare the emphases before the families",
       4
     )
 
     for {scale, message} <- [
-          {"[regular: 400]", "scale: gives every weight in order (:regular, :bold)"},
-          {"[bold: 700, regular: 400]", "scale: gives every weight in order"},
-          {"[regular: 400, bold: 700, black: 900]", "scale: gives every weight in order"},
-          {"[regular: 450, bold: 700]", "scale: each weight is one of 100, 200, …, 1000"},
-          {"[regular: 400, bold: 1100]", "scale: each weight is one of 100, 200, …, 1000"},
-          {"[regular: 700, bold: 400]", "scale: a weight is never lighter than the one before it"}
+          {"[reading: 400]", "scale: gives every emphasis in order (:reading, :strong)"},
+          {"[strong: 700, reading: 400]", "scale: gives every emphasis in order"},
+          {"[reading: 400, strong: 700, loud: 900]", "scale: gives every emphasis in order"},
+          {"[reading: 450, strong: 700]", "scale: each weight is one of 100, 200, …, 1000"},
+          {"[reading: 400, strong: 1100]", "scale: each weight is one of 100, 200, …, 1000"},
+          {"[reading: 700, strong: 400]",
+           "scale: an emphasis's weight is never lighter than the one before it"}
         ] do
       assert_compile_error(
         family(ios: "{:system, scale: #{scale}}"),
@@ -131,25 +132,25 @@ defmodule Prism.Generator.SchemaTest do
       )
     end
 
-    # Two weights may share a number, as SF Pro gives regular and medium one.
-    compile(family(ios: "{:system, scale: [regular: 400, bold: 400]}"))
+    # Two emphases may share a weight, as SF Pro gives data and supporting one.
+    compile(family(ios: "{:system, scale: [reading: 400, strong: 400]}"))
   end
 
-  test "a weight's number is the family's on that platform" do
+  test "an emphasis's weight is the family's on that platform" do
     [{module, _}] =
       compile(
         family(
-          ios: "{:system, scale: [regular: 400, bold: 600]}",
-          android: ~s([name: "Brand", faces: #{@faces}, scale: [regular: 300, bold: 800]])
+          ios: "{:system, scale: [reading: 400, strong: 600]}",
+          android: ~s([name: "Brand", faces: #{@faces}, scale: [reading: 300, strong: 800]])
         )
       )
 
-    [_regular, _bold, family] = module.__schema__().tokens
+    [_reading, _strong, family] = module.__schema__().tokens
 
-    assert for(p <- [:web, :ios, :android], do: Prism.Generator.Schema.weight(family, p, :bold)) ==
+    assert for(p <- [:web, :ios, :android], do: Prism.Generator.Schema.weight(family, p, :strong)) ==
              [700, 600, 800]
 
-    assert Prism.Generator.Schema.weight(family, :ios, :regular) == 400
+    assert Prism.Generator.Schema.weight(family, :ios, :reading) == 400
   end
 
   test "a typography is a font and a text size, by name" do
@@ -159,7 +160,7 @@ defmodule Prism.Generator.SchemaTest do
 
   # A family :f, a font :b and a text size :t, so a typography on line 6 can name them.
   defp typography(opts),
-    do: family() <> "\n  font :b, :f, :bold\n  text :t, 16, 20\n  typography :x, #{opts}"
+    do: family() <> "\n  font :b, :f, :strong\n  text :t, 16, 20\n  typography :x, #{opts}"
 
   test "a typography names a font and a text size" do
     compile(typography("font: :b, text: :t"))
@@ -183,7 +184,8 @@ defmodule Prism.Generator.SchemaTest do
 
   test "a typography comes after the font and text size it names" do
     assert_compile_error(
-      family() <> "\n  typography :x, font: :b, text: :t\n  font :b, :f, :bold\n  text :t, 16, 20",
+      family() <>
+        "\n  typography :x, font: :b, text: :t\n  font :b, :f, :strong\n  text :t, 16, 20",
       "typography :x: unknown font :b",
       4
     )
@@ -191,7 +193,8 @@ defmodule Prism.Generator.SchemaTest do
 
   test "a typography is defined once, but may share its name with a font and a text size" do
     compile(
-      family() <> "\n  font :x, :f, :bold\n  text :x, 16, 20\n  typography :x, font: :x, text: :x"
+      family() <>
+        "\n  font :x, :f, :strong\n  text :x, 16, 20\n  typography :x, font: :x, text: :x"
     )
 
     assert_compile_error(
@@ -239,7 +242,7 @@ defmodule Prism.Generator.SchemaTest do
       3
     )
 
-    # Without a scale, a binding gives no weight a number.
+    # Without a scale, a binding gives no emphasis a weight.
     for binding <- [":system", "{:system, []}", ~s([name: "Brand", faces: #{@faces}])] do
       assert_compile_error(family(ios: binding), "family :f: ios: is {:system, scale:", 3)
     end
@@ -324,8 +327,8 @@ defmodule Prism.Generator.SchemaTest do
     )
 
     assert_compile_error(
-      family() <> ~s(\n  font :b, :f, :bold, weight: :regular),
-      ":weight is an argument, not an option",
+      family() <> ~s(\n  font :b, :f, :strong, emphasis: :reading),
+      ":emphasis is an argument, not an option",
       4
     )
   end
@@ -356,7 +359,7 @@ defmodule Prism.Generator.SchemaTest do
   end
 
   test "a font's options can't set its name, group, kind or line" do
-    assert_reserved_refused(family() <> "\n  font :hint, :f, :regular, italic: true", 1)
+    assert_reserved_refused(family() <> "\n  font :hint, :f, :reading, italic: true", 1)
   end
 
   test "a typography's options can't set its name, group, kind or line" do

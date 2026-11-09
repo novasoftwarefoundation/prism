@@ -109,108 +109,108 @@ public enum Prism {
     public enum Families {
         /// Headings (> 20px)
         public static let display = PrismFontFamily(
-            .system, light: 300, regular: 400, medium: 400, semibold: 500, bold: 600,
-            extrabold: 700)
+            .system, reading: 300, data: 400, supporting: 400, subheading: 500, strong: 600,
+            headline: 700)
         /// Body text (≤ 20px)
         public static let text = PrismFontFamily(
-            .system, light: 300, regular: 400, medium: 400, semibold: 500, bold: 600,
-            extrabold: 700)
+            .system, reading: 300, data: 400, supporting: 400, subheading: 500, strong: 600,
+            headline: 700)
     }
 
     /// The typography tokens.
     public enum Typography {
         public static let title0 = PrismTypography(
-            family: Families.display, weight: .extrabold, italic: false, size: 64, lineHeight: 68,
+            family: Families.display, emphasis: .headline, italic: false, size: 64, lineHeight: 68,
             textStyle: .largeTitle)
         public static let title1 = PrismTypography(
-            family: Families.display, weight: .extrabold, italic: false, size: 50, lineHeight: 55,
+            family: Families.display, emphasis: .headline, italic: false, size: 50, lineHeight: 55,
             textStyle: .largeTitle)
         public static let title2 = PrismTypography(
-            family: Families.display, weight: .extrabold, italic: false, size: 40, lineHeight: 44,
+            family: Families.display, emphasis: .headline, italic: false, size: 40, lineHeight: 44,
             textStyle: .largeTitle)
         public static let title3 = PrismTypography(
-            family: Families.display, weight: .extrabold, italic: false, size: 32, lineHeight: 38,
+            family: Families.display, emphasis: .headline, italic: false, size: 32, lineHeight: 38,
             textStyle: .title)
         public static let title4 = PrismTypography(
-            family: Families.display, weight: .extrabold, italic: false, size: 28, lineHeight: 32,
+            family: Families.display, emphasis: .headline, italic: false, size: 28, lineHeight: 32,
             textStyle: .title)
         public static let title5 = PrismTypography(
-            family: Families.display, weight: .bold, italic: false, size: 24, lineHeight: 26,
+            family: Families.display, emphasis: .strong, italic: false, size: 24, lineHeight: 26,
             textStyle: .title2)
         public static let title6 = PrismTypography(
-            family: Families.text, weight: .bold, italic: false, size: 20, lineHeight: 22,
+            family: Families.text, emphasis: .strong, italic: false, size: 20, lineHeight: 22,
             textStyle: .body)
         public static let title7 = PrismTypography(
-            family: Families.text, weight: .bold, italic: false, size: 16, lineHeight: 20,
+            family: Families.text, emphasis: .strong, italic: false, size: 16, lineHeight: 20,
             textStyle: .callout)
         public static let caption = PrismTypography(
-            family: Families.text, weight: .medium, italic: false, size: 14, lineHeight: 18,
+            family: Families.text, emphasis: .supporting, italic: false, size: 14, lineHeight: 18,
             textStyle: .footnote)
         public static let subhead = PrismTypography(
-            family: Families.text, weight: .semibold, italic: false, size: 20, lineHeight: 20,
+            family: Families.text, emphasis: .subheading, italic: false, size: 20, lineHeight: 20,
             textStyle: .body)
         public static let label = PrismTypography(
-            family: Families.text, weight: .bold, italic: false, size: 16, lineHeight: 16,
+            family: Families.text, emphasis: .strong, italic: false, size: 16, lineHeight: 16,
             textStyle: .callout)
         public static let button = PrismTypography(
-            family: Families.text, weight: .bold, italic: false, size: 18, lineHeight: 18,
+            family: Families.text, emphasis: .strong, italic: false, size: 18, lineHeight: 18,
             textStyle: .body)
         public static let footnote = PrismTypography(
-            family: Families.text, weight: .medium, italic: false, size: 16, lineHeight: 30,
+            family: Families.text, emphasis: .supporting, italic: false, size: 16, lineHeight: 30,
             textStyle: .callout)
         public static let intro = PrismTypography(
-            family: Families.text, weight: .medium, italic: false, size: 20, lineHeight: 30,
+            family: Families.text, emphasis: .supporting, italic: false, size: 20, lineHeight: 30,
             textStyle: .body)
         public static let introdesktop = PrismTypography(
-            family: Families.display, weight: .medium, italic: false, size: 24, lineHeight: 36,
-            textStyle: .title2)
+            family: Families.display, emphasis: .supporting, italic: false, size: 24,
+            lineHeight: 36, textStyle: .title2)
         public static let bodylarge = PrismTypography(
-            family: Families.display, weight: .light, italic: false, size: 24, lineHeight: 36,
+            family: Families.display, emphasis: .reading, italic: false, size: 24, lineHeight: 36,
             textStyle: .title2)
         public static let link = PrismTypography(
-            family: Families.text, weight: .medium, italic: false, size: 16, lineHeight: 24,
+            family: Families.text, emphasis: .supporting, italic: false, size: 16, lineHeight: 24,
             textStyle: .callout)
         public static let hint = PrismTypography(
-            family: Families.text, weight: .light, italic: true, size: 20, lineHeight: 24,
+            family: Families.text, emphasis: .reading, italic: true, size: 20, lineHeight: 24,
             textStyle: .body)
         public static let tablehead = PrismTypography(
-            family: Families.text, weight: .bold, italic: false, size: 14, lineHeight: 16,
+            family: Families.text, emphasis: .strong, italic: false, size: 14, lineHeight: 16,
             textStyle: .footnote)
         public static let tablerow = PrismTypography(
-            family: Families.text, weight: .regular, italic: false, size: 14, lineHeight: 16,
+            family: Families.text, emphasis: .data, italic: false, size: 14, lineHeight: 16,
             textStyle: .footnote)
         public static let mono = PrismTypography(
-            family: Families.text, weight: .light, italic: false, size: 20, lineHeight: 24,
+            family: Families.text, emphasis: .reading, italic: false, size: 20, lineHeight: 24,
             textStyle: .body)
         public static let quote = PrismTypography(
-            family: Families.display, weight: .bold, italic: false, size: 24, lineHeight: 30,
+            family: Families.display, emphasis: .strong, italic: false, size: 24, lineHeight: 30,
             textStyle: .title2)
         public static let body = PrismTypography(
-            family: Families.text, weight: .light, italic: false, size: 20, lineHeight: 30,
+            family: Families.text, emphasis: .reading, italic: false, size: 20, lineHeight: 30,
             textStyle: .body)
         public static let bold = PrismTypography(
-            family: Families.text, weight: .bold, italic: false, size: 20, lineHeight: 30,
+            family: Families.text, emphasis: .strong, italic: false, size: 20, lineHeight: 30,
             textStyle: .body)
         public static let bodymedium = PrismTypography(
-            family: Families.text, weight: .light, italic: false, size: 20, lineHeight: 30,
+            family: Families.text, emphasis: .reading, italic: false, size: 20, lineHeight: 30,
             textStyle: .body)
         public static let bodysmall = PrismTypography(
-            family: Families.text, weight: .light, italic: false, size: 16, lineHeight: 24,
+            family: Families.text, emphasis: .reading, italic: false, size: 16, lineHeight: 24,
             textStyle: .callout)
         public static let captionsmall = PrismTypography(
-            family: Families.text, weight: .medium, italic: false, size: 12, lineHeight: 14,
+            family: Families.text, emphasis: .supporting, italic: false, size: 12, lineHeight: 14,
             textStyle: .caption)
         public static let labelsmall = PrismTypography(
-            family: Families.text, weight: .bold, italic: false, size: 14, lineHeight: 14,
+            family: Families.text, emphasis: .strong, italic: false, size: 14, lineHeight: 14,
             textStyle: .footnote)
         public static let buttonsmall = PrismTypography(
-            family: Families.text, weight: .bold, italic: false, size: 16, lineHeight: 16,
+            family: Families.text, emphasis: .strong, italic: false, size: 16, lineHeight: 16,
             textStyle: .callout)
         public static let bodylinklarge = PrismTypography(
-            family: Families.text, weight: .medium, italic: false, size: 24, lineHeight: 36,
+            family: Families.text, emphasis: .supporting, italic: false, size: 24, lineHeight: 36,
             textStyle: .title2)
         public static let bodylinkmedium = PrismTypography(
-            family: Families.text, weight: .medium, italic: false, size: 30, lineHeight: 30,
+            family: Families.text, emphasis: .supporting, italic: false, size: 30, lineHeight: 30,
             textStyle: .title)
     }
 }

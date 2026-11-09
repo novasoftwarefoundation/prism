@@ -18,7 +18,7 @@ Tools take tokens in different ways. Figma and Penpot import the W3C Design Toke
    |---|---|---|
    | `color` | `color` | colors |
    | `font-family` | `fontFamily` | families |
-   | `font-weight` | `fontWeight` | fonts: their weight's number in the family's web font ([ADR 0013](0013-weights-per-family.md)) |
+   | `font-weight` | `fontWeight` | fonts: their emphasis's weight in the family's web font ([ADR 0013](0013-emphasis-per-family.md)) |
    | `font-size`, `line-height` | `dimension` | text sizes |
    | `typography` | `typography` | typography tokens |
    | `spacing`, `height` | `dimension` | spacing and height steps, under their web key (`2px`, `15`) |

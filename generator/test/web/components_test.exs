@@ -49,7 +49,9 @@ defmodule Prism.Generator.Web.ComponentsTest do
       axis: :variant,
       aliases: [],
       style: [],
-      parts: [%{name: :label, style: [weight: :heavy], states: [], web: [], ios: [], android: []}],
+      parts: [
+        %{name: :label, style: [emphasis: :headline], states: [], web: [], ios: [], android: []}
+      ],
       with_parts: [],
       with_variants: [],
       states: [],
@@ -62,16 +64,16 @@ defmodule Prism.Generator.Web.ComponentsTest do
     assert css =~ "/* A bold tag */\n.acme-tag--bold .acme-tag__label {\n  font-weight: 800;\n}\n"
   end
 
-  # A component's weight is a number of the font its element has: the typography of
+  # A component's emphasis is a weight of the font its element has: the typography of
   # its node, else of the nearest node along its path, a part's own before the root's.
-  test "a component's weight is its typography's family's number on the web" do
+  test "a component's emphasis is its typography's family's weight on the web" do
     %{tokens: tokens} = ExampleDesign.__schema__()
 
-    # Text's heavy is 900 on the web here, display's stays 800.
+    # Text's headline is 900 on the web here, display's stays 800.
     tokens =
       Enum.map(tokens, fn
         %{kind: :family, name: :text} = f ->
-          %{f | web: Keyword.put(f.web, :scale, light: 300, regular: 400, heavy: 900)}
+          %{f | web: Keyword.put(f.web, :scale, aside: 300, reading: 400, headline: 900)}
 
         token ->
           token
@@ -99,11 +101,11 @@ defmodule Prism.Generator.Web.ComponentsTest do
 
     extra = [
       # The label's typography is the text family's (the part's own look).
-      variant.(:strong, [], label: [weight: :heavy]),
+      variant.(:loud, [], label: [emphasis: :headline]),
       # The variant sets a display typography on the root and weighs it.
-      variant.(:display, [typography: :heading, weight: :heavy], []),
-      # The part's change sets a display typography; the weight is on the same node.
-      variant.(:headline, [], label: [typography: :heading, weight: :light])
+      variant.(:display, [typography: :heading, emphasis: :headline], []),
+      # The part's change sets a display typography; the emphasis is on the same node.
+      variant.(:titled, [], label: [typography: :heading, emphasis: :aside])
     ]
 
     css =
@@ -112,7 +114,7 @@ defmodule Prism.Generator.Web.ComponentsTest do
         | tokens: tokens
       })
 
-    assert css =~ ".acme-tag--strong .acme-tag__label {\n  font-weight: 900;\n}\n"
+    assert css =~ ".acme-tag--loud .acme-tag__label {\n  font-weight: 900;\n}\n"
 
     assert css =~
              ~s(.acme-tag--display {\n  font-family: "Acme Display", serif;\n  font-weight: 800;)
@@ -120,9 +122,11 @@ defmodule Prism.Generator.Web.ComponentsTest do
     assert css =~ "  line-height: 40px;\n  font-weight: 800;\n}\n"
     assert css =~ "  line-height: 40px;\n  font-weight: 300;\n}\n"
 
-    # The tag's root has no typography: a weight there has nothing to weigh.
-    assert_raise ArgumentError, ~r/tag.bare: weight :heavy has no typography/, fn ->
-      css(with_tag(&%{&1 | variants: &1.variants ++ [variant.(:bare, [weight: :heavy], [])]}))
+    # The tag's root has no typography: an emphasis there has nothing to weigh.
+    assert_raise ArgumentError, ~r/tag.bare: emphasis :headline has no typography/, fn ->
+      css(
+        with_tag(&%{&1 | variants: &1.variants ++ [variant.(:bare, [emphasis: :headline], [])]})
+      )
     end
   end
 

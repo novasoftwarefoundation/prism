@@ -172,18 +172,19 @@ public struct PrismMotion: Sendable, Hashable {
     }
 }
 
-/// A weight a font names, lightest first. Each family gives it a number of its font.
-public enum PrismWeight: Sendable, Hashable, CaseIterable {
-    case light
-    case regular
-    case medium
-    case semibold
-    case bold
-    case extrabold
+/// An emphasis a font names: what its text is for, lightest first. Each family gives it
+/// a weight of its font.
+public enum PrismEmphasis: Sendable, Hashable, CaseIterable {
+    case reading
+    case data
+    case supporting
+    case subheading
+    case strong
+    case headline
 }
 
 /// A font family: its font, the system font or a font by its family name, and the
-/// number of each weight in that font (100 to 1000).
+/// weight of each emphasis in that font (100 to 1000).
 public struct PrismFontFamily: Sendable, Hashable {
     public enum Font: Sendable, Hashable {
         case system
@@ -191,55 +192,55 @@ public struct PrismFontFamily: Sendable, Hashable {
     }
 
     public var font: Font
-    public var light: Int
-    public var regular: Int
-    public var medium: Int
-    public var semibold: Int
-    public var bold: Int
-    public var extrabold: Int
+    public var reading: Int
+    public var data: Int
+    public var supporting: Int
+    public var subheading: Int
+    public var strong: Int
+    public var headline: Int
 
     public init(
-        _ font: Font, light: Int, regular: Int, medium: Int, semibold: Int, bold: Int,
-        extrabold: Int
+        _ font: Font, reading: Int, data: Int, supporting: Int, subheading: Int, strong: Int,
+        headline: Int
     ) {
         self.font = font
-        self.light = light
-        self.regular = regular
-        self.medium = medium
-        self.semibold = semibold
-        self.bold = bold
-        self.extrabold = extrabold
+        self.reading = reading
+        self.data = data
+        self.supporting = supporting
+        self.subheading = subheading
+        self.strong = strong
+        self.headline = headline
     }
 
-    /// The number of `weight` in the font.
-    public func number(_ weight: PrismWeight) -> Int {
-        switch weight {
-        case .light: light
-        case .regular: regular
-        case .medium: medium
-        case .semibold: semibold
-        case .bold: bold
-        case .extrabold: extrabold
+    /// The weight of `emphasis` in the font.
+    public func weight(_ emphasis: PrismEmphasis) -> Int {
+        switch emphasis {
+        case .reading: reading
+        case .data: data
+        case .supporting: supporting
+        case .subheading: subheading
+        case .strong: strong
+        case .headline: headline
         }
     }
 }
 
-/// A typography token: a font (family, weight, italic) at a size and line height in
+/// A typography token: a font (family, emphasis, italic) at a size and line height in
 /// points, scaled by Dynamic Type as `textStyle` is.
 public struct PrismTypography: Sendable, Hashable {
     public var family: PrismFontFamily
-    public var weight: PrismWeight
+    public var emphasis: PrismEmphasis
     public var italic: Bool
     public var size: CGFloat
     public var lineHeight: CGFloat
     public var textStyle: Font.TextStyle
 
     public init(
-        family: PrismFontFamily, weight: PrismWeight, italic: Bool, size: CGFloat,
+        family: PrismFontFamily, emphasis: PrismEmphasis, italic: Bool, size: CGFloat,
         lineHeight: CGFloat, textStyle: Font.TextStyle
     ) {
         self.family = family
-        self.weight = weight
+        self.emphasis = emphasis
         self.italic = italic
         self.size = size
         self.lineHeight = lineHeight
@@ -259,7 +260,7 @@ public struct PrismTypography: Sendable, Hashable {
                 descriptor: UIFontDescriptor(fontAttributes: [
                     .family: name,
                     .traits: [UIFontDescriptor.TraitKey.weight: uiWeight],
-                    variation: [0x7767_6874: family.number(weight)],  // "wght"
+                    variation: [0x7767_6874: weight],  // "wght"
                 ]), size: size)
         }
         let descriptor = italic ? base.fontDescriptor.withSymbolicTraits(.traitItalic) : nil
@@ -279,20 +280,20 @@ public struct PrismTypography: Sendable, Hashable {
         Font(uiFont())
     }
 
-    /// This typography with another weight.
-    public func weight(_ weight: PrismWeight) -> PrismTypography {
+    /// This typography with another emphasis.
+    public func emphasis(_ emphasis: PrismEmphasis) -> PrismTypography {
         var typography = self
-        typography.weight = weight
+        typography.emphasis = emphasis
         return typography
     }
 
-    /// The weight's number in the family's font.
-    public var number: Int {
-        family.number(weight)
+    /// The emphasis's weight in the family's font.
+    public var weight: Int {
+        family.weight(emphasis)
     }
 
     var uiWeight: UIFont.Weight {
-        switch number {
+        switch weight {
         case ..<150: .ultraLight
         case ..<250: .thin
         case ..<350: .light
@@ -346,7 +347,7 @@ public struct PrismLook: Sendable, Hashable {
     public var minHeight: CGFloat?
     public var maxHeight: CGFloat?
     public var typography: PrismTypography?
-    public var weight: PrismWeight?
+    public var emphasis: PrismEmphasis?
     public var decoration: PrismDecoration?
     public var shadow: PrismShadow?
     public var opacity: Double?
@@ -377,7 +378,7 @@ public struct PrismLook: Sendable, Hashable {
         minHeight: CGFloat? = nil,
         maxHeight: CGFloat? = nil,
         typography: PrismTypography? = nil,
-        weight: PrismWeight? = nil,
+        emphasis: PrismEmphasis? = nil,
         decoration: PrismDecoration? = nil,
         shadow: PrismShadow? = nil,
         opacity: Double? = nil,
@@ -406,7 +407,7 @@ public struct PrismLook: Sendable, Hashable {
         self.minHeight = minHeight
         self.maxHeight = maxHeight
         self.typography = typography
-        self.weight = weight
+        self.emphasis = emphasis
         self.decoration = decoration
         self.shadow = shadow
         self.opacity = opacity
@@ -439,7 +440,7 @@ public struct PrismLook: Sendable, Hashable {
         minHeight = other.minHeight ?? minHeight
         maxHeight = other.maxHeight ?? maxHeight
         typography = other.typography ?? typography
-        weight = other.weight ?? weight
+        emphasis = other.emphasis ?? emphasis
         decoration = other.decoration ?? decoration
         shadow = other.shadow ?? shadow
         opacity = other.opacity ?? opacity
@@ -456,15 +457,15 @@ public struct PrismLook: Sendable, Hashable {
         return look
     }
 
-    /// The typography with the look's weight on top.
+    /// The typography with the look's emphasis on top.
     public var font: PrismTypography? {
         guard let typography else { return nil }
-        return weight.map { typography.weight($0) } ?? typography
+        return emphasis.map { typography.emphasis($0) } ?? typography
     }
 }
 
 extension View {
-    /// The text of `look`: its typography (with its weight), color and decoration.
+    /// The text of `look`: its typography (with its emphasis), color and decoration.
     public func prismText(_ look: PrismLook) -> some View {
         modifier(PrismTextModifier(look: look))
     }

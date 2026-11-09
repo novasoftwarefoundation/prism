@@ -172,14 +172,15 @@ public struct KitMotion: Sendable, Hashable {
     }
 }
 
-/// A weight a font names, lightest first. Each family gives it a number of its font.
-public enum KitWeight: Sendable, Hashable, CaseIterable {
-    case regular
-    case bold
+/// An emphasis a font names: what its text is for, lightest first. Each family gives it
+/// a weight of its font.
+public enum KitEmphasis: Sendable, Hashable, CaseIterable {
+    case reading
+    case strong
 }
 
 /// A font family: its font, the system font or a font by its family name, and the
-/// number of each weight in that font (100 to 1000).
+/// weight of each emphasis in that font (100 to 1000).
 public struct KitFontFamily: Sendable, Hashable {
     public enum Font: Sendable, Hashable {
         case system
@@ -187,40 +188,40 @@ public struct KitFontFamily: Sendable, Hashable {
     }
 
     public var font: Font
-    public var regular: Int
-    public var bold: Int
+    public var reading: Int
+    public var strong: Int
 
-    public init(_ font: Font, regular: Int, bold: Int) {
+    public init(_ font: Font, reading: Int, strong: Int) {
         self.font = font
-        self.regular = regular
-        self.bold = bold
+        self.reading = reading
+        self.strong = strong
     }
 
-    /// The number of `weight` in the font.
-    public func number(_ weight: KitWeight) -> Int {
-        switch weight {
-        case .regular: regular
-        case .bold: bold
+    /// The weight of `emphasis` in the font.
+    public func weight(_ emphasis: KitEmphasis) -> Int {
+        switch emphasis {
+        case .reading: reading
+        case .strong: strong
         }
     }
 }
 
-/// A typography token: a font (family, weight, italic) at a size and line height in
+/// A typography token: a font (family, emphasis, italic) at a size and line height in
 /// points, scaled by Dynamic Type as `textStyle` is.
 public struct KitTypography: Sendable, Hashable {
     public var family: KitFontFamily
-    public var weight: KitWeight
+    public var emphasis: KitEmphasis
     public var italic: Bool
     public var size: CGFloat
     public var lineHeight: CGFloat
     public var textStyle: Font.TextStyle
 
     public init(
-        family: KitFontFamily, weight: KitWeight, italic: Bool, size: CGFloat,
+        family: KitFontFamily, emphasis: KitEmphasis, italic: Bool, size: CGFloat,
         lineHeight: CGFloat, textStyle: Font.TextStyle
     ) {
         self.family = family
-        self.weight = weight
+        self.emphasis = emphasis
         self.italic = italic
         self.size = size
         self.lineHeight = lineHeight
@@ -240,7 +241,7 @@ public struct KitTypography: Sendable, Hashable {
                 descriptor: UIFontDescriptor(fontAttributes: [
                     .family: name,
                     .traits: [UIFontDescriptor.TraitKey.weight: uiWeight],
-                    variation: [0x7767_6874: family.number(weight)],  // "wght"
+                    variation: [0x7767_6874: weight],  // "wght"
                 ]), size: size)
         }
         let descriptor = italic ? base.fontDescriptor.withSymbolicTraits(.traitItalic) : nil
@@ -260,20 +261,20 @@ public struct KitTypography: Sendable, Hashable {
         Font(uiFont())
     }
 
-    /// This typography with another weight.
-    public func weight(_ weight: KitWeight) -> KitTypography {
+    /// This typography with another emphasis.
+    public func emphasis(_ emphasis: KitEmphasis) -> KitTypography {
         var typography = self
-        typography.weight = weight
+        typography.emphasis = emphasis
         return typography
     }
 
-    /// The weight's number in the family's font.
-    public var number: Int {
-        family.number(weight)
+    /// The emphasis's weight in the family's font.
+    public var weight: Int {
+        family.weight(emphasis)
     }
 
     var uiWeight: UIFont.Weight {
-        switch number {
+        switch weight {
         case ..<150: .ultraLight
         case ..<250: .thin
         case ..<350: .light
@@ -327,7 +328,7 @@ public struct KitLook: Sendable, Hashable {
     public var minHeight: CGFloat?
     public var maxHeight: CGFloat?
     public var typography: KitTypography?
-    public var weight: KitWeight?
+    public var emphasis: KitEmphasis?
     public var decoration: KitDecoration?
     public var shadow: KitShadow?
     public var opacity: Double?
@@ -358,7 +359,7 @@ public struct KitLook: Sendable, Hashable {
         minHeight: CGFloat? = nil,
         maxHeight: CGFloat? = nil,
         typography: KitTypography? = nil,
-        weight: KitWeight? = nil,
+        emphasis: KitEmphasis? = nil,
         decoration: KitDecoration? = nil,
         shadow: KitShadow? = nil,
         opacity: Double? = nil,
@@ -387,7 +388,7 @@ public struct KitLook: Sendable, Hashable {
         self.minHeight = minHeight
         self.maxHeight = maxHeight
         self.typography = typography
-        self.weight = weight
+        self.emphasis = emphasis
         self.decoration = decoration
         self.shadow = shadow
         self.opacity = opacity
@@ -420,7 +421,7 @@ public struct KitLook: Sendable, Hashable {
         minHeight = other.minHeight ?? minHeight
         maxHeight = other.maxHeight ?? maxHeight
         typography = other.typography ?? typography
-        weight = other.weight ?? weight
+        emphasis = other.emphasis ?? emphasis
         decoration = other.decoration ?? decoration
         shadow = other.shadow ?? shadow
         opacity = other.opacity ?? opacity
@@ -437,15 +438,15 @@ public struct KitLook: Sendable, Hashable {
         return look
     }
 
-    /// The typography with the look's weight on top.
+    /// The typography with the look's emphasis on top.
     public var font: KitTypography? {
         guard let typography else { return nil }
-        return weight.map { typography.weight($0) } ?? typography
+        return emphasis.map { typography.emphasis($0) } ?? typography
     }
 }
 
 extension View {
-    /// The text of `look`: its typography (with its weight), color and decoration.
+    /// The text of `look`: its typography (with its emphasis), color and decoration.
     public func kitText(_ look: KitLook) -> some View {
         modifier(KitTextModifier(look: look))
     }

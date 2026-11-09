@@ -20,7 +20,7 @@ public struct PrismTagLooks: Sendable, Hashable {
             radius: Prism.Radii.default,
             padding: .init(top: 6, leading: 12, bottom: 6, trailing: 12),
             typography: PrismTypography(
-                family: Prism.Families.text, weight: .semibold, italic: false, size: 14,
+                family: Prism.Families.text, emphasis: .subheading, italic: false, size: 14,
                 lineHeight: 16, textStyle: .footnote)))
         if tone == .accent {
             label.apply(PrismLook(

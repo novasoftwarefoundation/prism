@@ -150,7 +150,7 @@ defmodule Prism.Generator.Web do
   defp preset_font_classes(design) do
     by_family(design, fn font, %{web: web} = family ->
       italic = if font[:italic], do: ~s(\n          "font-style": "italic",), else: ""
-      weight = Schema.weight(family, :web, font.weight)
+      weight = Schema.weight(family, :web, font.emphasis)
 
       """
               #{js_str(".font-#{key_name(font.name)}")}: {

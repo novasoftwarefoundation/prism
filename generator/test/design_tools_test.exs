@@ -124,11 +124,11 @@ defmodule Prism.Generator.DesignToolsTest do
              "  --acme-typography-note: italic var(--acme-font-weight-hint) var(--acme-font-size-body)/var(--acme-line-height-body) var(--acme-font-family-text);\n"
   end
 
-  # A font names a weight; its DTCG fontWeight is the number its family's web scale gives
-  # it, in tokens.json, tokens.css and the overview.
-  test "a font's weight is its family's number on the web" do
+  # A font names an emphasis; its DTCG fontWeight is the weight its family's web scale
+  # gives it, in tokens.json, tokens.css and the overview.
+  test "a font's emphasis is its family's weight on the web" do
     %{tokens: tokens} = design = ExampleDesign.__schema__()
-    scale = [light: 200, regular: 500, heavy: 900]
+    scale = [aside: 200, reading: 500, headline: 900]
 
     other =
       Enum.map(tokens, fn
