@@ -271,8 +271,11 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .tool-versions
+      # The workflow guard reads the workflows with a YAML parser (.github/package.json).
       - name: Release validation tests
-        run: node --test .github/release-version.test.mjs .github/release-publish.test.mjs .github/release-workflow.test.mjs .github/swift-validation.test.mjs
+        run: |
+          npm ci --prefix .github
+          node --test .github/release-version.test.mjs .github/release-publish.test.mjs .github/release-workflow.test.mjs .github/swift-validation.test.mjs
       - name: The package ships exactly the reviewed files
         working-directory: targets/web
         run: |

@@ -58,7 +58,7 @@ The site's developer asked for this delivery (Flux 10462971063, 9 Nov 2026):
 7. **Checks:**
    - `npm test` in `targets/webflow/` runs the mapping and the runs against a fake of the Designer API (`test/designer.js`, after `@webflow/designer-extension-typings` 2.2.2): update by name, add what's missing, skip what Webflow can't hold, an idempotent second run, no removal or rename, the collection's choice, the app mode, Webflow's refusals, and Prism's own `tokens.json`.
    - A CI job runs it, builds the bundle with Webflow's CLI and checks the bundle's file list.
-   - `.github/release-workflow.test.mjs` fails when a job of `release.yml` or `ci.yml` that can write runs npm in `targets/webflow/`, and checks that the release's bundle comes from a job that can only read.
+   - `.github/release-workflow.test.mjs` fails when a job of `release.yml` or `ci.yml` that can write runs npm in `targets/webflow/`, and checks that the release's bundle comes from a job that can only read. It reads the workflows with a YAML parser (`yaml`, in `.github/package.json`), and counts what it can't classify (permissions in another form, a workflow without them, a folder that is an expression) as able to write.
    - The run in a real Designer is the site's test after a merge, not a merge gate.
 
 ## Alternatives

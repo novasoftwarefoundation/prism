@@ -1,0 +1,10 @@
+{
+  "name": "prism-release-checks",
+  "private": true,
+  "description": "Dependencies of the release checks in .github/ (node --test .github/*.test.mjs). Not published.",
+  "license": "MIT",
+  "type": "module",
+  "devDependencies": {
+    "yaml": "2.9.1"
+  }
+}

@@ -1,63 +1,55 @@
 // Third-party build trees stay out of jobs that can publish: the Webflow Designer
 // Extension's npm packages (Webflow's CLI, ~700 of them) run only in a job that can
-// read, and the release job takes its zip as data (ADR 0014).
+// read, and the release job takes its zip as data (ADR 0014). The workflows are read
+// with a YAML parser, and what the guard can't classify counts against it.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { posix } from 'node:path';
 import { test } from 'node:test';
+import { parse } from 'yaml';
 
 const workflows = ['.github/workflows/release.yml', '.github/workflows/ci.yml'];
 
-// A `permissions:` key's value at this indent: an object of scopes, written as a block
-// below the key or as a mapping on its line (`{ contents: write }`), or a level for
-// every scope (`write-all`, `read-all`); undefined without the key. Any other form is
-// "unknown", which counts as able to write.
-function permissions(lines, indent) {
-  const at = lines.findIndex((line) => line.startsWith(`${' '.repeat(indent)}permissions:`));
-  if (at < 0) return undefined;
-  const value = lines[at].slice(indent + 'permissions:'.length).replace(/\s+#.*$/, '').trim();
-  if (/^(read|write)-all$/.test(value)) return value;
-  if (/^\{.*\}$/.test(value)) {
-    const entries = value.slice(1, -1).split(',').map((entry) => entry.trim()).filter(Boolean);
-    const scopes = entries.map((entry) => entry.match(/^([\w-]+): *(read|write|none)$/));
-    return scopes.every(Boolean) ? Object.fromEntries(scopes.map(([, scope, level]) => [scope, level])) : 'unknown';
-  }
-  if (value !== '') return 'unknown';
-  const entries = [];
-  for (const line of lines.slice(at + 1)) {
-    const match = line.match(new RegExp(`^ {${indent + 2}}([\\w-]+): *(read|write|none)\\s*(#.*)?$`));
-    if (!match) {
-      if (new RegExp(`^ {${indent + 2}}`).test(line)) return 'unknown';
-      break;
-    }
-    entries.push([match[1], match[2]]);
-  }
-  return Object.fromEntries(entries);
+// A `permissions` value: a level for every scope (`write-all`, `read-all`) or an
+// object of scopes; undefined without one. Anything else (an expression, a null, an
+// unknown level) is "unknown", which counts as able to write.
+function permissions(value) {
+  if (value === undefined) return undefined;
+  if (value === 'write-all' || value === 'read-all') return value;
+  const isScopes =
+    typeof value === 'object' && value !== null && !Array.isArray(value) &&
+    Object.values(value).every((level) => ['read', 'write', 'none'].includes(level));
+  return isScopes ? value : 'unknown';
+}
+
+// A step's folder, normalized (`./targets/webflow/` is `targets/webflow`); "unknown"
+// when it isn't a plain path, such as an expression.
+function folderOf(value, otherwise) {
+  if (value === undefined) return otherwise;
+  if (typeof value !== 'string' || value.includes('${{')) return 'unknown';
+  return posix.normalize(value).replace(/\/$/, '');
 }
 
 // The jobs of a workflow, each with its permissions (or the workflow's; without either,
-// the repository's default, which may write) and its steps, a step with the folder it
-// runs in and its text.
+// the repository's default, which may write) and its steps, each with its folder.
 function jobs(yaml) {
-  const lines = yaml.split('\n');
-  const top = permissions(lines.slice(0, lines.indexOf('jobs:')), 0) ?? 'unknown';
-  const starts = lines.flatMap((line, i) => (/^ {2}[\w-]+:$/.test(line) && i > lines.indexOf('jobs:') ? [i] : []));
-  return starts.map((start, n) => {
-    const job = lines.slice(start, starts[n + 1]);
-    const folder = job.join('\n').match(/^ {4}defaults:\n {6}run:\n {8}working-directory: *(\S+)/m)?.[1] ?? '.';
-    const stepStarts = job.flatMap((line, i) => (/^ {6}- /.test(line) ? [i] : []));
-    const steps = stepStarts.map((at, k) => {
-      const text = job.slice(at, stepStarts[k + 1]).join('\n');
-      return { folder: text.match(/^ {8}working-directory: *(\S+)/m)?.[1] ?? folder, text };
-    });
-    return { name: job[0].trim().slice(0, -1), permissions: permissions(job, 4) ?? top, steps };
+  const workflow = parse(yaml);
+  const top = permissions(workflow.permissions) ?? 'unknown';
+  return Object.entries(workflow.jobs ?? {}).map(([name, job]) => {
+    const folder = folderOf(job.defaults?.run?.['working-directory'], '.');
+    const steps = (job.steps ?? []).map((step) => ({ ...step, folder: folderOf(step['working-directory'], folder) }));
+    return { name, permissions: permissions(job.permissions) ?? top, steps };
   });
 }
 
 const canWrite = ({ permissions }) =>
   typeof permissions === 'string' ? permissions !== 'read-all' : Object.values(permissions).includes('write');
-const runsWebflowPackages = ({ folder, text }) =>
-  /\bnpm\b|\bnpx\b|\bwebflow\b /.test(text.replace(/^ {8}(name|working-directory):.*$/gm, '')) &&
-  (folder === 'targets/webflow' || /targets\/webflow/.test(text.replace(/^ {8}(name|path):.*$/gm, '')));
+// A step that runs npm (or Webflow's CLI) in the extension's folder, or in a folder
+// the guard can't read.
+const runsWebflowPackages = ({ run, folder }) =>
+  typeof run === 'string' &&
+  /\bnpm\b|\bnpx\b|\bwebflow\b /.test(run) &&
+  (folder === 'targets/webflow' || folder === 'unknown' || /targets\/webflow/.test(run));
 
 // The jobs of a workflow that can write and run the extension's npm packages.
 const writersRunningWebflow = (yaml) =>
@@ -72,12 +64,23 @@ test('the release builds the Webflow bundle in a job that can only read, and the
   const builders = release.filter((job) => job.steps.some(runsWebflowPackages));
   assert.deepEqual(builders.map(({ name, permissions }) => [name, permissions]), [['webflow', { contents: 'read' }]]);
   const publisher = release.find(({ permissions }) => permissions['id-token'] === 'write');
-  assert.match(publisher.steps.map(({ text }) => text).join('\n'), /download-artifact[\s\S]*name: prism-tokens-webflow/);
+  assert.ok(
+    publisher.steps.some(({ uses, with: inputs }) =>
+      uses?.startsWith('actions/download-artifact@') && inputs?.name === 'prism-tokens-webflow'),
+    'the publishing job downloads the bundle',
+  );
 });
 
+// The release's webflow job, edited: its permissions block replaced, or any text.
+const release = readFileSync('.github/workflows/release.yml', 'utf8');
+const block = '    permissions:\n      contents: read\n    defaults:';
+const withPermissions = (written) => release.replace(block, `${written}\n    defaults:`);
+const edited = (yaml, from, to) => {
+  assert.equal(yaml.split(from).length, 2, `one ${JSON.stringify(from)}`);
+  return yaml.replace(from, to);
+};
+
 test('the guard catches the release\'s webflow job given write access in any form', () => {
-  const release = readFileSync('.github/workflows/release.yml', 'utf8');
-  const block = '    permissions:\n      contents: read\n    defaults:';
   assert.equal(release.split(block).length, 2, "the webflow job's permissions block");
   for (const written of [
     '    permissions: write-all',
@@ -85,16 +88,50 @@ test('the guard catches the release\'s webflow job given write access in any for
     '    permissions:\n      contents: write',
     '    permissions: ${{ fromJSON(inputs.permissions) }}',
   ]) {
-    const yaml = release.replace(block, `${written}\n    defaults:`);
-    assert.deepEqual(writersRunningWebflow(yaml), ['webflow'], written);
+    assert.deepEqual(writersRunningWebflow(withPermissions(written)), ['webflow'], written);
   }
   // Without its own block, the job has the workflow's; without that, the default's.
   const inherits = release.replace(block, '    defaults:');
   assert.deepEqual(writersRunningWebflow(inherits), [], 'the workflow reads');
-  const noTop = inherits.replace(/^permissions:\n {2}contents: read\n/m, '');
-  assert.notEqual(noTop, inherits);
+  const noTop = edited(inherits, 'permissions:\n  contents: read\n\nconcurrency:', 'concurrency:');
   assert.deepEqual(writersRunningWebflow(noTop), ['webflow'], 'no top-level block');
 });
+
+// YAML layouts of the webflow job given write access, which the guard must read as such.
+const layouts = () => ({
+    'a blank line in its permissions block': withPermissions('    permissions:\n      contents: read\n\n      id-token: write'),
+    'a lower-indented comment in its permissions block': withPermissions(
+      '    permissions:\n      contents: read\n    # publish\n      id-token: write',
+    ),
+    'a comment at the start of a line in its permissions block': withPermissions(
+      '    permissions:\n# publish\n      contents: write',
+    ),
+    'a comment on its job key': edited(withPermissions('    permissions: write-all'), '\n  webflow:\n', '\n  webflow: # bundle\n'),
+    'a comment on the jobs key': edited(withPermissions('    permissions: write-all'), '\njobs:\n', '\njobs: # the release\n'),
+    "a comment on its step's working-directory": edited(
+      edited(withPermissions('    permissions: write-all'), '    defaults:\n      run:\n        working-directory: targets/webflow\n', ''),
+      '      - name: Bundle the Webflow Designer Extension\n',
+      '      - name: Bundle the Webflow Designer Extension\n        working-directory: targets/webflow # the extension\n',
+    ),
+    'a quoted job key': edited(withPermissions('    permissions: write-all'), '\n  webflow:\n', '\n  "webflow":\n'),
+    "a quoted step's working-directory": edited(
+      edited(withPermissions('    permissions: write-all'), '    defaults:\n      run:\n        working-directory: targets/webflow\n', ''),
+      '      - name: Bundle the Webflow Designer Extension\n',
+      '      - name: Bundle the Webflow Designer Extension\n        working-directory: "targets/webflow"\n',
+    ),
+  "its steps listed at the steps key's indent": (() => {
+    const yaml = withPermissions('    permissions: write-all');
+    const start = yaml.indexOf('    steps:\n', yaml.indexOf('\n  webflow:\n'));
+    const end = yaml.indexOf('\n  release:\n');
+    return yaml.slice(0, start) + yaml.slice(start, end).replace(/\n {6}/g, '\n    ') + yaml.slice(end);
+  })(),
+});
+
+for (const layout of Object.keys(layouts())) {
+  test(`the guard catches the webflow job given write access, with ${layout}`, () => {
+    assert.deepEqual(writersRunningWebflow(layouts()[layout]), ['webflow']);
+  });
+}
 
 test('the reader sees a job\'s permissions, its default folder and a step\'s own folder', () => {
   const [build, publish] = jobs(`permissions:
@@ -113,7 +150,7 @@ jobs:
       id-token: write
     steps:
       - name: Bundle
-        working-directory: targets/webflow
+        working-directory: ./targets/webflow/
         run: npm run bundle
 `);
   assert.deepEqual(build.permissions, { contents: 'read' });
@@ -134,6 +171,10 @@ test('the reader sees permissions on one line, and counts what it can\'t read as
   assert.equal(canWrite(job('{ contents: read }')), false);
   assert.equal(canWrite(job('{}')), false);
   assert.equal(canWrite(job('${{ inputs.permissions }}')), true);
+  assert.equal(canWrite(job('{ contents: admin }')), true);
   // No permissions anywhere: the repository's default token, which may write.
   assert.equal(canWrite(jobs('jobs:\n  build:\n    steps:\n      - run: npm ci\n')[0]), true);
+  // npm in a folder the guard can't read counts as the extension's.
+  const [step] = jobs('jobs:\n  build:\n    steps:\n      - working-directory: ${{ inputs.dir }}\n        run: npm ci\n')[0].steps;
+  assert.equal(runsWebflowPackages(step), true);
 });

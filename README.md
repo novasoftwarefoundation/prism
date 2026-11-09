@@ -275,6 +275,7 @@ Check the failed step before rerunning the workflow. Published npm versions are 
 The local release checks can be run without publishing:
 
 ```sh
+npm ci --prefix .github   # the YAML parser of the workflow guard
 node --test .github/release-version.test.mjs .github/release-publish.test.mjs .github/release-workflow.test.mjs
 # After npm ci in targets/react; choose an existing directory outside the checkout:
 RELEASE_TAG=vX.Y.Z RUNNER_TEMP=/path/to/temp node .github/release-prepare.mjs
