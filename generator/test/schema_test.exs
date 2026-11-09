@@ -97,6 +97,15 @@ defmodule Prism.Generator.SchemaTest do
     end
   end
 
+  # A family is `font` and one member per emphasis in Swift: `font` would be declared twice.
+  test "an emphasis can't be named font" do
+    assert_compile_error(
+      "  emphases [:reading, :font]",
+      "emphasis :font: the name is taken: a family's font is `font` in the Swift target",
+      3
+    )
+  end
+
   test "the emphases come before the families, which give each one a weight in order" do
     assert_compile_error(
       "  family :f, " <> (family() |> String.split("family :f, ") |> List.last()),

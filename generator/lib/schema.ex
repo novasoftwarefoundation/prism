@@ -572,6 +572,10 @@ defmodule Prism.Generator.Schema do
     end
   end
 
+  # In Swift a family is its `font` and a member per emphasis.
+  defp check(%{kind: :emphasis, name: :font}, _),
+    do: {:error, "the name is taken: a family's font is `font` in the Swift target"}
+
   defp check(%{kind: :emphasis}, seen) do
     if Enum.any?(seen, &match?({:family, _}, &1)),
       do: {:error, "declare the emphases before the families, which give each one a weight"},

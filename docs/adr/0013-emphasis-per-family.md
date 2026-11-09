@@ -26,7 +26,7 @@ A weight belongs to one font. What the design means holds in every font: a page'
    | `strong` | text of strong importance, as HTML's `<strong>`: actions, labels, short titles | button, buttonsmall, label, labelsmall, tablehead, title5, title6, title7, quote, bold |
    | `headline` | a page's large titles | title0 to title4 |
 
-   Prism has six because its fonts used six weights (300 to 800), and Nunito and Nunito Sans keep each one. No name is a font weight's (no `light`, `bold`) or a number. A component's `emphasis:` (the link button's, on top of its typography) names one too: `emphasis: :supporting`. Other systems resolve such names per typeface too: Material's `md.ref.typeface.weight-*`, Atlassian's `font.weight.*`; Prism names what the text is for instead of the weight.
+   Prism has six because its fonts used six weights (300 to 800), and Nunito and Nunito Sans keep each one. No name is a font weight's (no `light`, `bold`) or a number. A component's `emphasis:` (the link button's, on top of its typography) names one too: `emphasis: :supporting`. Other systems resolve such names per typeface too: Material's `md.ref.typeface.weight-*`, Atlassian's `font.weight.*`; Prism names what the text is for instead of the weight. Emphasis is a font's; how strongly a button stands out among buttons (`primary`, `plain`, `link`, …) is its `variant` axis, its prominence ([ADR 0002](0002-prism-design.md)), as SwiftUI calls it (`.borderedProminent`, `headerProminence`).
 
 2. **Each family's binding gives every emphasis a weight of its font**, its `scale:`: every emphasis, in order, each one of 100, 200, …, 1000, none lighter than the one before. Two emphases may share a weight.
 
@@ -41,7 +41,7 @@ A weight belongs to one font. What the design means holds in every font: a page'
      android: {:system, scale: @nunito}
    ```
 
-   The system font is `{:system, scale: …}`, a named font `[name:, faces:, scale:]`. A binding without a scale, an emphasis declared after a family, a scale that misses an emphasis or has one out of order, and a font or an `emphasis:` that names no emphasis fail at compile time. `Prism.Generator.Schema.weight(family, platform, emphasis)` gives the weight.
+   The system font is `{:system, scale: …}`, a named font `[name:, faces:, scale:]`. A binding without a scale, an emphasis named `font` (in Swift, a family's font is its `font`), an emphasis declared after a family, a scale that misses an emphasis or has one out of order, and a font or an `emphasis:` that names no emphasis fail at compile time. `Prism.Generator.Schema.weight(family, platform, emphasis)` gives the weight.
 
 3. **Each target takes the weight from the binding of its platform.**
    - Web: the preset's `font-…` classes and `components.css` take the web scale's weight. A component's `emphasis:` takes the weight in the family of the typography its element has: its node's, else the nearest along its path (for a part, the part's own look before the root's); an emphasis with no typography to weigh fails generation.
