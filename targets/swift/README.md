@@ -11,7 +11,7 @@ This package is generated in [novasoftwarefoundation/prism](https://github.com/n
 Swift Package Manager, iOS 26 or later:
 
 ```swift
-.package(url: "https://github.com/novasoftwarefoundation/prism-swift.git", exact: "0.3.0")
+.package(url: "https://github.com/novasoftwarefoundation/prism-swift.git", exact: "0.4.0")
 ```
 
 In Xcode: File > Add Package Dependencies, with the same URL, and add the `Prism` library to the app's target.
