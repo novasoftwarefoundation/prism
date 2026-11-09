@@ -362,7 +362,7 @@ defmodule Prism.Generator.Swift.Components do
   # A look as `MLook(…)`, its fields in the struct's order.
   @order ~w(background foreground placeholder borderWidth borderColor borderSides outlineWidth outlineColor
             outlineOffset radius padding margin inset gap size width height minHeight maxHeight
-            typography weight decoration shadow opacity transition rotation stroke track)
+            typography emphasis decoration shadow opacity transition rotation stroke track)
 
   defp look_fields(ctx, c, layer) do
     where = "#{inspect(c.name)}#{if layer.part, do: "'s #{inspect(layer.part)}"}"

@@ -9,6 +9,7 @@ design_dsl = [
   text_shadow: 2,
   radius: 2,
   max_height: 2,
+  emphases: 1,
   family: 2,
   font: 3,
   font: 4,

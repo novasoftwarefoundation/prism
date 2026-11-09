@@ -46,15 +46,19 @@ defmodule Prism.Generator.ExampleDesign do
 
   radius :default, 4
 
+  # The system font's weights differ from the web font's, and two emphases may share one.
+  emphases [:aside, :reading, :headline]
+
   family :display,
     doc: "Headings (> 24px)",
     web: [
       name: "Acme Display",
       fallback: "serif",
-      faces: [[file: "AcmeDisplay", weights: {300, 900}, style: :normal]]
+      faces: [[file: "AcmeDisplay", weights: {300, 900}, style: :normal]],
+      scale: [aside: 300, reading: 400, headline: 800]
     ],
-    ios: :system,
-    android: :system
+    ios: {:system, scale: [aside: 300, reading: 400, headline: 700]},
+    android: {:system, scale: [aside: 300, reading: 400, headline: 800]}
 
   family :text,
     doc: "Body text",
@@ -64,17 +68,19 @@ defmodule Prism.Generator.ExampleDesign do
       faces: [
         [file: "AcmeText-VariableFont_wght", weights: {100, 1000}, style: :normal],
         [file: "AcmeText-Italic-VariableFont_wght", weights: {100, 1000}, style: :italic]
-      ]
+      ],
+      scale: [aside: 300, reading: 400, headline: 800]
     ],
-    ios: :system,
+    ios: {:system, scale: [aside: 400, reading: 400, headline: 600]},
     android: [
       name: "Acme Text",
-      faces: [[file: "AcmeText", weights: {100, 1000}, style: :normal]]
+      faces: [[file: "AcmeText", weights: {100, 1000}, style: :normal]],
+      scale: [aside: 300, reading: 400, headline: 900]
     ]
 
-  font :heading, :display, 800
-  font :body, :text, 400
-  font :hint, :text, 300, italic: true
+  font :heading, :display, :headline
+  font :body, :text, :reading
+  font :hint, :text, :aside, italic: true
 
   text :heading, 32, 40
   text :body, 16, 24

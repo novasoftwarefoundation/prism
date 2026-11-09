@@ -150,6 +150,7 @@ defmodule Prism.Generator.Web.Components do
   shadows (`0px` in the select's list), and seconds for durations.
   """
 
+  alias Prism.Generator.Schema
   alias Prism.Generator.Web
   alias Prism.Generator.Web.Classes
 
@@ -1432,7 +1433,10 @@ defmodule Prism.Generator.Web.Components do
     end)
     |> Enum.flat_map(fn {key, value} ->
       read({:value, path, key})
-      declaration(key, value)
+
+      if key == :emphasis,
+        do: ["font-weight: #{weight(path, value)}"],
+        else: declaration(key, value)
     end)
   end
 
@@ -1519,7 +1523,6 @@ defmodule Prism.Generator.Web.Components do
   defp declaration(:height, value), do: ["height: #{css_length(value)}"]
   defp declaration(:min_height, value), do: ["min-height: #{css_length(value)}"]
   defp declaration(:max_height, value), do: ["max-height: #{max_height(value)}"]
-  defp declaration(:weight, value), do: ["font-weight: #{value}"]
   defp declaration(:decoration, value), do: ["text-decoration: #{value}"]
   defp declaration(:shadow, value), do: ["box-shadow: #{shadow(value, "0")}"]
   defp declaration(:opacity, value), do: ["opacity: #{Web.number(value)}"]
@@ -1531,7 +1534,7 @@ defmodule Prism.Generator.Web.Components do
 
     [
       "font-family: #{Web.css_str(family[:name])}, #{family[:fallback]}",
-      "font-weight: #{font.weight}"
+      "font-weight: #{Schema.weight(token!(:family, font.family), :web, font.emphasis)}"
     ] ++ italic ++ ["font-size: #{css_length(size)}", "line-height: #{css_length(line_height)}"]
   end
 
@@ -1612,6 +1615,28 @@ defmodule Prism.Generator.Web.Components do
 
   defp motion({ms, easing}),
     do: "#{Web.number(ms / 1000)}s #{easing |> Atom.to_string() |> String.replace("_", "-")}"
+
+  # An emphasis's weight in the font of the typography its element has: the node's own,
+  # else the nearest along its path (for a part, the part's own look before the
+  # variant's or the component's).
+  defp weight(path, emphasis) do
+    nodes = nodes!(path)
+    [{:component, c} | _] = nodes
+
+    typography =
+      nodes
+      |> Enum.reverse()
+      |> Enum.flat_map(fn
+        {:part, p} -> [p, Enum.find(c.parts, &(&1.name == p.name))]
+        {_, node} -> [node]
+      end)
+      |> Enum.find_value(&web_style(&1)[:typography]) ||
+        raise ArgumentError,
+              "#{label(path)}: emphasis #{inspect(emphasis)} has no typography to weigh"
+
+    {font, _} = typography(typography)
+    Schema.weight(token!(:family, font.family), :web, emphasis)
+  end
 
   # A typography token or [font:, text:] to the font token and {size, line height}.
   defp typography(ref) when is_atom(ref) do
