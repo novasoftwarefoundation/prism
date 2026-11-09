@@ -107,7 +107,11 @@ defmodule Prism.Generator.Swift do
       for file <- if(fonts == [], do: [], else: fonts ++ swift.font_files),
           do: {"#{dir}/Fonts/#{file}", {:copy, Path.join(swift.fonts, file)}, design.tokens_file}
 
-    generated ++ copies
+    metadata =
+      for {path, body} <- Prism.Generator.InputMetadata.swift_files(design, ctx.m),
+          do: {path, body, design.file}
+
+    generated ++ metadata ++ copies
   end
 
   @doc """

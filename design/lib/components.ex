@@ -180,6 +180,14 @@ defmodule Prism.Design.Components do
   end
 
   component :text_field, web: [section: "Text fields", doc: "Base text field styles"] do
+    input_property(:debounce_ms,
+      type: :integer,
+      unit: :millisecond,
+      min: 1,
+      max: 2_147_483_647,
+      default: nil
+    )
+
     style [height: 44, padding: [x: 12]] ++ @field ++ [transition: @motion, placeholder: :grey2]
 
     # Before the text: a currency symbol, or the app's own picker. It fills the field's
@@ -202,6 +210,14 @@ defmodule Prism.Design.Components do
 
   # Its height is the app's, which sets it per use.
   component :text_area, web: [doc: "Text area"] do
+    input_property(:debounce_ms,
+      type: :integer,
+      unit: :millisecond,
+      min: 1,
+      max: 2_147_483_647,
+      default: nil
+    )
+
     style [padding: [y: 8, x: 12]] ++ @field ++ [transition: @motion, placeholder: :grey2]
     state :focused, border: [color: :primary]
     state :disabled, foreground: :grey3, background: :grey5

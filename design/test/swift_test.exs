@@ -15,9 +15,9 @@ defmodule Prism.Design.SwiftTest do
       for c <- @design.components, do: Macro.camelize(Atom.to_string(c.name)) <> ".swift"
 
     assert Enum.sort(File.ls!(@sources)) ==
-             Enum.sort(components ++ ["Look.swift", "Tokens.swift"])
+             Enum.sort(components ++ ["Look.swift", "Tokens.swift", "InputMetadata.swift"])
 
-    for file <- components do
+    for file <- components ++ ["InputMetadata.swift"] do
       [header | _] = file |> read() |> String.split("\n")
       assert header == Prism.Generator.Header.line(file, "design/lib/components.ex")
     end
