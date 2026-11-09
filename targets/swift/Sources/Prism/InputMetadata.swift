@@ -9,23 +9,23 @@ public enum PrismInputMetadataError: Error, Equatable, Sendable {
 /// Semantic data for one input instance; does not modify the styled field.
 public struct PrismTextFieldInputMetadata: Codable, Equatable, Sendable {
     /// Integer milliseconds 1...2147483647; nil disables.
-    public let autoSubmitDelayMs: Int?
+    public let debounceMs: Int?
 
-    public init(autoSubmitDelayMs: Int? = nil) throws {
-        if let value = autoSubmitDelayMs, !(1...2147483647).contains(value) {
-            throw PrismInputMetadataError.outOfRange("auto_submit_delay_ms")
+    public init(debounceMs: Int? = nil) throws {
+        if let value = debounceMs, !(1...2147483647).contains(value) {
+            throw PrismInputMetadataError.outOfRange("debounce_ms")
         }
-        self.autoSubmitDelayMs = autoSubmitDelayMs
+        self.debounceMs = debounceMs
     }
 
     private enum CodingKeys: String, CodingKey {
-        case autoSubmitDelayMs = "auto_submit_delay_ms"
+        case debounceMs = "debounce_ms"
     }
 
     public init(from decoder: any Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
         try self.init(
-            autoSubmitDelayMs: values.decodeIfPresent(Int.self, forKey: .autoSubmitDelayMs)
+            debounceMs: values.decodeIfPresent(Int.self, forKey: .debounceMs)
         )
     }
 }
@@ -33,23 +33,23 @@ public struct PrismTextFieldInputMetadata: Codable, Equatable, Sendable {
 /// Semantic data for one input instance; does not modify the styled field.
 public struct PrismTextAreaInputMetadata: Codable, Equatable, Sendable {
     /// Integer milliseconds 1...2147483647; nil disables.
-    public let autoSubmitDelayMs: Int?
+    public let debounceMs: Int?
 
-    public init(autoSubmitDelayMs: Int? = nil) throws {
-        if let value = autoSubmitDelayMs, !(1...2147483647).contains(value) {
-            throw PrismInputMetadataError.outOfRange("auto_submit_delay_ms")
+    public init(debounceMs: Int? = nil) throws {
+        if let value = debounceMs, !(1...2147483647).contains(value) {
+            throw PrismInputMetadataError.outOfRange("debounce_ms")
         }
-        self.autoSubmitDelayMs = autoSubmitDelayMs
+        self.debounceMs = debounceMs
     }
 
     private enum CodingKeys: String, CodingKey {
-        case autoSubmitDelayMs = "auto_submit_delay_ms"
+        case debounceMs = "debounce_ms"
     }
 
     public init(from decoder: any Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
         try self.init(
-            autoSubmitDelayMs: values.decodeIfPresent(Int.self, forKey: .autoSubmitDelayMs)
+            debounceMs: values.decodeIfPresent(Int.self, forKey: .debounceMs)
         )
     }
 }

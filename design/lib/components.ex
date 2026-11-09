@@ -180,7 +180,7 @@ defmodule Prism.Design.Components do
   end
 
   component :text_field, web: [section: "Text fields", doc: "Base text field styles"] do
-    input_property(:auto_submit_delay_ms,
+    input_property(:debounce_ms,
       type: :integer,
       unit: :millisecond,
       min: 1,
@@ -210,7 +210,7 @@ defmodule Prism.Design.Components do
 
   # Its height is the app's, which sets it per use.
   component :text_area, web: [doc: "Text area"] do
-    input_property(:auto_submit_delay_ms,
+    input_property(:debounce_ms,
       type: :integer,
       unit: :millisecond,
       min: 1,

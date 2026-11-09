@@ -2,7 +2,7 @@
 /** Semantic data for a form input; the form owns scheduling and submission. */
 export interface TextFieldInputMetadata {
   /** Integer milliseconds 1..2147483647; absent/null disables. */
-  autoSubmitDelayMs?: number | null;
+  debounceMs?: number | null;
 }
 
 /** Validate metadata without coercion; normalize missing values to null. */
@@ -13,22 +13,22 @@ export function textFieldInputMetadata(
     throw new Error("input metadata must be an object");
   }
   for (const key of Object.keys(metadata)) {
-    if (!["autoSubmitDelayMs"].includes(key)) throw new Error(`unknown input property: ${key}`);
+    if (!["debounceMs"].includes(key)) throw new Error(`unknown input property: ${key}`);
   }
-  if (metadata.autoSubmitDelayMs != null &&
-      (!Number.isInteger(metadata.autoSubmitDelayMs) ||
-       metadata.autoSubmitDelayMs < 1 || metadata.autoSubmitDelayMs > 2147483647)) {
-    throw new Error("auto_submit_delay_ms: expected integer milliseconds 1..2147483647");
+  if (metadata.debounceMs != null &&
+      (!Number.isInteger(metadata.debounceMs) ||
+       metadata.debounceMs < 1 || metadata.debounceMs > 2147483647)) {
+    throw new Error("debounce_ms: expected integer milliseconds 1..2147483647");
   }
   return {
-    autoSubmitDelayMs: metadata.autoSubmitDelayMs ?? null,
+    debounceMs: metadata.debounceMs ?? null,
   };
 }
 
 /** Semantic data for a form input; the form owns scheduling and submission. */
 export interface TextAreaInputMetadata {
   /** Integer milliseconds 1..2147483647; absent/null disables. */
-  autoSubmitDelayMs?: number | null;
+  debounceMs?: number | null;
 }
 
 /** Validate metadata without coercion; normalize missing values to null. */
@@ -39,14 +39,14 @@ export function textAreaInputMetadata(
     throw new Error("input metadata must be an object");
   }
   for (const key of Object.keys(metadata)) {
-    if (!["autoSubmitDelayMs"].includes(key)) throw new Error(`unknown input property: ${key}`);
+    if (!["debounceMs"].includes(key)) throw new Error(`unknown input property: ${key}`);
   }
-  if (metadata.autoSubmitDelayMs != null &&
-      (!Number.isInteger(metadata.autoSubmitDelayMs) ||
-       metadata.autoSubmitDelayMs < 1 || metadata.autoSubmitDelayMs > 2147483647)) {
-    throw new Error("auto_submit_delay_ms: expected integer milliseconds 1..2147483647");
+  if (metadata.debounceMs != null &&
+      (!Number.isInteger(metadata.debounceMs) ||
+       metadata.debounceMs < 1 || metadata.debounceMs > 2147483647)) {
+    throw new Error("debounce_ms: expected integer milliseconds 1..2147483647");
   }
   return {
-    autoSubmitDelayMs: metadata.autoSubmitDelayMs ?? null,
+    debounceMs: metadata.debounceMs ?? null,
   };
 }
