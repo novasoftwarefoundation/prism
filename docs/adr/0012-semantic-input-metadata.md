@@ -4,7 +4,7 @@ Status: proposed, 2026-11-06
 
 ## Context
 
-A form may save after an input has settled, without a Save button. Its delay
+A form may save after an input has settled, without a Save button. Its debounce
 belongs to the input definition shared across platforms. Visual values describe
 looks and are limited to 0..100; they cannot represent this data. Prism's styled
 fields do not own the containing form, its values, validation or requests.
@@ -16,7 +16,7 @@ styles, variants and states. This extends the design's data vocabulary without
 adding behavior to its rendered controls:
 
 ```elixir
-input_property :auto_submit_delay_ms,
+input_property :debounce_ms,
   type: :integer,
   unit: :millisecond,
   min: 1,
@@ -30,12 +30,11 @@ these declarations have an empty list. The initial property kind is optional
 integer milliseconds, with explicit inclusive positive bounds within the signed
 32-bit millisecond range. Defaults are nil. No visual token or CSS class is added.
 
-Each input instance may carry `auto_submit_delay_ms` on the wire or in Elixir,
-or `autoSubmitDelayMs` in Swift/TypeScript. Values 1..2147483647 are valid integer
-milliseconds. Absence or null/nil disables automatic submission and preserves
-manual submission. Zero, negatives, fractions, strings, booleans, nonfinite values
+Each input instance may carry `debounce_ms` on the wire or in Elixir, or
+`debounceMs` in Swift/TypeScript. Values 1..2147483647 are valid integer
+milliseconds. Absence or null/nil means no debounce. Zero, negatives, fractions, strings, booleans, nonfinite values
 and values above the maximum are rejected, never clamped or coerced. The upper
-bound fits signed 32-bit millisecond timers; it is not a suggested UX delay.
+bound fits signed 32-bit millisecond timers; it is not a suggested debounce.
 
 The generator supplies separate data APIs:
 
@@ -51,8 +50,8 @@ The generator supplies separate data APIs:
   enforce the bounds; coding keys use snake_case. A nil value encodes as an
   omitted optional key. Existing styled-field modifier signatures are unchanged.
 
-The Form consumer owns trailing-edge debounce after eligible user edits,
-replacement/cancellation of pending work, validation, current-value snapshots,
+The Form consumer submits the form once the input has been unchanged for
+`debounce_ms`. It owns that timing, replacement/cancellation of pending work, validation, current-value snapshots,
 request serialization, stale-result suppression, errors and accessibility.
 Prism creates no timer, callback or implicit submit behavior. Adding the property
 to a styled field alone does not save anything. Removing Account's Save button
