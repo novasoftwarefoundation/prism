@@ -32,9 +32,11 @@ integer milliseconds, with explicit inclusive positive bounds within the signed
 
 Each input instance may carry `debounce_ms` on the wire or in Elixir, or
 `debounceMs` in Swift/TypeScript. Values 1..2147483647 are valid integer
-milliseconds. Absence or null/nil means no debounce. Zero, negatives, fractions, strings, booleans, nonfinite values
-and values above the maximum are rejected, never clamped or coerced. The upper
-bound fits signed 32-bit millisecond timers; it is not a suggested debounce.
+milliseconds. Absence or null/nil means the form doesn't submit automatically:
+the user submits it. Zero, negatives, fractions, strings, booleans, nonfinite
+values and values above the maximum are rejected, never clamped or coerced. The
+upper bound fits signed 32-bit millisecond timers; it is not a suggested
+debounce.
 
 The generator supplies separate data APIs:
 
@@ -51,8 +53,9 @@ The generator supplies separate data APIs:
   omitted optional key. Existing styled-field modifier signatures are unchanged.
 
 The Form consumer submits the form once the input has been unchanged for
-`debounce_ms`. It owns that timing, replacement/cancellation of pending work, validation, current-value snapshots,
-request serialization, stale-result suppression, errors and accessibility.
+`debounce_ms`. It owns that timing, replacement/cancellation of pending work,
+validation, current-value snapshots, request serialization, stale-result
+suppression, errors and accessibility.
 Prism creates no timer, callback or implicit submit behavior. Adding the property
 to a styled field alone does not save anything. Removing Account's Save button
 and testing timing/cancellation belong to separate consumer work.

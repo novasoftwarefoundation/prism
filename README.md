@@ -25,9 +25,10 @@ Prism's look is written once, as a design in Elixir, and generated into code for
 
 Optional per-input debounce metadata is described in
 [ADR 0012](docs/adr/0012-semantic-input-metadata.md). `text_field` and `text_area`
-declare `debounce_ms`: integer milliseconds 1..2147483647, with absence/null/nil
-meaning no debounce. Prism validates this semantic data; the containing Form
-consumer submits the form once the input has been unchanged for `debounce_ms`.
+declare `debounce_ms`: integer milliseconds 1..2147483647. Prism validates this
+semantic data; the containing Form consumer submits the form once the input has
+been unchanged for `debounce_ms`. With absence/null/nil the form doesn't submit
+automatically: the user submits it.
 
 ```elixir
 Prism.Generator.InputMetadata.validate!(
@@ -62,7 +63,7 @@ An Elixir app reads the design itself, so it needs no generated files: a module 
 defp deps do
   [
     {:prism_design,
-     git: "https://github.com/novasoftwarefoundation/prism.git", tag: "v0.2.1", subdir: "design"},
+     git: "https://github.com/novasoftwarefoundation/prism.git", tag: "v0.3.0", subdir: "design"},
     {:phoenix_live_view, "~> 1.1"}
   ]
 end
@@ -155,7 +156,7 @@ The props follow the same rules as the Phoenix components: axes are props typed 
 An iOS app (iOS 26 or later) depends on the Swift package `Prism`, from the `prism-swift` repository at Prism's version:
 
 ```swift
-.package(url: "https://github.com/novasoftwarefoundation/prism-swift.git", exact: "0.2.1")
+.package(url: "https://github.com/novasoftwarefoundation/prism-swift.git", exact: "0.3.0")
 ```
 
 ```swift
