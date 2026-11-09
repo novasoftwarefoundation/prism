@@ -48,7 +48,7 @@ jobs:
           name: prism-tokens-webflow
           path: targets/webflow/prism-tokens-webflow.zip
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 30
 
   release:
     needs: [checks, webflow]
