@@ -18,6 +18,7 @@ Prism's look is written once, as a design in Elixir, and generated into code for
 | `targets/react/` | The npm package `@novasoftwarefoundation/prism-react`: `package.json`, `tsconfig.json`, the generated components in `src/`, and their tests in `test/`. |
 | `targets/swift/` | The Swift package `Prism`, released as the `prism-swift` repository: the generated `Package.swift` and `Sources/Prism/` (the tokens, the looks and one file per component), with a hand-written `README.md` and `LICENSE`. |
 | `targets/design-tools/` | Files for design tools, attached to each release: the generated `tokens.json` (DTCG), `tokens.css` (CSS custom properties) and `overview.svg`, and their checks (`package.json`, `test/`). |
+| `targets/webflow/` | The Webflow Designer Extension "Prism tokens", hand-written, which writes `tokens.json` into a site's variables; its bundle is attached to each release. |
 
 `design/` depends on `generator/` with `{:prism_generator, path: "../generator"}`; there is no Mix project at the root. Decisions are in `docs/adr/`: [0001: design format](docs/adr/0001-design-format.md), [0002: Prism's design](docs/adr/0002-prism-design.md), [0003: Phoenix components at compile time](docs/adr/0003-phoenix-components.md), [0004: React components](docs/adr/0004-react-components.md), [0005: files for design tools](docs/adr/0005-design-tools.md), [0006: button looks](docs/adr/0006-button-looks.md), [0007: spinner sizes and progress](docs/adr/0007-spinner-sizes-progress.md), [0008: a state the app sets outweighs the pointer and the focus](docs/adr/0008-app-state-over-interaction.md), [0009: the Swift target](docs/adr/0009-swift-target.md), [0010: the text field's prefix](docs/adr/0010-text-field-prefix.md), [0011: the image picker](docs/adr/0011-image-picker.md) and [0013: an emphasis per font, a weight per family](docs/adr/0013-emphasis-per-family.md).
 
@@ -217,7 +218,7 @@ Each step is checked against the tool's documentation (October 2026), not tried 
 1. Connect your agent to Paper through its [MCP server](https://paper.design/docs/mcp), point it at `tokens.css`, and ask it to create Paper tokens from the CSS variables. Paper has tokens for colors, radii, spacing, font families, weights, sizes and line heights; it has none for typography or shadows yet.
 2. Copy the source of `overview.svg` and [paste it](https://paper.design/docs/svg) into the file (⌘V).
 
-**Webflow** comes later: a Designer Extension will write `tokens.json` into a site's Variables. A color, a size and a font family each have one flat value, so each maps to one Webflow variable.
+**Webflow** ([ADR 0014](docs/adr/0014-webflow-designer-extension.md)): the Designer Extension "Prism tokens" writes `tokens.json` into a site's variables with one click. It updates the site's variables by name and adds the missing ones to the same collection; typography and shadows have no Webflow variable and are skipped. Each release attaches it as `prism-tokens-webflow.zip`; [targets/webflow/README.md](targets/webflow/README.md) says how to install it in a workspace and apply a release. `npm test` in `targets/webflow/` runs it against a fake of the Designer API, and CI runs it and builds the bundle.
 
 ## The generator
 
@@ -257,7 +258,7 @@ Before tagging, bump the version in `design/mix.exs`, `targets/web/package.json`
 
 1. Publishes `targets/web/` and `targets/react/`, in that order. It waits for npm's processing to finish and verifies package hashes. npm trusted publishing provides authentication.
 2. Mirrors the tag's tracked `targets/swift/` files into `prism-swift` using `.github/swift-release.sh`, committing and pushing the branch and tag atomically.
-3. Creates the GitHub release and attaches `tokens.json`, `tokens.css` and `overview.svg`.
+3. Creates the GitHub release and attaches `tokens.json`, `tokens.css`, `overview.svg` and the Webflow Designer Extension's bundle, `prism-tokens-webflow.zip`. A job of its own, which can only read, builds that zip before step 1; the publishing job takes it as an artifact and checks its file list, so Webflow's CLI never runs where npm and the Swift deploy key can be used.
 
 Stable tags use `vX.Y.Z` and npm's `latest` dist-tag. Release candidates use `vX.Y.Z-rc.N`, npm's `next` dist-tag and a GitHub prerelease. Candidates do not move `latest`.
 
@@ -274,7 +275,8 @@ Check the failed step before rerunning the workflow. Published npm versions are 
 The local release checks can be run without publishing:
 
 ```sh
-node --test .github/release-version.test.mjs .github/release-publish.test.mjs
+npm ci --prefix .github   # the YAML parser of the workflow guard
+node --test .github/release-version.test.mjs .github/release-publish.test.mjs .github/release-workflow.test.mjs
 # After npm ci in targets/react; choose an existing directory outside the checkout:
 RELEASE_TAG=vX.Y.Z RUNNER_TEMP=/path/to/temp node .github/release-prepare.mjs
 ```
