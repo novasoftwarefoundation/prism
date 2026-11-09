@@ -56,7 +56,7 @@ function sameValue(type, site, prism) {
     case "Color":
       return typeof site === "string" && site.toUpperCase() === prism;
     case "Size":
-      return site.value === prism.value && site.unit === prism.unit;
+      return site !== null && site.value === prism.value && site.unit === prism.unit;
     default:
       return site === prism;
   }

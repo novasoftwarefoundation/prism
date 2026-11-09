@@ -251,6 +251,34 @@ test("a size in a unit Webflow has no size variable for is skipped", () => {
   assert.deepEqual(skipped, [{ token: "radius.round", reason: "Webflow has no size in %" }]);
 });
 
+test("a weight that is no number is skipped", () => {
+  const { variables, skipped } = prismVariables({ "font-weight": { bold: { $type: "fontWeight", $value: "bold" } } });
+  assert.deepEqual(variables, []);
+  assert.deepEqual(skipped, [{ token: "font-weight.bold", reason: "the weight bold is no number" }]);
+});
+
+test("a size with the same number in another unit is updated", async () => {
+  const collection = new Collection("Base collection", [["Size", "font-size/title0", { value: 64, unit: "rem" }]]);
+  const { changes } = await apply(designer([collection]), tokens);
+
+  assert.equal(byToken(changes)["font-size.title0"].action, "update");
+  assert.deepEqual(collection.variable("font-size/title0").value, { value: 64, unit: "px" });
+});
+
+// The typings let `get()` give null for any variable; Webflow doesn't say when.
+test("a variable without a base value is updated, and the rest still applies", async () => {
+  const collection = new Collection("Base collection", [
+    ["Size", "Font Size/Title 0", null],
+    ["Color", "primary", null],
+  ]);
+  const { changes } = await apply(designer([collection]), tokens);
+
+  assert.equal(byToken(changes)["font-size.title0"].action, "update");
+  assert.equal(byToken(changes)["color.primary"].action, "update");
+  assert.deepEqual(collection.variable("Font Size/Title 0").value, { value: 64, unit: "px" });
+  assert.equal(collection.variable("primarylight").value, "#E3EAFD");
+});
+
 test("Prism's tokens.json: the site's hand copy is updated by name, and every other token is added or skipped", async () => {
   const prismTokens = JSON.parse(readFileSync(new URL("../../design-tools/tokens.json", import.meta.url), "utf8"));
   const { variables, skipped } = prismVariables(prismTokens);

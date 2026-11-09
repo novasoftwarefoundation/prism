@@ -19,7 +19,7 @@ Apps you build for your own workspace need no Marketplace review.
 1. Download `prism-tokens-webflow.zip` from the new release. Upload it with **Publish extension version** (step 2 above). Each upload is a new version of the app.
 2. Open the site in the Designer, on its main branch, in Design mode. Press **E** to open the Apps panel, find Prism tokens and click **Launch App**. ("Launch development app" is for Prism developers.)
 3. The panel shows the Prism version and the collection it will write to. It lists what it will do: **To update**, **To add**, **Unchanged** and **Skipped**, with the reason for each skipped token.
-4. Click **Apply Prism's tokens**. The panel then lists what it did. If you run it again, everything shows as unchanged.
+4. Click **Apply Prism's tokens**. The panel then lists what it did, and the button stays off. To run it again, close the app and launch it again: everything then shows as unchanged.
 
 ## What it changes
 

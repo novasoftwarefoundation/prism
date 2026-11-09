@@ -272,7 +272,7 @@ jobs:
         with:
           node-version-file: .tool-versions
       - name: Release validation tests
-        run: node --test .github/release-version.test.mjs .github/release-publish.test.mjs .github/swift-validation.test.mjs
+        run: node --test .github/release-version.test.mjs .github/release-publish.test.mjs .github/release-workflow.test.mjs .github/swift-validation.test.mjs
       - name: The package ships exactly the reviewed files
         working-directory: targets/web
         run: |

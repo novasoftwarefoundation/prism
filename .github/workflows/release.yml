@@ -18,8 +18,40 @@ jobs:
       actions: read
     uses: ./.github/workflows/ci.yml
 
-  release:
+  # Webflow's CLI and its build tree run here, with read access only, never in the job
+  # that can publish: that job takes the zip as data (ADR 0014).
+  webflow:
     needs: checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: targets/webflow
+    env:
+      DO_NOT_TRACK: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .tool-versions
+      - name: Bundle the Webflow Designer Extension
+        run: |
+          npm ci
+          npm run bundle
+          mv bundle.zip prism-tokens-webflow.zip
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: prism-tokens-webflow
+          path: targets/webflow/prism-tokens-webflow.zip
+          if-no-files-found: error
+          retention-days: 7
+
+  release:
+    needs: [checks, webflow]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -55,14 +87,14 @@ jobs:
         run: npm ci
       - name: Validate versions and exact package contents
         run: node .github/release-prepare.mjs
-      - name: Bundle the Webflow Designer Extension
-        working-directory: targets/webflow
-        env:
-          DO_NOT_TRACK: "1"
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: prism-tokens-webflow
+          path: ${{ runner.temp }}/webflow
+      - name: The Webflow bundle holds exactly the extension's files
         run: |
-          npm ci
-          npm run bundle
-          mv bundle.zip "$RUNNER_TEMP/prism-tokens-webflow.zip"
+          unzip -Z1 "$RUNNER_TEMP/webflow/prism-tokens-webflow.zip" | LC_ALL=C sort > "$RUNNER_TEMP/bundle-files.txt"
+          printf '%s\n' index.html panel.js styles.css webflow.json | diff -u - "$RUNNER_TEMP/bundle-files.txt"
       - name: Publish web then React with npm trusted publishing
         run: node .github/release-publish.mjs
       - name: Release Swift package
@@ -105,4 +137,4 @@ jobs:
           fi
           gh release upload "$RELEASE_TAG" targets/design-tools/tokens.json \
             targets/design-tools/tokens.css targets/design-tools/overview.svg \
-            "$RUNNER_TEMP/prism-tokens-webflow.zip" --clobber
+            "$RUNNER_TEMP/webflow/prism-tokens-webflow.zip" --clobber

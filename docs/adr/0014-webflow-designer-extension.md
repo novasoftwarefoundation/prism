@@ -50,6 +50,7 @@ The site's developer asked for this delivery (Flux 10462971063, 9 Nov 2026):
    - A second run finds every value equal and changes nothing.
 
 6. **Delivery:** the release workflow builds the bundle before anything is published and attaches it to the GitHub release as `prism-tokens-webflow.zip`, next to the design-tool files.
+   - A job of its own, `webflow`, builds it with read access only, and hands it on as an artifact. The `release` job, which can publish to npm (`id-token: write`), write the release and use the Swift deploy key, never installs or runs the extension's npm packages: it downloads the zip, checks its file list, and uploads it. Webflow's CLI brings about 700 packages, and building a zip needs no rights.
    - The panel shows the version from `design/mix.exs`, which the release checks against the tag.
    - The workspace's admin uploads each release's zip as a new version of the workspace's own app ([Publishing your app](https://developers.webflow.com/apps/docs/publishing-your-app)). An app for its own workspace needs no Marketplace review.
    - `targets/webflow/README.md` is written for the site's developer.
@@ -57,6 +58,7 @@ The site's developer asked for this delivery (Flux 10462971063, 9 Nov 2026):
 7. **Checks:**
    - `npm test` in `targets/webflow/` runs the mapping and the runs against a fake of the Designer API (`test/designer.js`, after `@webflow/designer-extension-typings` 2.2.2): update by name, add what's missing, skip what Webflow can't hold, an idempotent second run, no removal or rename, the collection's choice, the app mode, Webflow's refusals, and Prism's own `tokens.json`.
    - A CI job runs it, builds the bundle with Webflow's CLI and checks the bundle's file list.
+   - `.github/release-workflow.test.mjs` fails when a job of `release.yml` or `ci.yml` that can write runs npm in `targets/webflow/`, and checks that the release's bundle comes from a job that can only read.
    - The run in a real Designer is the site's test after a merge, not a merge gate.
 
 ## Alternatives
@@ -76,7 +78,7 @@ The site's developer asked for this delivery (Flux 10462971063, 9 Nov 2026):
 - One click in the Designer brings a Prism release's tokens into the site. Styles bound to `primary` or `Grey 1` follow, and new tokens appear under Prism's names.
 - Typography and shadows stay hand-made in Webflow, as text styles and shadow settings built from the variables.
 - Each release needs a workspace admin to upload the new zip; Webflow has no CLI upload.
-- Webflow's CLI is a development dependency, used only to zip the bundle. Its dependencies have `npm audit` advisories (`zod`, `undici` and others, through `@webflow/cloud-app` and `@module-federation`), and the fix npm offers is an older CLI. They are accepted: the CLI only zips this repository's own files, in CI and on a developer's machine, and nothing from it ships.
+- Webflow's CLI is a development dependency, used only to zip the bundle. Its dependencies have `npm audit` advisories (`zod`, `undici` and others, through `@webflow/cloud-app` and `@module-federation`), and the fix npm offers is an older CLI. They are accepted: the CLI only zips this repository's own files, nothing from it ships, and it runs only where nothing can be published: in CI's jobs, in the release's `webflow` job (read access only), and on a developer's machine.
 - Not verified, since no Designer was opened for this work:
   - that a `/` in a name set through the API shows as a group (documented for names typed in the panel);
   - that Webflow refuses a duplicate name (the fake does, so the second run's equality is what keeps a run from creating one twice);

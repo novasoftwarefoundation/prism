@@ -258,7 +258,7 @@ Before tagging, bump the version in `design/mix.exs`, `targets/web/package.json`
 
 1. Publishes `targets/web/` and `targets/react/`, in that order. It waits for npm's processing to finish and verifies package hashes. npm trusted publishing provides authentication.
 2. Mirrors the tag's tracked `targets/swift/` files into `prism-swift` using `.github/swift-release.sh`, committing and pushing the branch and tag atomically.
-3. Creates the GitHub release and attaches `tokens.json`, `tokens.css`, `overview.svg` and the Webflow Designer Extension's bundle, `prism-tokens-webflow.zip` (built before step 1).
+3. Creates the GitHub release and attaches `tokens.json`, `tokens.css`, `overview.svg` and the Webflow Designer Extension's bundle, `prism-tokens-webflow.zip`. A job of its own, which can only read, builds that zip before step 1; the publishing job takes it as an artifact and checks its file list, so Webflow's CLI never runs where npm and the Swift deploy key can be used.
 
 Stable tags use `vX.Y.Z` and npm's `latest` dist-tag. Release candidates use `vX.Y.Z-rc.N`, npm's `next` dist-tag and a GitHub prerelease. Candidates do not move `latest`.
 
@@ -275,7 +275,7 @@ Check the failed step before rerunning the workflow. Published npm versions are 
 The local release checks can be run without publishing:
 
 ```sh
-node --test .github/release-version.test.mjs .github/release-publish.test.mjs
+node --test .github/release-version.test.mjs .github/release-publish.test.mjs .github/release-workflow.test.mjs
 # After npm ci in targets/react; choose an existing directory outside the checkout:
 RELEASE_TAG=vX.Y.Z RUNNER_TEMP=/path/to/temp node .github/release-prepare.mjs
 ```
