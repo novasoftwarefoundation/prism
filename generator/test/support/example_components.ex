@@ -78,6 +78,14 @@ defmodule Prism.Generator.ExampleComponents do
 
   # With a prefix, a wrapper around it and the input; the prefix has a line at its end.
   component :text_field do
+    input_property(:settle_ms,
+      type: :integer,
+      unit: :millisecond,
+      min: 1,
+      max: 1000,
+      default: nil
+    )
+
     style height: 40, padding: [x: 8], border: [width: 1, color: :ink]
 
     part :prefix,

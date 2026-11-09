@@ -30,4 +30,6 @@ dist/helpers.d.ts
 dist/helpers.js
 dist/index.d.ts
 dist/index.js
+dist/input-metadata.d.ts
+dist/input-metadata.js
 package.json
