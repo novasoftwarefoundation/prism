@@ -172,25 +172,71 @@ public struct PrismMotion: Sendable, Hashable {
     }
 }
 
-/// A font family: the system font, or a font by its family name.
-public enum PrismFontFamily: Sendable, Hashable {
-    case system
-    case named(String)
+/// A weight a font names, lightest first. Each family gives it a number of its font.
+public enum PrismWeight: Sendable, Hashable, CaseIterable {
+    case light
+    case regular
+    case medium
+    case semibold
+    case bold
+    case extrabold
+}
+
+/// A font family: its font, the system font or a font by its family name, and the
+/// number of each weight in that font (100 to 1000).
+public struct PrismFontFamily: Sendable, Hashable {
+    public enum Font: Sendable, Hashable {
+        case system
+        case named(String)
+    }
+
+    public var font: Font
+    public var light: Int
+    public var regular: Int
+    public var medium: Int
+    public var semibold: Int
+    public var bold: Int
+    public var extrabold: Int
+
+    public init(
+        _ font: Font, light: Int, regular: Int, medium: Int, semibold: Int, bold: Int,
+        extrabold: Int
+    ) {
+        self.font = font
+        self.light = light
+        self.regular = regular
+        self.medium = medium
+        self.semibold = semibold
+        self.bold = bold
+        self.extrabold = extrabold
+    }
+
+    /// The number of `weight` in the font.
+    public func number(_ weight: PrismWeight) -> Int {
+        switch weight {
+        case .light: light
+        case .regular: regular
+        case .medium: medium
+        case .semibold: semibold
+        case .bold: bold
+        case .extrabold: extrabold
+        }
+    }
 }
 
 /// A typography token: a font (family, weight, italic) at a size and line height in
 /// points, scaled by Dynamic Type as `textStyle` is.
 public struct PrismTypography: Sendable, Hashable {
     public var family: PrismFontFamily
-    public var weight: Int
+    public var weight: PrismWeight
     public var italic: Bool
     public var size: CGFloat
     public var lineHeight: CGFloat
     public var textStyle: Font.TextStyle
 
     public init(
-        family: PrismFontFamily, weight: Int, italic: Bool, size: CGFloat, lineHeight: CGFloat,
-        textStyle: Font.TextStyle
+        family: PrismFontFamily, weight: PrismWeight, italic: Bool, size: CGFloat,
+        lineHeight: CGFloat, textStyle: Font.TextStyle
     ) {
         self.family = family
         self.weight = weight
@@ -203,7 +249,7 @@ public struct PrismTypography: Sendable, Hashable {
     /// The font at the text size of `traits` (the app's, without them).
     public func uiFont(compatibleWith traits: UITraitCollection? = nil) -> UIFont {
         let base: UIFont
-        switch family {
+        switch family.font {
         case .system:
             base = UIFont.systemFont(ofSize: size, weight: uiWeight)
         case .named(let name):
@@ -213,7 +259,7 @@ public struct PrismTypography: Sendable, Hashable {
                 descriptor: UIFontDescriptor(fontAttributes: [
                     .family: name,
                     .traits: [UIFontDescriptor.TraitKey.weight: uiWeight],
-                    variation: [0x7767_6874: weight],  // "wght"
+                    variation: [0x7767_6874: family.number(weight)],  // "wght"
                 ]), size: size)
         }
         let descriptor = italic ? base.fontDescriptor.withSymbolicTraits(.traitItalic) : nil
@@ -234,14 +280,19 @@ public struct PrismTypography: Sendable, Hashable {
     }
 
     /// This typography with another weight.
-    public func weight(_ weight: Int) -> PrismTypography {
+    public func weight(_ weight: PrismWeight) -> PrismTypography {
         var typography = self
         typography.weight = weight
         return typography
     }
 
+    /// The weight's number in the family's font.
+    public var number: Int {
+        family.number(weight)
+    }
+
     var uiWeight: UIFont.Weight {
-        switch weight {
+        switch number {
         case ..<150: .ultraLight
         case ..<250: .thin
         case ..<350: .light
@@ -295,7 +346,7 @@ public struct PrismLook: Sendable, Hashable {
     public var minHeight: CGFloat?
     public var maxHeight: CGFloat?
     public var typography: PrismTypography?
-    public var weight: Int?
+    public var weight: PrismWeight?
     public var decoration: PrismDecoration?
     public var shadow: PrismShadow?
     public var opacity: Double?
@@ -326,7 +377,7 @@ public struct PrismLook: Sendable, Hashable {
         minHeight: CGFloat? = nil,
         maxHeight: CGFloat? = nil,
         typography: PrismTypography? = nil,
-        weight: Int? = nil,
+        weight: PrismWeight? = nil,
         decoration: PrismDecoration? = nil,
         shadow: PrismShadow? = nil,
         opacity: Double? = nil,

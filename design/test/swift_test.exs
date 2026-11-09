@@ -35,7 +35,26 @@ defmodule Prism.Design.SwiftTest do
     assert package =~ ~s|platforms: [.iOS(.v26)]|
     refute package =~ "resources"
     refute File.exists?(Path.join(@sources, "Fonts"))
-    assert read("Tokens.swift") =~ "public static let display = PrismFontFamily.system\n"
+
+    assert read("Tokens.swift") =~
+             "public static let display = PrismFontFamily(\n            .system,"
+  end
+
+  test "a family is its font with SF Pro's number of each weight; a typography names a weight" do
+    tokens = read("Tokens.swift")
+
+    for family <- ~w(display text) do
+      assert tokens =~
+               """
+                       public static let #{family} = PrismFontFamily(
+                           .system, light: 300, regular: 400, medium: 400, semibold: 500, bold: 600,
+                           extrabold: 700)
+               """
+    end
+
+    assert tokens =~ "family: Families.display, weight: .extrabold, italic: false, size: 50,"
+    assert tokens =~ "family: Families.text, weight: .light, italic: false, size: 20,"
+    assert read("Button.swift") =~ "weight: .medium,"
   end
 
   # The base text styles an iOS app scales Prism's type by today, kept by the rule

@@ -8,8 +8,8 @@ defmodule Prism.Generator.Schema.ComponentsTest do
     shadow :card, y: 5, blur: 20, color: {:ink, 0.1}
     radius :round, 4
     max_height :menu, 100
-    family :f, doc: "F", web: [name: "F", fallback: "serif", faces: [[file: "F", weights: {200, 900}, style: :normal]]], ios: :system, android: :system
-    font :b, :f, 700
+    weights [:regular, :bold]; family :f, doc: "F", web: [name: "F", fallback: "serif", faces: [[file: "F", weights: {200, 900}, style: :normal]], scale: [regular: 400, bold: 700]], ios: {:system, scale: [regular: 400, bold: 600]}, android: {:system, scale: [regular: 400, bold: 700]}
+    font :b, :f, :bold
     text :t, 16, 20
     typography :body, font: :b, text: :t
   """
@@ -232,7 +232,8 @@ defmodule Prism.Generator.Schema.ComponentsTest do
       {"typography: [font: :b]", "is not a typography token or [font: font, text: text]"},
       {"typography: [font: :t, text: :t]", "unknown font :t"},
       {"typography: [font: :b, text: {0, 1}]", "is not a text size or {size, line_height}"},
-      {"weight: 450", "450 is not one of 100, 200, …, 1000"},
+      {"weight: 450", "450 is not the name of a weight"},
+      {"weight: :heavy", "unknown weight :heavy"},
       {"decoration: :overline", "is not :underline or :none"},
       {"opacity: 1.5", "1.5 is not a number from 0 to 1"},
       {"transition: {150, :bounce}", "is not {milliseconds, easing}"}
@@ -727,14 +728,14 @@ defmodule Prism.Generator.Schema.ComponentsTest do
               variant 32, size: 32, aliases: [30]
             end
             variant :bold do
-              with_variant 16, weight: 700
+              with_variant 16, weight: :bold
             end
           end
         """)
 
       assert [%{name: :size, default: 24}] = c.axes
       assert [%{name: 16, axis: :size}, %{name: 32, aliases: [30]}, %{name: :bold}] = c.variants
-      assert [%{with_variants: [%{name: 16, style: [weight: 700]}]}] = Enum.drop(c.variants, 2)
+      assert [%{with_variants: [%{name: 16, style: [weight: :bold]}]}] = Enum.drop(c.variants, 2)
     end
 
     test "fails as any other name: zero, negative, a float, or mixed with names" do

@@ -172,25 +172,56 @@ public struct AcmeMotion: Sendable, Hashable {
     }
 }
 
-/// A font family: the system font, or a font by its family name.
-public enum AcmeFontFamily: Sendable, Hashable {
-    case system
-    case named(String)
+/// A weight a font names, lightest first. Each family gives it a number of its font.
+public enum AcmeWeight: Sendable, Hashable, CaseIterable {
+    case light
+    case regular
+    case heavy
+}
+
+/// A font family: its font, the system font or a font by its family name, and the
+/// number of each weight in that font (100 to 1000).
+public struct AcmeFontFamily: Sendable, Hashable {
+    public enum Font: Sendable, Hashable {
+        case system
+        case named(String)
+    }
+
+    public var font: Font
+    public var light: Int
+    public var regular: Int
+    public var heavy: Int
+
+    public init(_ font: Font, light: Int, regular: Int, heavy: Int) {
+        self.font = font
+        self.light = light
+        self.regular = regular
+        self.heavy = heavy
+    }
+
+    /// The number of `weight` in the font.
+    public func number(_ weight: AcmeWeight) -> Int {
+        switch weight {
+        case .light: light
+        case .regular: regular
+        case .heavy: heavy
+        }
+    }
 }
 
 /// A typography token: a font (family, weight, italic) at a size and line height in
 /// points, scaled by Dynamic Type as `textStyle` is.
 public struct AcmeTypography: Sendable, Hashable {
     public var family: AcmeFontFamily
-    public var weight: Int
+    public var weight: AcmeWeight
     public var italic: Bool
     public var size: CGFloat
     public var lineHeight: CGFloat
     public var textStyle: Font.TextStyle
 
     public init(
-        family: AcmeFontFamily, weight: Int, italic: Bool, size: CGFloat, lineHeight: CGFloat,
-        textStyle: Font.TextStyle
+        family: AcmeFontFamily, weight: AcmeWeight, italic: Bool, size: CGFloat,
+        lineHeight: CGFloat, textStyle: Font.TextStyle
     ) {
         self.family = family
         self.weight = weight
@@ -203,7 +234,7 @@ public struct AcmeTypography: Sendable, Hashable {
     /// The font at the text size of `traits` (the app's, without them).
     public func uiFont(compatibleWith traits: UITraitCollection? = nil) -> UIFont {
         let base: UIFont
-        switch family {
+        switch family.font {
         case .system:
             base = UIFont.systemFont(ofSize: size, weight: uiWeight)
         case .named(let name):
@@ -213,7 +244,7 @@ public struct AcmeTypography: Sendable, Hashable {
                 descriptor: UIFontDescriptor(fontAttributes: [
                     .family: name,
                     .traits: [UIFontDescriptor.TraitKey.weight: uiWeight],
-                    variation: [0x7767_6874: weight],  // "wght"
+                    variation: [0x7767_6874: family.number(weight)],  // "wght"
                 ]), size: size)
         }
         let descriptor = italic ? base.fontDescriptor.withSymbolicTraits(.traitItalic) : nil
@@ -234,14 +265,19 @@ public struct AcmeTypography: Sendable, Hashable {
     }
 
     /// This typography with another weight.
-    public func weight(_ weight: Int) -> AcmeTypography {
+    public func weight(_ weight: AcmeWeight) -> AcmeTypography {
         var typography = self
         typography.weight = weight
         return typography
     }
 
+    /// The weight's number in the family's font.
+    public var number: Int {
+        family.number(weight)
+    }
+
     var uiWeight: UIFont.Weight {
-        switch weight {
+        switch number {
         case ..<150: .ultraLight
         case ..<250: .thin
         case ..<350: .light
@@ -295,7 +331,7 @@ public struct AcmeLook: Sendable, Hashable {
     public var minHeight: CGFloat?
     public var maxHeight: CGFloat?
     public var typography: AcmeTypography?
-    public var weight: Int?
+    public var weight: AcmeWeight?
     public var decoration: AcmeDecoration?
     public var shadow: AcmeShadow?
     public var opacity: Double?
@@ -326,7 +362,7 @@ public struct AcmeLook: Sendable, Hashable {
         minHeight: CGFloat? = nil,
         maxHeight: CGFloat? = nil,
         typography: AcmeTypography? = nil,
-        weight: Int? = nil,
+        weight: AcmeWeight? = nil,
         decoration: AcmeDecoration? = nil,
         shadow: AcmeShadow? = nil,
         opacity: Double? = nil,

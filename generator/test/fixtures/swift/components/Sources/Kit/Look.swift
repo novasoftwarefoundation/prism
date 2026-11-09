@@ -172,25 +172,52 @@ public struct KitMotion: Sendable, Hashable {
     }
 }
 
-/// A font family: the system font, or a font by its family name.
-public enum KitFontFamily: Sendable, Hashable {
-    case system
-    case named(String)
+/// A weight a font names, lightest first. Each family gives it a number of its font.
+public enum KitWeight: Sendable, Hashable, CaseIterable {
+    case regular
+    case bold
+}
+
+/// A font family: its font, the system font or a font by its family name, and the
+/// number of each weight in that font (100 to 1000).
+public struct KitFontFamily: Sendable, Hashable {
+    public enum Font: Sendable, Hashable {
+        case system
+        case named(String)
+    }
+
+    public var font: Font
+    public var regular: Int
+    public var bold: Int
+
+    public init(_ font: Font, regular: Int, bold: Int) {
+        self.font = font
+        self.regular = regular
+        self.bold = bold
+    }
+
+    /// The number of `weight` in the font.
+    public func number(_ weight: KitWeight) -> Int {
+        switch weight {
+        case .regular: regular
+        case .bold: bold
+        }
+    }
 }
 
 /// A typography token: a font (family, weight, italic) at a size and line height in
 /// points, scaled by Dynamic Type as `textStyle` is.
 public struct KitTypography: Sendable, Hashable {
     public var family: KitFontFamily
-    public var weight: Int
+    public var weight: KitWeight
     public var italic: Bool
     public var size: CGFloat
     public var lineHeight: CGFloat
     public var textStyle: Font.TextStyle
 
     public init(
-        family: KitFontFamily, weight: Int, italic: Bool, size: CGFloat, lineHeight: CGFloat,
-        textStyle: Font.TextStyle
+        family: KitFontFamily, weight: KitWeight, italic: Bool, size: CGFloat,
+        lineHeight: CGFloat, textStyle: Font.TextStyle
     ) {
         self.family = family
         self.weight = weight
@@ -203,7 +230,7 @@ public struct KitTypography: Sendable, Hashable {
     /// The font at the text size of `traits` (the app's, without them).
     public func uiFont(compatibleWith traits: UITraitCollection? = nil) -> UIFont {
         let base: UIFont
-        switch family {
+        switch family.font {
         case .system:
             base = UIFont.systemFont(ofSize: size, weight: uiWeight)
         case .named(let name):
@@ -213,7 +240,7 @@ public struct KitTypography: Sendable, Hashable {
                 descriptor: UIFontDescriptor(fontAttributes: [
                     .family: name,
                     .traits: [UIFontDescriptor.TraitKey.weight: uiWeight],
-                    variation: [0x7767_6874: weight],  // "wght"
+                    variation: [0x7767_6874: family.number(weight)],  // "wght"
                 ]), size: size)
         }
         let descriptor = italic ? base.fontDescriptor.withSymbolicTraits(.traitItalic) : nil
@@ -234,14 +261,19 @@ public struct KitTypography: Sendable, Hashable {
     }
 
     /// This typography with another weight.
-    public func weight(_ weight: Int) -> KitTypography {
+    public func weight(_ weight: KitWeight) -> KitTypography {
         var typography = self
         typography.weight = weight
         return typography
     }
 
+    /// The weight's number in the family's font.
+    public var number: Int {
+        family.number(weight)
+    }
+
     var uiWeight: UIFont.Weight {
-        switch weight {
+        switch number {
         case ..<150: .ultraLight
         case ..<250: .thin
         case ..<350: .light
@@ -295,7 +327,7 @@ public struct KitLook: Sendable, Hashable {
     public var minHeight: CGFloat?
     public var maxHeight: CGFloat?
     public var typography: KitTypography?
-    public var weight: Int?
+    public var weight: KitWeight?
     public var decoration: KitDecoration?
     public var shadow: KitShadow?
     public var opacity: Double?
@@ -326,7 +358,7 @@ public struct KitLook: Sendable, Hashable {
         minHeight: CGFloat? = nil,
         maxHeight: CGFloat? = nil,
         typography: KitTypography? = nil,
-        weight: Int? = nil,
+        weight: KitWeight? = nil,
         decoration: KitDecoration? = nil,
         shadow: KitShadow? = nil,
         opacity: Double? = nil,

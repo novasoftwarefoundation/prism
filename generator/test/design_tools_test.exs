@@ -124,6 +124,28 @@ defmodule Prism.Generator.DesignToolsTest do
              "  --acme-typography-note: italic var(--acme-font-weight-hint) var(--acme-font-size-body)/var(--acme-line-height-body) var(--acme-font-family-text);\n"
   end
 
+  # A font names a weight; its DTCG fontWeight is the number its family's web scale gives
+  # it, in tokens.json, tokens.css and the overview.
+  test "a font's weight is its family's number on the web" do
+    %{tokens: tokens} = design = ExampleDesign.__schema__()
+    scale = [light: 200, regular: 500, heavy: 900]
+
+    other =
+      Enum.map(tokens, fn
+        %{kind: :family, name: :text} = f -> %{f | web: Keyword.put(f.web, :scale, scale)}
+        token -> token
+      end)
+
+    files = bodies(%{design | tokens: other})
+    json = JSON.decode!(files["tokens.json"])
+
+    assert json["font-weight"]["heading"]["$value"] == 800
+    assert json["font-weight"]["body"]["$value"] == 500
+    assert json["font-weight"]["hint"]["$value"] == 200
+    assert files["tokens.css"] =~ "  --acme-font-weight-body: 500;\n"
+    assert files["overview.svg"] =~ "Acme Text 200 italic"
+  end
+
   test "a family is the web font, with its fallback and native bindings under $extensions" do
     json = JSON.decode!(bodies(ExampleDesign.__schema__())["tokens.json"])
 

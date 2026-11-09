@@ -17,8 +17,8 @@ public struct PrismMessageBarLooks: Sendable, Hashable {
             radius: Prism.Radii.default,
             padding: .init(top: 0, leading: 16, bottom: 0, trailing: 16), height: 40,
             typography: PrismTypography(
-                family: Prism.Families.text, weight: 600, italic: false, size: 14, lineHeight: 16,
-                textStyle: .footnote)))
+                family: Prism.Families.text, weight: .semibold, italic: false, size: 14,
+                lineHeight: 16, textStyle: .footnote)))
         if tone == .info {
             root.apply(PrismLook(
                 background: Prism.Colors.primary.opacity(0.15), foreground: Prism.Colors.primary))

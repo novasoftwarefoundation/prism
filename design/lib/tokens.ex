@@ -89,6 +89,19 @@ defmodule Prism.Design.Tokens do
   radius :default, {0.25, :rem}
   radius :full, {50, :percent}
 
+  # Weights: what a font names, lightest first, after Nunito's own instances. Each
+  # family's binding gives every weight a number of its font (`scale:`), so a title
+  # looks as heavy in SF Pro on iOS as in Nunito on the web (ADR 0013).
+  weights [:light, :regular, :medium, :semibold, :bold, :extrabold]
+
+  # 0.1.7's numbers, which Nunito and Nunito Sans keep.
+  @nunito [light: 300, regular: 400, medium: 500, semibold: 600, bold: 700, extrabold: 800]
+  # SF Pro as heavy as Nunito and Nunito Sans: the stem of each weight, measured at
+  # each Typography's size and at a large Dynamic Type size (ADR 0013).
+  @sf_pro [light: 300, regular: 400, medium: 400, semibold: 500, bold: 600, extrabold: 700]
+  # No Android target reads these yet: today's numbers until one does.
+  @android @nunito
+
   # Families are roles; each platform binds them to a font. The web keeps 0.1.7's
   # Nunito and Nunito Sans; iOS and Android use their system fonts.
   family :display,
@@ -96,10 +109,11 @@ defmodule Prism.Design.Tokens do
     web: [
       name: "Nunito",
       fallback: "sans-serif",
-      faces: [[file: "Nunito-VariableFont_wght", weights: {200, 900}, style: :normal]]
+      faces: [[file: "Nunito-VariableFont_wght", weights: {200, 900}, style: :normal]],
+      scale: @nunito
     ],
-    ios: :system,
-    android: :system
+    ios: {:system, scale: @sf_pro},
+    android: {:system, scale: @android}
 
   family :text,
     doc: "Body text (≤ 20px)",
@@ -109,36 +123,37 @@ defmodule Prism.Design.Tokens do
       faces: [
         [file: "NunitoSans-VariableFont_wght", weights: {200, 1000}, style: :normal],
         [file: "NunitoSans-Italic-VariableFont_wght", weights: {200, 1000}, style: :italic]
-      ]
+      ],
+      scale: @nunito
     ],
-    ios: :system,
-    android: :system
+    ios: {:system, scale: @sf_pro},
+    android: {:system, scale: @android}
 
   # Fonts: family and weight (`font-…`). Sizes are separate (`text-…`).
-  font :title0, :display, 800
-  font :title1, :display, 800
-  font :title2, :display, 800
-  font :title3, :display, 800
-  font :title4, :display, 800
-  font :title5, :display, 700
-  font :bodylarge, :display, 300
-  font :introdesktop, :display, 500
-  font :quote, :display, 700
-  font :title6, :text, 700
-  font :title7, :text, 700
-  font :caption, :text, 500
-  font :link, :text, 500
-  font :subhead, :text, 600
-  font :button, :text, 700
-  font :footnote, :text, 500
-  font :intro, :text, 500
-  font :label, :text, 700
-  font :body, :text, 300
-  font :hint, :text, 300, italic: true
-  font :tablehead, :text, 700
-  font :tablerow, :text, 400
-  font :bold, :text, 700
-  font :mono, :text, 300
+  font :title0, :display, :extrabold
+  font :title1, :display, :extrabold
+  font :title2, :display, :extrabold
+  font :title3, :display, :extrabold
+  font :title4, :display, :extrabold
+  font :title5, :display, :bold
+  font :bodylarge, :display, :light
+  font :introdesktop, :display, :medium
+  font :quote, :display, :bold
+  font :title6, :text, :bold
+  font :title7, :text, :bold
+  font :caption, :text, :medium
+  font :link, :text, :medium
+  font :subhead, :text, :semibold
+  font :button, :text, :bold
+  font :footnote, :text, :medium
+  font :intro, :text, :medium
+  font :label, :text, :bold
+  font :body, :text, :light
+  font :hint, :text, :light, italic: true
+  font :tablehead, :text, :bold
+  font :tablerow, :text, :regular
+  font :bold, :text, :bold
+  font :mono, :text, :light
 
   # Text sizes: size and line height in px (`text-…`).
   text :title0, 64, 68

@@ -98,12 +98,13 @@ PrismSelect(icon: Image(systemName: "chevron.down")) {
 ```swift
 Prism.Colors.primary          // Color
 Prism.Typography.title4       // PrismTypography: .font, .uiFont(), Dynamic Type
+Prism.Typography.title4.weight  // PrismWeight: .extrabold; .number is SF Pro's 700
 Prism.Spacing.px10            // CGFloat
 Prism.Radii.default           // PrismRadius
 Prism.Shadows.prismCard       // PrismShadow
 ```
 
-Lengths are points. Type follows Dynamic Type: each typography scales as the text style whose default size is the closest below its own (text up to 20 pt as body text, larger text as a title), and its line height with it. A box that holds text (a text field, a select, a message bar, a step indicator) grows with it, so the largest text sizes cut nothing off. The fonts are the system font (SF Pro) for now; the package bundles no fonts.
+Lengths are points. Type follows Dynamic Type: each typography scales as the text style whose default size is the closest below its own (text up to 20 pt as body text, larger text as a title), and its line height with it. A box that holds text (a text field, a select, a message bar, a step indicator) grows with it, so the largest text sizes cut nothing off. The fonts are the system font (SF Pro) for now; the package bundles no fonts. A typography names a weight (`PrismWeight`), and each family gives it SF Pro's number, chosen to look as heavy as Nunito on the web: titles are SF Pro Bold where the web's Nunito is ExtraBold ([ADR 0013](https://github.com/novasoftwarefoundation/prism/blob/main/docs/adr/0013-weights-per-family.md)).
 
 ## License
 

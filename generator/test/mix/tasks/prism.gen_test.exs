@@ -96,9 +96,9 @@ defmodule Mix.Tasks.Prism.GenTest do
 
     ios =
       if ios == :system,
-        do: ":system",
+        do: "{:system, scale: [regular: 400]}",
         else:
-          ~s|[name: "Fonty", faces: [[file: "Fonty.woff2", weights: {1, 1000}, style: :normal]]]|
+          ~s|[name: "Fonty", faces: [[file: "Fonty.woff2", weights: {1, 1000}, style: :normal]], scale: [regular: 400]]|
 
     [{module, _}] =
       Code.compile_string("""
@@ -107,11 +107,13 @@ defmodule Mix.Tasks.Prism.GenTest do
         web prefix: "fonty", fonts_url: "../fonts"
         swift module: "Fonty", fonts: "test/fixtures/fonts", font_files: ["OFL.txt"]
 
+        weights [:regular]
+
         family :text,
           doc: "Text",
-          web: [name: "Fonty", fallback: "serif", faces: [[file: "Fonty", weights: {1, 1000}, style: :normal]]],
+          web: [name: "Fonty", fallback: "serif", faces: [[file: "Fonty", weights: {1, 1000}, style: :normal]], scale: [regular: 400]],
           ios: #{ios},
-          android: :system
+          android: {:system, scale: [regular: 400]}
       end
       """)
 

@@ -17,6 +17,7 @@ defmodule Prism.Generator.Web do
 
   require EEx
 
+  alias Prism.Generator.Schema
   alias Prism.Generator.Web.Components
 
   @dir Path.join(__DIR__, "web")
@@ -133,27 +134,28 @@ defmodule Prism.Generator.Web do
     tokens(design, :font)
     |> Enum.chunk_by(& &1.family)
     |> Enum.map_join("\n", fn [first | _] = fonts ->
-      family = token(design, :family, first.family).web
+      family = token(design, :family, first.family)
 
-      "        // #{comment!(family_note(family, first.family, design))}\n" <>
+      "        // #{comment!(family_note(family.web, first.family, design))}\n" <>
         Enum.map_join(fonts, "\n", &fun.(&1, family))
     end)
   end
 
   defp preset_font_families(design) do
-    by_family(design, fn font, family ->
-      "        #{key(font.name)}: [#{js_str(family[:name])}, #{js_str(family[:fallback])}],"
+    by_family(design, fn font, %{web: web} ->
+      "        #{key(font.name)}: [#{js_str(web[:name])}, #{js_str(web[:fallback])}],"
     end)
   end
 
   defp preset_font_classes(design) do
-    by_family(design, fn font, family ->
+    by_family(design, fn font, %{web: web} = family ->
       italic = if font[:italic], do: ~s(\n          "font-style": "italic",), else: ""
+      weight = Schema.weight(family, :web, font.weight)
 
       """
               #{js_str(".font-#{key_name(font.name)}")}: {
-                "font-family": #{js_str("#{family[:name]}, #{family[:fallback]}")},
-                "font-weight": #{js_str("#{font.weight}")},#{italic}
+                "font-family": #{js_str("#{web[:name]}, #{web[:fallback]}")},
+                "font-weight": #{js_str("#{weight}")},#{italic}
               },\
       """
     end)

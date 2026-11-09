@@ -31,6 +31,7 @@ defmodule Prism.Generator.DesignTools.Overview do
   component's cell (`button/primary/pressed`).
   """
 
+  alias Prism.Generator.Schema
   alias Prism.Generator.Web
   alias Prism.Generator.Web.{Components, Elements}
 
@@ -237,13 +238,14 @@ defmodule Prism.Generator.DesignTools.Overview do
     flow(ctx, "font-families", "Font families", items, 12)
   end
 
-  defp native(:system), do: "system font"
+  defp native({:system, _}), do: "system font"
   defp native(font), do: font[:name]
 
   defp fonts(ctx) do
     items =
       for t <- ctx.by.(:font) do
         family = ctx.families[t.family].web[:name]
+        weight = Schema.weight(ctx.families[t.family], :web, t.weight)
         italic = if t[:italic], do: " italic", else: ""
 
         {"font-weight/#{key(t.name)}", 264, 52,
@@ -252,11 +254,11 @@ defmodule Prism.Generator.DesignTools.Overview do
              text(x, y + 24, key(t.name),
                family: family,
                size: 22,
-               weight: t.weight,
+               weight: weight,
                italic: t[:italic] == true,
                fill: @ink
              ),
-             label(ctx, x, y + 44, "#{family} #{t.weight}#{italic}", size: 12, fill: @muted)
+             label(ctx, x, y + 44, "#{family} #{weight}#{italic}", size: 12, fill: @muted)
            ]
          end}
       end
@@ -1140,7 +1142,7 @@ defmodule Prism.Generator.DesignTools.Overview do
   # `:middle` at the box's center.
   defp text_box(ctx, text, inherited, opts) do
     type = type_of(ctx, inherited.typography)
-    weight = inherited.weight || type.weight
+    weight = if inherited.weight, do: type.weigh.(inherited.weight), else: type.weight
     fill = opts[:color] || inherited.foreground
     w = estimate(text, type.size, weight)
 
@@ -1528,10 +1530,18 @@ defmodule Prism.Generator.DesignTools.Overview do
   defp css_length({n, :rem}), do: "#{num(n)}rem"
   defp css_length({n, :percent}), do: "#{num(n)}%"
 
-  # A typography token, or the inherited default without one: `%{family, weight, italic, size,
-  # line_height}`.
-  defp type_of(ctx, nil),
-    do: %{family: ctx.caption, weight: 400, italic: false, size: 16, line_height: 24}
+  # A typography token, or the inherited default without one: `%{family, weight, weigh, italic,
+  # size, line_height}`, `weigh` giving a weight's number in its family's web font.
+  defp type_of(ctx, nil) do
+    %{
+      family: ctx.caption,
+      weight: 400,
+      weigh: &Schema.weight(hd(ctx.by.(:family)), :web, &1),
+      italic: false,
+      size: 16,
+      line_height: 24
+    }
+  end
 
   defp type_of(ctx, name) when is_atom(name), do: type(ctx, name)
 
@@ -1544,9 +1554,12 @@ defmodule Prism.Generator.DesignTools.Overview do
         name -> {ctx.texts[name].size, ctx.texts[name].line_height}
       end
 
+    family = ctx.families[font.family]
+
     %{
-      family: ctx.families[font.family].web[:name],
-      weight: font.weight,
+      family: family.web[:name],
+      weight: Schema.weight(family, :web, font.weight),
+      weigh: &Schema.weight(family, :web, &1),
       italic: font[:italic] == true,
       size: size,
       line_height: line_height

@@ -125,7 +125,7 @@ defmodule Prism.Generator.Schema.Components do
     max_height: {:max_height, "maximum height: a max_height token or a length"},
     typography:
       {:typography, "a typography token, or [font: font, text: text | {size, line_height}]"},
-    weight: {:weight, "a font weight on top of the typography: 100, 200, …, 1000"},
+    weight: {:weight, "a weight on top of the typography: a weight token"},
     decoration: {:decoration, ":underline or :none"},
     shadow: {:shadow, "a shadow token"},
     opacity: {:opacity, "a number from 0 to 1"},
@@ -1188,11 +1188,8 @@ defmodule Prism.Generator.Schema.Components do
     end
   end
 
-  defp check(:weight, value, _) do
-    if value in 100..1000//100,
-      do: :ok,
-      else: {:error, "#{inspect(value)} is not one of 100, 200, …, 1000"}
-  end
+  defp check(:weight, ref, known) when is_atom(ref) and ref != nil, do: token(known, :weight, ref)
+  defp check(:weight, value, _), do: {:error, "#{inspect(value)} is not the name of a weight"}
 
   defp check(:decoration, value, _) do
     if value in [:underline, :none],

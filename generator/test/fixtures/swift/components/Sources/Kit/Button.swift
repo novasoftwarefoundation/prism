@@ -44,7 +44,7 @@ public struct KitButtonLooks: Sendable, Hashable {
             root.apply(KitLook(size: 24))
         }
         if strong {
-            root.apply(KitLook(weight: 400))
+            root.apply(KitLook(weight: .bold))
         }
         if loading {
             label.apply(KitLook(opacity: 0))

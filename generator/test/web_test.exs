@@ -140,6 +140,31 @@ defmodule Prism.Generator.WebTest do
     end
   end
 
+  # A font names a weight, and the web writes the number of its family's web scale.
+  test "a font's weight is its family's number on the web" do
+    %{tokens: tokens} = design = ExampleDesign.__schema__()
+    scale = [light: 200, regular: 500, heavy: 900]
+
+    other =
+      Enum.map(tokens, fn
+        %{kind: :family, name: :text} = f -> %{f | web: Keyword.put(f.web, :scale, scale)}
+        token -> token
+      end)
+
+    files = bodies(Web.files(%{design | tokens: other}))
+    preset = files["tailwind.preset.js"]
+
+    # The display family keeps its scale; the text family's fonts take the new one.
+    assert preset =~
+             ~s(".font-heading": {\n          "font-family": "Acme Display, serif",\n          "font-weight": "800",)
+
+    assert preset =~
+             ~s(".font-hint": {\n          "font-family": "Acme Text, sans-serif",\n          "font-weight": "200",)
+
+    assert files["css/components.css"] =~
+             ~s(font-family: "Acme Text", sans-serif;\n  font-weight: 500;)
+  end
+
   test "the web target reads only the web binding of a family" do
     %{tokens: tokens} = design = ExampleDesign.__schema__()
     brand = [name: "Brand", faces: [[file: "Brand", weights: {400, 700}, style: :normal]]]
