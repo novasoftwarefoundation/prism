@@ -23,6 +23,25 @@ Prism's look is written once, as a design in Elixir, and generated into code for
 
 ## Change the design
 
+Optional per-input auto-submit metadata is described in
+[ADR 0012](docs/adr/0012-semantic-input-metadata.md). `text_field` and `text_area`
+declare `auto_submit_delay_ms`: integer milliseconds 1..2147483647, with
+absence/null/nil disabling it. Prism validates this semantic data; the containing
+Form consumer implements debounce, validation and submission.
+
+```elixir
+Prism.Generator.InputMetadata.validate!(
+  Prism.Design.Components.__schema__(), :text_field, %{auto_submit_delay_ms: 500}
+)
+```
+
+React consumers import `textFieldInputMetadata({ autoSubmitDelayMs: 500 })`
+and `TextFieldInputMetadata` from `@novasoftwarefoundation/prism-react`.
+Swift consumers construct `try PrismTextFieldInputMetadata(autoSubmitDelayMs: 500)`
+or decode that Codable type from snake_case input metadata. Text areas have the
+corresponding `TextArea` APIs. These data types belong in the Form's input model;
+they do not change styled field APIs or submit forms by themselves.
+
 `targets/web/tailwind.preset.js`, `targets/web/css/base.css`, `targets/web/css/components.css`, `targets/react/src/`, the three files in `targets/design-tools/`, and `targets/swift/Package.swift` and `targets/swift/Sources/` are generated: don't edit them by hand. Change `design/lib/tokens.ex` (tokens) or `design/lib/components.ex` (components), then regenerate and commit the result. An app adjusts a component through the component's own API, never by editing a generated file.
 
 ```sh
@@ -209,6 +228,16 @@ Each step is checked against the tool's documentation (October 2026), not tried 
 - Its tests use neutral example designs: `generator/test/support/example_design.ex`, whose files they compare with reviewed fixtures in `generator/test/fixtures/`, and `example_components.ex`, one component of every kind, which they render through `Prism.Generator.Phoenix` and check against its CSS. Its React components are a fixture package too, `generator/test/fixtures/react/`, whose `npm test` type-checks them and renders them against the example's CSS (`generator/test/fixtures/example_components/`). Its Swift packages are fixtures as well, `generator/test/fixtures/swift/components/` and `…/design/`, which CI builds with `xcodebuild`.
 - Its `mix test` needs Node (`nodejs` in `.tool-versions`): a test loads the generated preset in plain Node.
 - **Moving it to its own repository:** move `generator/` out as it is, and change one line in `design/mix.exs` from `path: "../generator"` to a git or Hex dependency.
+
+## Swift validation in CI
+
+Swift builds and simulator tests run when their tested inputs or environment have no matching successful validation record. CI always runs the generator tests and checks generated files first. Thus a design/generator change that changes Swift must update the committed package or fixtures; stale output cannot use a prior Swift pass. A design change with identical Swift output needs no second simulator run.
+
+The fingerprint covers all tracked files in `targets/swift/` (except its README, license and gitignore), `generator/test/fixtures/swift/`, and `design/test/swiftui/`, plus the tool versions, CI/release workflows and validation scripts/tests. Added/deleted files count too. Runner image/OS/architecture, exact Xcode build, Node version, simulator runtime build and selected iPhone type also belong to the fingerprint. Version metadata, web/React-only changes and documentation outside those inputs leave it unchanged.
+
+A matching record can be reused across an internal PR, branch promotion and release tag. CI verifies the artifact digest and its full input/environment manifest, the same repository and CI/release workflow paths, the original successful run/attempt, and that the original Swift build/render steps actually ran and passed. Fork evidence and records from skipped, failed, in-progress or unrelated runs are refused. A reused job links the original run in its summary and does not issue a new test record. This keeps the evidence tied to the run that actually executed the suite.
+
+Records are retained for 30 days. Missing, expired, corrupt or inaccessible evidence runs the full suite; lookup problems never count as a pass. The macOS job still selects/identifies its environment on a cache hit, but skips the expensive builds and simulator tests. A changed environment or validation implementation requires a new full run.
 
 ## Publish
 

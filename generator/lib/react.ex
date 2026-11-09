@@ -99,8 +99,13 @@ defmodule Prism.Generator.React do
 
     components = for spec <- specs, do: {"src/#{pascal(spec.name)}.tsx", component(spec)}
 
+    metadata = Prism.Generator.InputMetadata.react_files(design)
+    exports = if metadata == [], do: "", else: "export * from \"./input-metadata.js\";\n"
+
     for {path, body} <-
-          components ++ [{"src/helpers.ts", helpers()}, {"src/index.ts", index(specs)}],
+          components ++
+            metadata ++
+            [{"src/helpers.ts", helpers()}, {"src/index.ts", index(specs) <> exports}],
         do: {path, body, design.file}
   end
 

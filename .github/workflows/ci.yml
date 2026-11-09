@@ -147,6 +147,11 @@ jobs:
 
   swift:
     name: Swift package (iOS Simulator)
+    # Generated-output checks always run before any Swift validation reuse.
+    needs: [generator, design]
+    permissions:
+      contents: read
+      actions: read
     # SwiftUI builds only on macOS. Its Xcode has Swift 6.2 or later and the iOS 26 SDK,
     # which the packages' tools version and platform need.
     runs-on: macos-26
@@ -173,10 +178,19 @@ jobs:
             echo "::error::$app is $version, not Xcode $XCODE"
             exit 1
           }
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .tool-versions
+      - name: Find matching successful Swift validation
+        id: validation
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node .github/swift-validation.mjs plan
       # Prism's package, and the generator's fixtures: the example design with a
       # component of every kind, and the one with a token of every kind. A warning fails
       # the build, as the generator's own do.
       - name: Build the packages
+        if: steps.validation.outputs.reuse != 'true'
         run: |
           for package in targets/swift:Prism generator/test/fixtures/swift/components:Kit \
                          generator/test/fixtures/swift/design:Acme; do
@@ -188,18 +202,30 @@ jobs:
       # Every component rendered on a simulator at the default and the largest text
       # size: a box that holds text grows with it and cuts none of it off.
       - name: Render Prism's components
+        if: steps.validation.outputs.reuse != 'true'
         working-directory: design/test/swiftui
+        env:
+          SIMULATOR: ${{ steps.validation.outputs.simulator }}
         run: |
-          udid=$(xcrun simctl list devices available iPhone |
-            grep -m1 -oE '\([0-9A-F-]{36}\)' | tr -d '()')
-          [ -n "$udid" ] || { echo "::error::no iPhone simulator on this image"; exit 1; }
           # No warnings-as-errors here: Xcode builds the package as a dependency with its
           # warnings suppressed, which the flag conflicts with; the step above checks them.
           # Not quiet, so a failing expectation's message is in the log, and the result
           # bundle is kept for the step below.
-          xcodebuild test -scheme PrismChecks-Package -destination "id=$udid" \
+          xcodebuild test -scheme PrismChecks-Package -destination "id=$SIMULATOR" \
             -derivedDataPath "$RUNNER_TEMP/PrismChecks" \
             -resultBundlePath "$RUNNER_TEMP/PrismChecks.xcresult"
+      - name: Record successful Swift validation
+        if: steps.validation.outputs.reuse != 'true'
+        run: node .github/swift-validation.mjs record
+      - name: Retain successful Swift validation
+        if: steps.validation.outputs.reuse != 'true'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: swift-validation-${{ steps.validation.outputs.fingerprint }}
+          path: ${{ runner.temp }}/swift-validation/record/verification.json
+          if-no-files-found: error
+          retention-days: 30
+          overwrite: true
       - name: Keep the test results when the render fails
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -219,7 +245,7 @@ jobs:
         with:
           node-version-file: .tool-versions
       - name: Release validation tests
-        run: node --test .github/release-version.test.mjs .github/release-publish.test.mjs
+        run: node --test .github/release-version.test.mjs .github/release-publish.test.mjs .github/swift-validation.test.mjs
       - name: The package ships exactly the reviewed files
         working-directory: targets/web
         run: |

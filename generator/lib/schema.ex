@@ -95,6 +95,10 @@ defmodule Prism.Generator.Schema do
       give, each with its look while the app gives it; a variant's `values`
       are its changes to them, `[%{name, style}]`, the value's look with the
       variant;
+    - `input_properties`: `[%{name, type, unit, min, max, default}]`, optional
+      semantic data on input instances, separate from visual values. Currently
+      integer milliseconds with inclusive bounds within 1..2147483647; nil is
+      the disabled default. Form consumers own scheduling and submission.
     - `states`: `[%{name, style, parts}]`, `name` one of
       `Prism.Generator.Schema.Components.states/0`; a part's states have the
       same shape. A state's `parts` are its changes to the component's parts,

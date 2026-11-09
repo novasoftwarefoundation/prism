@@ -32,7 +32,7 @@ defmodule Prism.Generator.SwiftTest do
                 Sources/Kit/Field.swift Sources/Kit/RadioGroup.swift Sources/Kit/Radio.swift
                 Sources/Kit/Select.swift Sources/Kit/Spinner.swift Sources/Kit/Checkbox.swift
                 Sources/Kit/Tag.swift Sources/Kit/MessageBar.swift Sources/Kit/StepIndicator.swift
-                Sources/Kit/ImagePicker.swift)
+                Sources/Kit/ImagePicker.swift Sources/Kit/InputMetadata.swift)
 
     assert Enum.uniq(for {_, _, from} <- files, do: from) == [
              "test/support/example_components.ex"

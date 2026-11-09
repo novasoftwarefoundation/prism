@@ -13,7 +13,8 @@ defmodule Prism.Design.ReactTest do
   test "one committed file per component, each with the header naming the design file" do
     components = for c <- @design.components, do: Macro.camelize(Atom.to_string(c.name)) <> ".tsx"
 
-    assert Enum.sort(File.ls!(@dir)) == Enum.sort(components ++ ["helpers.ts", "index.ts"])
+    assert Enum.sort(File.ls!(@dir)) ==
+             Enum.sort(components ++ ["helpers.ts", "index.ts", "input-metadata.ts"])
 
     for file <- File.ls!(@dir) do
       [header | _] = @dir |> Path.join(file) |> File.read!() |> String.split("\n")
