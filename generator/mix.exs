@@ -21,7 +21,11 @@ defmodule Prism.Generator.MixProject do
   # Phoenix is optional: `Prism.Generator.Phoenix` compiles only in an app that has
   # it, and the generator compiles without it (`mix compile --no-optional-deps`).
   defp deps do
-    [{:phoenix_live_view, "~> 1.1", optional: true}]
+    [
+      {:phoenix_live_view, "~> 1.1", optional: true},
+      # Phoenix.LiveViewTest's page, for the tests that render a LiveView.
+      {:lazy_html, ">= 0.1.0", only: :test}
+    ]
   end
 
   defp elixirc_paths(:test), do: ["lib", "test/support"]
