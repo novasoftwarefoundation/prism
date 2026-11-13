@@ -5,7 +5,7 @@ defmodule Prism.Design.MixProject do
     [
       app: :prism_design,
       # The same version as targets/web/package.json; a test checks it.
-      version: "0.4.0",
+      version: "0.5.0",
       description: "Prism's design",
       elixir: "~> 1.19",
       start_permanent: Mix.env() == :prod,

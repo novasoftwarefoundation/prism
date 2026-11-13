@@ -1,0 +1,16 @@
+{
+  "name": "prism-tokens-webflow",
+  "private": true,
+  "description": "The Webflow Designer Extension \"Prism tokens\": applies Prism's tokens.json to a site's variables. Not published; its bundle is a release asset.",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "bundle": "npm run build && webflow extension bundle --skip-update-check",
+    "test": "node --test test/*.test.js"
+  },
+  "devDependencies": {
+    "@webflow/webflow-cli": "2.16.0",
+    "esbuild": "0.28.2"
+  }
+}

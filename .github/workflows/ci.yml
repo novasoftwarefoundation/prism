@@ -145,6 +145,33 @@ jobs:
       - run: npm ci
       - run: npm test
 
+  webflow:
+    name: Webflow Designer Extension
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: targets/webflow
+    env:
+      # The Webflow CLI's telemetry.
+      DO_NOT_TRACK: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .tool-versions
+      - run: npm ci
+      # The token file as variable operations, against a fake of the Designer API.
+      - run: npm test
+      # Webflow's CLI checks the bundle (index.html, file types, under 5 MB); it needs
+      # no login.
+      - run: npm run bundle
+      - name: The bundle holds exactly the extension's files
+        run: |
+          unzip -Z1 bundle.zip | LC_ALL=C sort > "$RUNNER_TEMP/bundle-files.txt"
+          printf '%s\n' index.html panel.js styles.css webflow.json | diff -u - "$RUNNER_TEMP/bundle-files.txt"
+
   swift:
     name: Swift package (iOS Simulator)
     # Generated-output checks always run before any Swift validation reuse.
@@ -244,8 +271,11 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .tool-versions
+      # The workflow guard reads the workflows with a YAML parser (.github/package.json).
       - name: Release validation tests
-        run: node --test .github/release-version.test.mjs .github/release-publish.test.mjs .github/swift-validation.test.mjs
+        run: |
+          npm ci --prefix .github
+          node --test .github/release-version.test.mjs .github/release-publish.test.mjs .github/release-workflow.test.mjs .github/swift-validation.test.mjs
       - name: The package ships exactly the reviewed files
         working-directory: targets/web
         run: |
