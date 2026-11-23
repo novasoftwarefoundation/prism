@@ -8,6 +8,7 @@ import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Path
@@ -67,13 +68,15 @@ public fun KitCheckbox(
         Modifier.toggleable(
             value = checked,
             interactionSource = interactions,
-            indication = LocalIndication.current,
+            indication = null,
             enabled = enabled,
             role = Role.Checkbox,
             onValueChange = onCheckedChange,
         )
     }
-    Canvas(modifier.then(toggle).kitBox(root)) {
+    // The indication is drawn by the box, inside its shape.
+    val indication = LocalIndication.current.takeIf { onCheckedChange != null }
+    Canvas(modifier.then(toggle).kitBox(root, interactions, indication)) {
         if (checked) {
             // The web's check mark: a tick in a box of 16, 2 wide with round ends.
             val unit = size.minDimension / 16

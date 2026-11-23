@@ -1,34 +1,41 @@
 #!/bin/sh
-# Releases the Kotlin library to Maven Central: builds targets/kotlin/ as Prism's tag vX.Y.Z
-# has it, at the version X.Y.Z, signs every file, adds its checksums, and uploads the bundle
-# through the Central Publisher Portal, which publishes it once it validates.
+# Releases the Kotlin library to Maven Central, in two steps that never meet: one builds, the
+# other signs and uploads.
 #
-#   .github/kotlin-release.sh vX.Y.Z
 #   .github/kotlin-release.sh --bundle X.Y.Z <out dir>
+#   .github/kotlin-release.sh --check X.Y.Z <bundle dir>
+#   .github/kotlin-release.sh vX.Y.Z <bundle dir>
 #
-# Run it from the repository root, with Prism's tag vX.Y.Z checked out and checked as
-# README → Publish says, and Gradle, a JDK 17, the Android SDK, gpg, openssl, zip and curl
-# on the PATH. It reads four secrets from the environment, and fails before anything else
-# when one is missing:
+# --bundle builds targets/kotlin/ at the version X.Y.Z with Gradle, and writes the bundle's
+# files into <out dir> in Maven's layout: the library, its POM and Gradle module, its sources
+# and javadoc, each with its .md5 and .sha1. It needs Gradle, a JDK 17 and the Android SDK,
+# and no secret: the release runs it in a job that has none, so the Android Gradle plugin,
+# Kotlin's and their plugins never run where the signing key and the Central token are (ADR
+# 0015). CI runs it too.
+#
+# --check checks a bundle: it holds exactly the files of .github/maven-files.txt for the
+# version, each matches its checksums, and its POM has every field Maven Central requires.
+#
+# vX.Y.Z releases a bundle: it checks it as --check does, signs every file, and uploads it
+# through the Central Publisher Portal, which publishes it once it validates, then waits until
+# it has. It runs no Gradle, only gpg, openssl, zip and curl. Run it from the repository
+# root, with Prism's tag vX.Y.Z checked out and checked as README → Publish says. It reads four
+# secrets from the environment, and fails before anything else when one is missing:
 #
 #   MAVEN_CENTRAL_USERNAME, MAVEN_CENTRAL_PASSWORD  the Central Portal user token's two parts
 #   MAVEN_SIGNING_KEY                               the ASCII-armored secret key that signs
 #   MAVEN_SIGNING_KEY_PASSWORD                      its passphrase
 #
-# A version Maven Central already has is not uploaded again: the script compares its POM
-# with the one it builds and stops, so a rerun after a publish is safe. A published version
-# is never changed: a broken release is followed by a patch release.
-#
-# --bundle builds the bundle's files in <out dir> as the release does, with their checksums
-# and without signatures, for any version, with no secrets and no upload: CI checks with it
-# that the bundle has every file and the POM every field Maven Central requires.
+# A version Maven Central already has is not uploaded again: the script compares Central's
+# POM with the bundle's and stops, so a rerun after a publish is safe. A published version is
+# never changed: a broken release is followed by a patch release.
 set -eu
 
 central=https://central.sonatype.com/api/v1/publisher
 library=targets/kotlin
 
 usage() {
-  echo "usage: $0 vX.Y.Z | $0 --bundle X.Y.Z <out dir>" >&2
+  echo "usage: $0 --bundle X.Y.Z <out dir> | $0 --check X.Y.Z <bundle dir> | $0 vX.Y.Z <bundle dir>" >&2
   exit 2
 }
 
@@ -45,11 +52,41 @@ artifact=$(sed -n 's/^rootProject.name = "\(.*\)"$/\1/p' "$library/settings.grad
 [ -n "$group" ] && [ -n "$artifact" ] || fail "no group in $library/gradle.properties or no rootProject.name in its settings"
 path=$(printf '%s' "$group" | tr . /)/$artifact
 
-# Builds the release variant at version $1 into a Maven repository and copies its files, the
-# library, its POM and Gradle module, its sources and javadoc, into $2 in Maven's layout, each
-# with its .md5 and .sha1 and, when $3 is a gpg home with the signing key, its .asc.
-bundle() {
-  version=$1 out=$2 gpg_home=${3-}
+# Checks the bundle in $2 for version $1: exactly the files Central requires, each as its
+# checksums say, and a POM with the fields Central requires.
+check() {
+  version=$1 bundle=$2
+  expected=$(sed "s/VERSION/$version/g" .github/maven-files.txt)
+  found=$(cd "$bundle" && find . -type f | sed 's|^\./||' | LC_ALL=C sort)
+  [ "$found" = "$expected" ] ||
+    fail "$bundle doesn't hold exactly the files of .github/maven-files.txt for $version"
+  dir="$bundle/$path/$version"
+  for file in "$dir"/*; do
+    case $file in *.md5 | *.sha1) continue ;; esac
+    [ "$(openssl dgst -md5 "$file" | sed 's/.*= //')" = "$(cat "$file.md5")" ] &&
+      [ "$(openssl dgst -sha1 "$file" | sed 's/.*= //')" = "$(cat "$file.sha1")" ] ||
+      fail "$file doesn't match its checksums"
+  done
+  # The release compares this POM with Central's.
+  pom="$dir/$artifact-$version.pom"
+  for element in groupId artifactId version name description url licenses developers scm connection; do
+    grep -q "<$element>" "$pom" || fail "The POM has no <$element>"
+  done
+  grep -q "<version>$version</version>" "$pom" || fail "The POM is not at $version"
+}
+
+if [ "${1-}" = --check ]; then
+  [ $# -eq 3 ] || usage
+  check "$2" "$3"
+  echo "The bundle of $group:$artifact:$2 in $3 has every file and field Maven Central requires."
+  exit 0
+fi
+
+# The bundle: the release variant at version $2, built into a Maven repository of its own, its
+# files copied into $3 in Maven's layout, each with its .md5 and .sha1.
+if [ "${1-}" = --bundle ]; then
+  [ $# -eq 3 ] || usage
+  version=$2 out=$3
   repo=$(mktemp -d)
   gradle -p "$library" --no-daemon --quiet publishToMavenLocal \
     -Pversion="$version" -Dmaven.repo.local="$repo"
@@ -58,27 +95,16 @@ bundle() {
   for file in "$repo/$path/$version"/*; do
     cp "$file" "$dir/"
   done
-  rm -rf "$repo"
   for file in "$dir"/*; do
     openssl dgst -md5 "$file" | sed 's/.*= //' > "$file.md5"
     openssl dgst -sha1 "$file" | sed 's/.*= //' > "$file.sha1"
-    if [ -n "$gpg_home" ]; then
-      printf '%s' "$MAVEN_SIGNING_KEY_PASSWORD" |
-        gpg --homedir "$gpg_home" --batch --quiet --pinentry-mode loopback --passphrase-fd 0 \
-          --armor --detach-sign --output "$file.asc" "$file"
-    fi
   done
-}
-
-if [ "${1-}" = --bundle ]; then
-  [ $# -eq 3 ] || usage
-  bundle "$2" "$3"
-  echo "Built the bundle of $group:$artifact:$2 in $3 (unsigned)."
+  echo "Built the bundle of $group:$artifact:$version in $out (unsigned)."
   exit 0
 fi
 
-[ $# -eq 1 ] || usage
-tag=$1
+[ $# -eq 2 ] || usage
+tag=$1 bundle=$2
 case $tag in
   v[0-9]*.[0-9]*.[0-9]*) ;;
   *) echo "$tag is no version tag (vX.Y.Z)" >&2; exit 2 ;;
@@ -99,27 +125,35 @@ head=$(git rev-parse HEAD)
 [ -z "$(git status --porcelain)" ] || fail "Prism's tree has changes or untracked files"
 grep -q "version: \"$version\"" design/mix.exs || fail "design/mix.exs is not at $version"
 
+# The bundle the job without secrets built, as Central requires it.
+check "$version" "$bundle"
+
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 
-# A version Central has is released: its POM must be the one this tag builds.
+# A version Central has is released: its POM must be the bundle's.
 published="https://repo1.maven.org/maven2/$path/$version/$artifact-$version.pom"
 if curl -sSfL -o "$work/published.pom" "$published" 2>/dev/null; then
-  bundle "$version" "$work/check"
-  cmp -s "$work/published.pom" "$work/check/$path/$version/$artifact-$version.pom" ||
+  cmp -s "$work/published.pom" "$pom" ||
     fail "Maven Central has $group:$artifact:$version with another POM than $tag builds; release a patch version"
   echo "Maven Central already has $group:$artifact:$version from $tag; nothing to upload."
   exit 0
 fi
 
-# The signing key, in a gpg home of its own that goes with the work folder.
+# The signing key, in a gpg home of its own that goes with the work folder; the signatures,
+# in a copy of the bundle there.
 gpg_home="$work/gnupg"
 mkdir -m 700 "$gpg_home"
 printf '%s\n' "$MAVEN_SIGNING_KEY" | gpg --homedir "$gpg_home" --batch --quiet --import
 gpg --homedir "$gpg_home" --batch --list-secret-keys --with-colons | grep -q '^sec' ||
   fail "MAVEN_SIGNING_KEY holds no secret key"
-
-bundle "$version" "$work/bundle" "$gpg_home"
+cp -R "$bundle" "$work/bundle"
+for file in "$work/bundle/$path/$version"/*; do
+  case $file in *.md5 | *.sha1) continue ;; esac
+  printf '%s' "$MAVEN_SIGNING_KEY_PASSWORD" |
+    gpg --homedir "$gpg_home" --batch --quiet --pinentry-mode loopback --passphrase-fd 0 \
+      --armor --detach-sign --output "$file.asc" "$file"
+done
 (cd "$work/bundle" && zip -qr "$work/bundle.zip" .)
 
 token=$(printf '%s:%s' "$MAVEN_CENTRAL_USERNAME" "$MAVEN_CENTRAL_PASSWORD" | base64 | tr -d '\n')

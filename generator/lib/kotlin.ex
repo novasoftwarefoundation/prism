@@ -67,9 +67,13 @@ defmodule Prism.Generator.Kotlin do
 
   # The toolchain the library is built with, and the Android versions it targets:
   # Compose 1.13 (BOM 2026.11.01) needs compileSdk 37.1 and the Android Gradle plugin 9.
+  # It is compiled for Kotlin 2.2 (its language, API and standard library), so an app on
+  # Kotlin 2.2 or later reads it, as it reads Compose 1.13, whose own floor that is.
   @versions [
     android_gradle_plugin: "9.5.2",
     kotlin: "2.4.21",
+    kotlin_api: {2, 2},
+    kotlin_stdlib: "2.2.20",
     compose_bom: "2026.11.01",
     compile_sdk: {37, 1},
     min_sdk: 23,
@@ -111,6 +115,12 @@ defmodule Prism.Generator.Kotlin do
           do: {"#{dir}/#{path}", body, design.file}
   end
 
+  @doc """
+  The folder Gradle compiles every Kotlin source below, so `mix prism.gen` takes out a
+  generated source below it that no target writes now, such as a renamed package's.
+  """
+  def source_folders(_design), do: ["src/main/kotlin"]
+
   defp context(design, kotlin) do
     tokens = Map.new(design.tokens, &{{&1.kind, &1.name}, &1})
 
@@ -150,10 +160,14 @@ defmodule Prism.Generator.Kotlin do
   defp build(ctx) do
     v = @versions
     {sdk, minor} = v[:compile_sdk]
+    {api_major, api_minor} = v[:kotlin_api]
+    api = "KotlinVersion.KOTLIN_#{api_major}_#{api_minor}"
 
     """
     // The library's group, version and POM are Gradle properties: `group` and the `pom.*`
     // keys in gradle.properties, the version from the release (-Pversion=X.Y.Z).
+    import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
+
     plugins {
         id("com.android.library") version "#{v[:android_gradle_plugin]}"
         id("org.jetbrains.kotlin.plugin.compose") version "#{v[:kotlin]}"
@@ -180,10 +194,14 @@ defmodule Prism.Generator.Kotlin do
         }
     }
 
+    // Compiled for Kotlin #{api_major}.#{api_minor}, so an app on Kotlin #{api_major}.#{api_minor} or later reads it.
     kotlin {
         explicitApi()
         jvmToolchain(#{v[:jvm]})
+        coreLibrariesVersion = "#{v[:kotlin_stdlib]}"
         compilerOptions {
+            languageVersion.set(#{api})
+            apiVersion.set(#{api})
             allWarningsAsErrors.set(true)
         }
     }

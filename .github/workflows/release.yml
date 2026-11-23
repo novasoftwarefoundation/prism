@@ -139,14 +139,14 @@ jobs:
             targets/design-tools/tokens.css targets/design-tools/overview.svg \
             "$RUNNER_TEMP/webflow/prism-tokens-webflow.zip" --clobber
 
-  # The Kotlin library goes to Maven Central after the npm packages and the Swift package,
-  # in a job of its own that can only read: its credentials are the four Maven secrets, and a
-  # failure here leaves the other releases as they are. .github/kotlin-release.sh fails first
-  # when a secret is missing, and uploads nothing for a version Central already has.
-  maven-central:
-    needs: release
+  # The Kotlin library's bundle for Maven Central. Gradle, the Android Gradle plugin, Kotlin's
+  # and their plugins (some 190 build-script artifacts) run here, with read access only and no
+  # secret, never in the job that signs and uploads: that job takes the bundle as data (ADR
+  # 0015), as the release job takes the Webflow zip.
+  maven-bundle:
+    needs: checks
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 30
     permissions:
       contents: read
     env:
@@ -157,7 +157,6 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
         with:
@@ -166,15 +165,49 @@ jobs:
       - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
         with:
           gradle-version: ${{ env.GRADLE }}
+          cache-provider: basic
           cache-disabled: true
       - name: Install the Android SDK packages
         run: |
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "$ANDROID_PLATFORM" "$ANDROID_BUILD_TOOLS" >/dev/null
-      - name: Release the Kotlin library to Maven Central
+      - name: Build the unsigned bundle
+        run: |
+          .github/kotlin-release.sh --bundle "${RELEASE_TAG#v}" "$RUNNER_TEMP/prism-compose-bundle"
+          .github/kotlin-release.sh --check "${RELEASE_TAG#v}" "$RUNNER_TEMP/prism-compose-bundle"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: prism-compose-bundle
+          path: ${{ runner.temp }}/prism-compose-bundle
+          if-no-files-found: error
+          retention-days: 30
+
+  # The Kotlin library goes to Maven Central after the npm packages and the Swift package, in
+  # a job of its own that can only read, so a failure here leaves the other releases as they
+  # are. It holds the four Maven secrets, and runs no build: .github/kotlin-release.sh checks
+  # the bundle maven-bundle built, signs it with gpg and uploads it with curl. It fails first
+  # when a secret is missing, and uploads nothing for a version Central already has.
+  maven-central:
+    needs: [release, maven-bundle]
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      contents: read
+    env:
+      RELEASE_TAG: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: prism-compose-bundle
+          path: ${{ runner.temp }}/prism-compose-bundle
+      - name: Sign and upload the Kotlin library to Maven Central
         env:
           MAVEN_CENTRAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
           MAVEN_CENTRAL_PASSWORD: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
           MAVEN_SIGNING_KEY: ${{ secrets.MAVEN_SIGNING_KEY }}
           MAVEN_SIGNING_KEY_PASSWORD: ${{ secrets.MAVEN_SIGNING_KEY_PASSWORD }}
-        run: .github/kotlin-release.sh "$RELEASE_TAG"
+        run: .github/kotlin-release.sh "$RELEASE_TAG" "$RUNNER_TEMP/prism-compose-bundle"

@@ -1,7 +1,9 @@
-// The toolchain is the library's (Prism.Generator.Kotlin.versions/0).
+// An app on the oldest Kotlin the library is compiled for (2.2, Prism.Generator.Kotlin.versions/0),
+// so the checks, and the READMEs' examples, compile against the library as such an app does.
+// The Android Gradle plugin is the library's.
 plugins {
     id("com.android.library") version "9.5.2"
-    id("org.jetbrains.kotlin.plugin.compose") version "2.4.21"
+    id("org.jetbrains.kotlin.plugin.compose") version "2.2.21"
 }
 
 android {

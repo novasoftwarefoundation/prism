@@ -282,9 +282,12 @@ jobs:
           java-version: "17"
       # One exact Gradle, not a wrapper in each library: the libraries are generated, and an
       # app gets the published library, not its build.
+      # The basic cache provider, the action's own (MIT): the default, "enhanced", loads a
+      # closed-source library under Gradle's terms of use.
       - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
         with:
           gradle-version: ${{ env.GRADLE }}
+          cache-provider: basic
           cache-read-only: ${{ github.ref != 'refs/heads/develop' }}
       - name: Install the Android SDK packages
         run: |
@@ -301,7 +304,9 @@ jobs:
             gradle -p "$library" --no-daemon assembleRelease
           done
       # Every component that holds text rendered on the JVM (Robolectric) at 100% and 200%:
-      # its text grows and stays inside its box.
+      # its text grows and stays inside its box. The checks are an app on Kotlin 2.2, the
+      # oldest the library is compiled for, so they and the READMEs' examples compile as such
+      # an app does.
       - name: Render Prism's components at the largest font size
         run: gradle -p design/test/compose --no-daemon testDebugUnitTest
       - name: Keep the test report when the render fails
@@ -317,12 +322,7 @@ jobs:
         run: |
           version=$(sed -n 's/^ *version: "\(.*\)",$/\1/p' design/mix.exs)
           .github/kotlin-release.sh --bundle "$version" "$RUNNER_TEMP/bundle"
-          (cd "$RUNNER_TEMP/bundle" && find . -type f | sed 's|^\./||' | LC_ALL=C sort) |
-            sed "s/$version/VERSION/g" | diff -u .github/maven-files.txt -
-          pom="$RUNNER_TEMP/bundle/org/novasoftwarefoundation/prism-compose/$version/prism-compose-$version.pom"
-          for element in name description url licenses developers scm connection; do
-            grep -q "<$element>" "$pom" || { echo "::error::The POM has no <$element>"; exit 1; }
-          done
+          .github/kotlin-release.sh --check "$version" "$RUNNER_TEMP/bundle"
 
   npm-package:
     name: npm file list

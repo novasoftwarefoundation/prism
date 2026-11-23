@@ -1,7 +1,10 @@
 // Third-party build trees stay out of jobs that can publish: the Webflow Designer
 // Extension's npm packages (Webflow's CLI, ~700 of them) run only in a job that can
-// read, and the release job takes its zip as data (ADR 0014). The workflows are read
-// with a YAML parser, and what the guard can't classify counts against it.
+// read, and the release job takes its zip as data (ADR 0014); the Kotlin library's
+// Gradle build (the Android Gradle plugin, Kotlin's and their plugins) runs only in a job
+// with no secret, and the job that signs and uploads it takes its bundle as data (ADR
+// 0015). The workflows are read with a YAML parser, and what the guard can't classify
+// counts against it.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { posix } from 'node:path';
@@ -38,7 +41,8 @@ function jobs(yaml) {
   return Object.entries(workflow.jobs ?? {}).map(([name, job]) => {
     const folder = folderOf(job.defaults?.run?.['working-directory'], '.');
     const steps = (job.steps ?? []).map((step) => ({ ...step, folder: folderOf(step['working-directory'], folder) }));
-    return { name, permissions: permissions(job.permissions) ?? top, steps };
+    const needs = [].concat(job.needs ?? []);
+    return { name, permissions: permissions(job.permissions) ?? top, steps, env: job.env ?? {}, needs };
   });
 }
 
@@ -178,3 +182,70 @@ test('the reader sees permissions on one line, and counts what it can\'t read as
   const [step] = jobs('jobs:\n  build:\n    steps:\n      - working-directory: ${{ inputs.dir }}\n        run: npm ci\n')[0].steps;
   assert.equal(runsWebflowPackages(step), true);
 });
+
+// A job that reads a secret: in its own environment or in a step's, or through `secrets:
+// inherit` and the like, anywhere in it.
+const readsSecrets = (job) =>
+  /\bsecrets\b/.test(JSON.stringify(job.env)) || job.steps.some((step) => /\bsecrets\b/.test(JSON.stringify(step)));
+// A step that runs the Kotlin build or sets up its toolchain: Gradle, a JDK, the Android SDK,
+// or the bundle's build.
+const runsKotlinBuild = ({ run, uses }) =>
+  (typeof uses === 'string' && /^(actions\/setup-java|gradle\/|android-actions\/)/.test(uses)) ||
+  (typeof run === 'string' && /\bgradlew?\b|\bsdkmanager\b|\bjava\b|kotlin-release\.sh[^\n]*--bundle/.test(run));
+
+// The jobs of a workflow that read a secret and run the Kotlin build.
+const secretHoldersRunningKotlin = (yaml) =>
+  jobs(yaml).filter((job) => readsSecrets(job) && job.steps.some(runsKotlinBuild)).map(({ name }) => name);
+
+test('no job that reads a secret runs the Kotlin library\'s Gradle build or its toolchain', () => {
+  for (const file of workflows) assert.deepEqual(secretHoldersRunningKotlin(readFileSync(file, 'utf8')), [], file);
+});
+
+test('the release builds the Kotlin bundle without secrets, and the job that signs it takes the bundle as data', () => {
+  const jobsOf = jobs(release);
+  const builders = jobsOf.filter((job) => job.steps.some(runsKotlinBuild));
+  assert.deepEqual(
+    builders.map(({ name, permissions }) => [name, permissions]),
+    [['maven-bundle', { contents: 'read' }]],
+  );
+  assert.ok(
+    builders[0].steps.some(({ uses, with: inputs }) =>
+      uses?.startsWith('actions/upload-artifact@') && inputs?.name === 'prism-compose-bundle'),
+    'the bundle job uploads the bundle',
+  );
+
+  const publisher = jobsOf.find(({ name }) => name === 'maven-central');
+  assert.deepEqual(publisher.permissions, { contents: 'read' });
+  assert.ok(publisher.needs.includes('maven-bundle'), 'maven-central needs the bundle job');
+  assert.ok(readsSecrets(publisher), 'maven-central holds the Maven secrets');
+  assert.ok(
+    publisher.steps.some(({ uses, with: inputs }) =>
+      uses?.startsWith('actions/download-artifact@') && inputs?.name === 'prism-compose-bundle'),
+    'maven-central downloads the bundle',
+  );
+  assert.ok(
+    publisher.steps.some(({ run }) => /kotlin-release\.sh "\$RELEASE_TAG" "\$RUNNER_TEMP\/prism-compose-bundle"/.test(run ?? '')),
+    'maven-central releases the downloaded bundle',
+  );
+});
+
+// The release, edited so a job with the Maven secrets builds the library, in each way the
+// guard must see; each edit is made in its test, so a release without the jobs fails there.
+const signing = '      - name: Sign and upload the Kotlin library to Maven Central\n';
+const bundleEnv = '      RELEASE_TAG: ${{ github.ref_name }}\n      GRADLE: "9.9.2"\n';
+for (const [layout, edit] of Object.entries({
+  'a Gradle run in maven-central': () =>
+    edited(release, signing, `      - run: gradle -p targets/kotlin assemble\n${signing}`),
+  'the bundle built in maven-central': () =>
+    edited(release, signing, `      - run: .github/kotlin-release.sh --bundle 1.0.0 out\n${signing}`),
+  'a JDK set up in maven-central': () =>
+    edited(release, signing, `      - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880\n${signing}`),
+  'a Maven secret in the bundle job': () =>
+    edited(release, bundleEnv, `      KEY: \${{ secrets.MAVEN_SIGNING_KEY }}\n${bundleEnv}`),
+  'all secrets in the bundle job\'s environment': () =>
+    edited(release, bundleEnv, `      ALL: \${{ toJSON(secrets) }}\n${bundleEnv}`),
+})) {
+  test(`the guard catches a job with secrets running the Kotlin build, with ${layout}`, () => {
+    assert.notDeepEqual(secretHoldersRunningKotlin(edit()), [], layout);
+  });
+}

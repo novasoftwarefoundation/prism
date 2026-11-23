@@ -8,7 +8,10 @@ import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Indication
 import androidx.compose.foundation.background
+import androidx.compose.foundation.indication
+import androidx.compose.foundation.interaction.InteractionSource
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -29,6 +32,7 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.dropShadow
 import androidx.compose.ui.draw.innerShadow
@@ -345,8 +349,15 @@ public fun KitLook.animated(): KitLook {
  * border, outline and padding. The border is inside the box, so the padding and size are
  * CSS's border box. A look with text has its height and size as the least it takes, so it
  * grows with the user's font size instead of cutting its text off.
+ *
+ * With an `indication` (a control's ripple) and its `interactionSource`, the indication is
+ * drawn over the background inside the box's shape, as Material clips its own controls'.
  */
-public fun Modifier.kitBox(look: KitLook): Modifier {
+public fun Modifier.kitBox(
+    look: KitLook,
+    interactionSource: InteractionSource? = null,
+    indication: Indication? = null,
+): Modifier {
     val shape = look.shape
     val border = look.borderWidth ?: 0.dp
     var modifier = this
@@ -387,6 +398,9 @@ public fun Modifier.kitBox(look: KitLook): Modifier {
     val outlineColor = look.outlineColor
     if (outline != null && outlineColor != null && outline > 0.dp) {
         modifier = modifier.outline(outline, outlineColor, look.outlineOffset ?: 0.dp, look.radius)
+    }
+    if (interactionSource != null && indication != null) {
+        modifier = modifier.clip(shape).indication(interactionSource, indication)
     }
     return modifier.padding(look.padding.paddingValues(border, look.borderSides ?: KitSides.All))
 }

@@ -114,8 +114,6 @@ public fun KitSelect(
     modifier: Modifier = Modifier,
     variant: KitSelectVariant? = null,
     invalid: Boolean = false,
-    hovered: Boolean = false,
-    selected: Boolean = false,
     enabled: Boolean = true,
     icon: (@Composable () -> Unit)? = null,
     label: @Composable () -> Unit,
@@ -167,7 +165,7 @@ public fun KitSelect(
             containerColor = listbox.background ?: MenuDefaults.containerColor,
             shadowElevation = if (listbox.shadow != null) MenuDefaults.ShadowElevation else 0.dp,
         ) {
-            KitSelectScope(variant, invalid, hovered, selected).content()
+            KitSelectScope(variant, invalid).content()
         }
     }
 }
@@ -176,8 +174,6 @@ public fun KitSelect(
 public class KitSelectScope internal constructor(
     private val variant: KitSelectVariant?,
     private val invalid: Boolean,
-    private val hovered: Boolean,
-    private val selected: Boolean,
 ) {
     /**
      * An option: the design's option look on Compose's `selectable`; selected while
@@ -193,14 +189,14 @@ public class KitSelectScope internal constructor(
     ) {
         val interactions = remember { MutableInteractionSource() }
         val hovered by interactions.collectIsHoveredAsState()
-            val looks = KitSelectLooks(
-                variant = variant,
-                focused = false,
-                disabled = false,
-                invalid = invalid,
-                hovered = hovered,
-                selected = selected,
-            )
+        val looks = KitSelectLooks(
+            variant = variant,
+            focused = false,
+            disabled = false,
+            invalid = invalid,
+            hovered = hovered,
+            selected = selected,
+        )
         val option = looks.option.animated()
         Box(
             modifier

@@ -30,7 +30,7 @@ defmodule Prism.Design.Tokens do
 
   # The Android library: `org.novasoftwarefoundation:prism-compose`, its types `PrismButton`,
   # `Prism.Colors`, ….
-  kotlin(package: "org.novasoftwarefoundation.prism", name: "Prism", artifact: "prism-compose")
+  kotlin package: "org.novasoftwarefoundation.prism", name: "Prism", artifact: "prism-compose"
 
   group "Brand colors" do
     color :primary, "#4272EF"

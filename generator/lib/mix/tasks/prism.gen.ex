@@ -38,7 +38,11 @@ defmodule Mix.Tasks.Prism.Gen do
 
   A file that starts with exactly the header, of a type the targets write, in
   a folder a target writes into, which no target generates now (a renamed or
-  removed component's), is left over: the task removes it. Everything else
+  removed component's), is left over: the task removes it. A target may also
+  name the folders it compiles from (`source_folders/1`; the Kotlin target's
+  is `src/main/kotlin`), where such a file is left over at any depth, not only
+  in the folders it writes into now: a renamed Kotlin package leaves no
+  sources behind, and the folders it leaves empty go too. Everything else
   there stays: hand-written files without the header (a `package.json`, a
   note that mentions it), links, and what is in the folders below.
 
@@ -55,7 +59,8 @@ defmodule Mix.Tasks.Prism.Gen do
   # `[{path, body, design_file}]`, the design file being the one the body is made from;
   # a body `{:copy, source}` is a copy of the file at `source`, relative to the design's
   # project. A target that copies also has `copy_folders/1`: the folders, relative to
-  # its own, it copies into, also while it copies nothing.
+  # its own, it copies into, also while it copies nothing. A target whose build compiles
+  # every source below a folder has `source_folders/1`: those folders, relative to its own.
   @targets %{
     web: Prism.Generator.Web,
     react: Prism.Generator.React,
@@ -77,7 +82,8 @@ defmodule Mix.Tasks.Prism.Gen do
     Enum.each(folders, &no_links!/1)
     copies = Enum.map(copies, &read_copy!/1)
 
-    leftovers = leftovers(generated, files) ++ leftover_copies(folders, files)
+    sources = source_folders(targets, schema)
+    leftovers = leftovers(generated, files, sources) ++ leftover_copies(folders, files)
 
     if opts[:check] do
       check!(generated ++ copies, leftovers)
@@ -87,6 +93,7 @@ defmodule Mix.Tasks.Prism.Gen do
       # Removed first: on a case-insensitive file system a file renamed only in
       # case is the leftover's file.
       Enum.each(leftovers, &remove!/1)
+      prune!(leftovers, sources)
       Enum.each(generated ++ copies, &write!/1)
     end
   end
@@ -130,12 +137,71 @@ defmodule Mix.Tasks.Prism.Gen do
 
   defp write!({path, source}), do: Mix.Generator.create_file(path, source, force: true)
 
-  # The generated files no target writes now, in the folders the targets write into:
-  # files, not links, of a type the targets write, that start with exactly the
-  # header.
-  defp leftovers(generated, files) do
+  # The generated files no target writes now, in the folders the targets write into
+  # and at any depth below their source folders: files, not links, of a type the
+  # targets write, that start with exactly the header.
+  defp leftovers(generated, files, sources) do
     types = MapSet.new(generated, fn {path, _} -> Path.extname(path) end)
-    for path <- candidates(generated, types, files), Header.exact?(path), do: path
+    written = MapSet.new(files, fn {path, _} -> Path.expand(path) end)
+
+    below =
+      for folder <- sources,
+          path <- walk(folder),
+          Path.extname(path) in types,
+          Path.expand(path) not in written,
+          do: path
+
+    for path <- Enum.uniq(candidates(generated, types, files) ++ below),
+        Header.exact?(path),
+        do: path
+  end
+
+  # The regular files below `dir`, at any depth, not through a link.
+  defp walk(dir) do
+    case File.ls(dir) do
+      {:ok, names} ->
+        for name <- Enum.sort(names),
+            path = Path.join(dir, name),
+            file <- walked(path),
+            do: file
+
+      {:error, _} ->
+        []
+    end
+  end
+
+  defp walked(path) do
+    case File.lstat(path) do
+      {:ok, %File.Stat{type: :regular}} -> [path]
+      {:ok, %File.Stat{type: :directory}} -> walk(path)
+      _ -> []
+    end
+  end
+
+  # `[folder]`: the source folders of each target that names them.
+  defp source_folders(targets, schema) do
+    for {target, dir} <- targets,
+        module = Map.fetch!(@targets, target),
+        Code.ensure_loaded?(module) and function_exported?(module, :source_folders, 1),
+        folder <- module.source_folders(schema),
+        do: Path.join(dir, folder)
+  end
+
+  # The folders below a source folder that taking out the leftovers left empty.
+  defp prune!(leftovers, sources) do
+    for path <- leftovers,
+        source = Enum.find(sources, &inside?(path, &1)),
+        do: prune_up!(Path.dirname(path), Path.expand(source))
+  end
+
+  defp inside?(path, folder),
+    do: String.starts_with?(Path.expand(path), Path.expand(folder) <> "/")
+
+  defp prune_up!(dir, source) do
+    if Path.expand(dir) != source and File.ls(dir) == {:ok, []} do
+      File.rmdir!(dir)
+      prune_up!(Path.dirname(dir), source)
+    end
   end
 
   # The copies no target makes now, in the folders the targets copy into: every file,

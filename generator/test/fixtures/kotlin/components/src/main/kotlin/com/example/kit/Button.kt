@@ -115,8 +115,8 @@ public class KitButtonLooks(
 /**
  * A button: the design's look on Compose's `clickable`, which
  * keeps the button's role, focus and keyboard, with the app's indication (Material's ripple
- * under a `MaterialTheme`). Pressed, hovered and focused come from `interactionSource`,
- * disabled from `enabled`.
+ * under a `MaterialTheme`) inside its shape. Pressed, hovered and focused come from
+ * `interactionSource`, disabled from `enabled`.
  *
  * `KitButton(onClick = save, variant = KitButtonVariant.Icon) { Text("Save") }`
  */
@@ -150,16 +150,17 @@ public fun KitButton(
         loading = loading,
     )
     val root = looks.root.animated()
+    // The indication is drawn by the box, inside its shape.
     Box(
         modifier
             .clickable(
                 interactionSource = interactions,
-                indication = LocalIndication.current,
+                indication = null,
                 enabled = enabled,
                 role = Role.Button,
                 onClick = onClick,
             )
-            .kitBox(root),
+            .kitBox(root, interactions, LocalIndication.current),
         contentAlignment = Alignment.Center,
     ) {
         KitText(root) {

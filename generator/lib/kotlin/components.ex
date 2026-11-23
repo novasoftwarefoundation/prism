@@ -608,8 +608,8 @@ defmodule Prism.Generator.Kotlin.Components do
     /**
      * #{String.capitalize(article(c.name))}: the design's look on Compose's `clickable`, which
      * keeps the button's role, focus and keyboard, with the app's indication (Material's ripple
-     * under a `MaterialTheme`). Pressed, hovered and focused come from `interactionSource`,
-     * disabled from `enabled`.
+     * under a `MaterialTheme`) inside its shape. Pressed, hovered and focused come from
+     * `interactionSource`, disabled from `enabled`.
      *
      * `#{m}Button(onClick = save#{example(spec)}) { Text("Save") }`
      */
@@ -617,16 +617,17 @@ defmodule Prism.Generator.Kotlin.Components do
     public fun #{m}Button(
     #{params(["onClick: () -> Unit", "modifier: Modifier = Modifier"], args, enabled_param(c, spec) ++ slots ++ [interaction_param(), "content: @Composable () -> Unit"])}) {
     #{interaction_val()}#{collect(interactions(c, spec))}#{val_looks(ctx, c, spec, given)}    val root = looks.root.animated()
+        // The indication is drawn by the box, inside its shape.
         Box(
             modifier
                 .clickable(
                     interactionSource = interactions,
-                    indication = LocalIndication.current,
+                    indication = null,
                     enabled = enabled,
                     role = Role.Button,
                     onClick = onClick,
                 )
-                .#{ctx.lower}Box(root),
+                .#{ctx.lower}Box(root, interactions, LocalIndication.current),
             contentAlignment = Alignment.Center,
         ) {
             #{m}Text(root) {
@@ -747,13 +748,15 @@ defmodule Prism.Generator.Kotlin.Components do
             Modifier.toggleable(
                 value = checked,
                 interactionSource = interactions,
-                indication = LocalIndication.current,
+                indication = null,
                 enabled = enabled,
                 role = Role.Checkbox,
                 onValueChange = onCheckedChange,
             )
         }
-        Canvas(modifier.then(toggle).#{ctx.lower}Box(root)) {
+        // The indication is drawn by the box, inside its shape.
+        val indication = LocalIndication.current.takeIf { onCheckedChange != null }
+        Canvas(modifier.then(toggle).#{ctx.lower}Box(root, interactions, indication)) {
             if (checked) {
                 // The web's check mark: a tick in a box of 16, 2 wide with round ends.
                 val unit = size.minDimension / 16
@@ -797,14 +800,14 @@ defmodule Prism.Generator.Kotlin.Components do
     prefix_box =
       if prefix?,
         do: """
-                        if (prefix != null) {
-                            Box(
-                                Modifier.fillMaxHeight().#{ctx.lower}Box(looks.prefix),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                #{m}Text(looks.prefix) { prefix() }
+                            if (prefix != null) {
+                                Box(
+                                    Modifier.fillMaxHeight().#{ctx.lower}Box(looks.prefix),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    #{m}Text(looks.prefix) { prefix() }
+                                }
                             }
-                        }
         """,
         else: ""
 
@@ -969,13 +972,24 @@ defmodule Prism.Generator.Kotlin.Components do
 
   defp kind(ctx, _design, %{name: :select} = c, spec) do
     m = ctx.m
-    args = own(c, spec, [])
+    # The list's and the options' states are the options' (in `Option`), not the select's.
+    listed =
+      for s <- spec.states,
+          match?({:part_state, p, _} when p in [:listbox, :option], s.kind),
+          do: s
+
+    args = own(c, spec, Enum.map(listed, & &1.name))
     icon? = part?(c, :icon)
-    option_states = for s <- spec.states, match?({:part_state, :option, _}, s.kind), do: s
-    field_given = Map.new(option_states, &{&1.name, "false"})
+    option_states = for s <- listed, match?({:part_state, :option, _}, s.kind), do: s
+    field_given = Map.new(listed, &{&1.name, "false"})
 
     option_given =
-      for(s <- spec.states, platform(c, s.kind) != nil, into: %{}, do: {s.name, "false"})
+      for(
+        s <- spec.states,
+        platform(c, s.kind) != nil or s in listed,
+        into: %{},
+        do: {s.name, "false"}
+      )
       |> Map.merge(
         Map.new(option_states, fn s ->
           case s.kind do
@@ -1101,7 +1115,7 @@ defmodule Prism.Generator.Kotlin.Components do
             enabled: Boolean = true,
             content: @Composable () -> Unit,
         ) {
-    #{option_interactions}#{option_collect}#{String.replace(option_looks, "\n    ", "\n        ") |> then(&("    " <> &1))}        val option = #{option}.animated()
+    #{option_interactions}#{option_collect}#{option_looks}        val option = #{option}.animated()
             Box(
                 modifier
                     .fillMaxWidth()

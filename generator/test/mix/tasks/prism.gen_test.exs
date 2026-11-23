@@ -89,6 +89,67 @@ defmodule Mix.Tasks.Prism.GenTest do
     end
   end
 
+  test "prism.gen writes the Kotlin target as the fixtures, and checks it", %{tmp_dir: dir} do
+    Application.put_env(:prism_generator, :design, Prism.Generator.ExampleComponents)
+    Application.put_env(:prism_generator, :targets, kotlin: dir)
+
+    gen()
+    gen(["--check"])
+
+    for path <- Path.wildcard("test/fixtures/kotlin/components/**/*.{kt,kts}") do
+      relative = Path.relative_to(path, "test/fixtures/kotlin/components")
+      assert File.read!(Path.join(dir, relative)) == File.read!(path)
+      assert Header.exact?(Path.join(dir, relative))
+    end
+  end
+
+  # Gradle compiles every source below src/main/kotlin, so a renamed package's sources would
+  # stay in the library, beside the new package's, if the task left them.
+  test "a renamed Kotlin package leaves no sources behind", %{tmp_dir: dir} do
+    design = fn package ->
+      n = System.unique_integer([:positive])
+
+      [{module, _}] =
+        Code.compile_string(
+          """
+          defmodule PackageDesign#{n} do
+            use Prism.Generator.Schema
+            kotlin package: "#{package}", name: "Acme"
+            color :ink, "#101010"
+            emphases [:reading]
+            family :text,
+              doc: "Text",
+              web: [name: "Acme", fallback: "sans-serif", faces: [[file: "Acme", weights: {400, 400}, style: :normal]], scale: [reading: 400]],
+              ios: {:system, scale: [reading: 400]},
+              android: {:system, scale: [reading: 400]}
+          end
+          """,
+          "design.ex"
+        )
+
+      module
+    end
+
+    Application.put_env(:prism_generator, :targets, kotlin: dir)
+    Application.put_env(:prism_generator, :design, design.("com.example.acme"))
+    gen()
+    # A hand-written source in the folder stays.
+    File.write!(Path.join(dir, "src/main/kotlin/com/example/Mine.kt"), "package com.example\n")
+
+    Application.put_env(:prism_generator, :design, design.("com.example.renamed"))
+
+    error = assert_raise Mix.Error, fn -> gen(["--check"]) end
+    assert error.message =~ "src/main/kotlin/com/example/acme/Tokens.kt (no longer generated)"
+    assert error.message =~ "src/main/kotlin/com/example/acme/Look.kt (no longer generated)"
+
+    gen()
+    gen(["--check"])
+
+    refute File.exists?(Path.join(dir, "src/main/kotlin/com/example/acme"))
+    assert File.exists?(Path.join(dir, "src/main/kotlin/com/example/renamed/Tokens.kt"))
+    assert File.exists?(Path.join(dir, "src/main/kotlin/com/example/Mine.kt"))
+  end
+
   # A design whose family binds iOS to a font in test/fixtures/fonts, or with `ios:
   # :system` to the system font, so the Swift target copies nothing.
   defp font_design(ios \\ :named) do

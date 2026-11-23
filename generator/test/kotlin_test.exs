@@ -171,7 +171,8 @@ defmodule Prism.Generator.KotlinTest do
       assert button =~ "val hovered by interactions.collectIsHoveredAsState()"
       assert button =~ "disabled = !enabled,"
       assert button =~ "role = Role.Button,"
-      assert button =~ "indication = LocalIndication.current,"
+      assert button =~ "indication = null,"
+      assert button =~ ".kitBox(root, interactions, LocalIndication.current)"
       refute button =~ "pressed: Boolean = false,\n    loading"
 
       assert field =~ "val focused by interactions.collectIsFocusedAsState()"
@@ -198,6 +199,60 @@ defmodule Prism.Generator.KotlinTest do
       assert spinner =~ "val value = progress?.coerceIn(0f, 1f)"
       assert spinner =~ "progress = value?.times(100f)"
       assert spinner =~ "Modifier.progressSemantics(it)"
+    end
+
+    # Its list's and options' states are the options' own (in `Option`), not the select's, as
+    # on iOS: parameters for them would be API that does nothing.
+    test "the select takes no state of its list or its options" do
+      select = body(Kotlin.files(ExampleComponents.__schema__()), "Select.kt")
+      [_, signature] = String.split(select, "public fun KitSelect(\n", parts: 2)
+      [signature, _] = String.split(signature, "\n) {", parts: 2)
+      [_, scope] = String.split(select, "public class KitSelectScope internal constructor(\n")
+      [scope, _] = String.split(scope, "\n) {", parts: 2)
+
+      for part <- [signature, scope], name <- ~w(hovered selected) do
+        refute part =~ ~r/\b#{name}: /, "the select takes #{name}:\n#{part}"
+      end
+
+      # The option has them, from its pointer and its own parameter.
+      assert select =~ "        val hovered by interactions.collectIsHoveredAsState()\n"
+
+      assert select =~
+               "            hovered = hovered,\n            selected = selected,\n"
+    end
+
+    test "the code is indented by its blocks" do
+      files = Kotlin.files(ExampleComponents.__schema__())
+      select = body(files, "Select.kt")
+      field = body(files, "TextField.kt")
+
+      # In Option's body, 8 deep.
+      assert select =~
+               "        val hovered by interactions.collectIsHoveredAsState()\n" <>
+                 "        val looks = KitSelectLooks(\n            variant = variant,\n"
+
+      # In the decorator's row, 20 deep.
+      assert field =~
+               "                Row(Modifier.kitBox(root.withoutPadding).height(IntrinsicSize.Min)) {\n" <>
+                 "                    if (prefix != null) {\n                        Box(\n"
+    end
+
+    test "the build compiles for apps on Kotlin 2.2" do
+      build = body(Kotlin.files(ExampleDesign.__schema__()), "build.gradle.kts")
+
+      assert build =~ "import org.jetbrains.kotlin.gradle.dsl.KotlinVersion\n"
+      assert build =~ ~s|coreLibrariesVersion = "2.2.20"|
+      assert build =~ "languageVersion.set(KotlinVersion.KOTLIN_2_2)"
+      assert build =~ "apiVersion.set(KotlinVersion.KOTLIN_2_2)"
+    end
+
+    # Gson and Moshi give every JSON number as a Double; a whole one is a whole number.
+    test "the input metadata takes any whole number, as parsers give one" do
+      metadata = body(Kotlin.files(ExampleComponents.__schema__()), "InputMetadata.kt")
+
+      assert metadata =~ "return (value as? Number)?.let(::whole)"
+      assert metadata =~ "is Double, is Float -> number.toDouble().takeIf {"
+      assert metadata =~ "it.isFinite() && it % 1.0 == 0.0 &&"
     end
 
     test "the input metadata validates its range and reads snake_case keys" do

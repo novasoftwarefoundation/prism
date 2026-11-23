@@ -8,7 +8,7 @@ This library is generated in [novasoftwarefoundation/prism](https://github.com/n
 
 ## Installation
 
-From Maven Central, for minSdk 23 or later and compileSdk 37.1, with Compose 1.13 and Material 3 1.5 (the Compose BOM 2026.11.01, which the library brings):
+From Maven Central, for an app on Kotlin 2.2 or later, minSdk 23 or later and compileSdk 37.1 (with the Android Gradle plugin 9), with Compose 1.13 and Material 3 1.5 (the Compose BOM 2026.11.01, which the library brings):
 
 ```kotlin
 // settings.gradle.kts
@@ -35,7 +35,7 @@ The components are look only: what a control does stays with Compose and the app
 import org.novasoftwarefoundation.prism.*
 
 // On Compose's clickable, with the button role and the theme's indication (Material's
-// ripple under a MaterialTheme).
+// ripple under a MaterialTheme), inside the button's shape.
 PrismButton(onClick = save, variant = PrismButtonVariant.Primary, loading = saving) {
     Text("Save")
 }

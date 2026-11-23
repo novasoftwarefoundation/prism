@@ -16,7 +16,7 @@ defmodule Prism.Generator.ExampleDesign do
       components_doc: "Acme - Components"
 
   swift module: "Acme"
-  kotlin(package: "com.example.acme", name: "Acme", artifact: "acme-compose")
+  kotlin package: "com.example.acme", name: "Acme", artifact: "acme-compose"
 
   group "Brand" do
     color :accent, "#1A73E8"

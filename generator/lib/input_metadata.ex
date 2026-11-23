@@ -241,8 +241,10 @@ defmodule Prism.Generator.InputMetadata do
         public companion object {
             /**
              * The metadata from its snake_case keys in `values`, parsed from JSON into plain
-             * values. A missing or `null` value is `null`; an unknown key, or a value that is
-             * not a whole number in range, fails, never clamped or coerced.
+             * values. A number is any `Number` with a whole value, as parsers give one (`500` from
+             * org.json, `500.0` from Gson or Moshi). A missing or `null` value is `null`; an
+             * unknown key, or a value that is not a whole number in range, fails, never clamped
+             * or coerced.
              */
             public fun from(values: Map<String, Any?>): #{type} {
                 val unknown = values.keys - setOf(#{keys})
@@ -252,14 +254,25 @@ defmodule Prism.Generator.InputMetadata do
                 )
             }
 
-            private fun int(values: Map<String, Any?>, key: String): Int? =
-                when (val value = values[key]) {
-                    null -> null
-                    is Int -> value
-                    is Long -> value.takeIf { it in Int.MIN_VALUE..Int.MAX_VALUE }?.toInt()
-                        ?: throw IllegalArgumentException("$key: out of range")
-                    else -> throw IllegalArgumentException("$key: expected integer milliseconds")
-                }
+            private fun int(values: Map<String, Any?>, key: String): Int? {
+                val value = values[key] ?: return null
+                return (value as? Number)?.let(::whole)
+                    ?: throw IllegalArgumentException("$key: expected integer milliseconds")
+            }
+
+            // A number's value as an Int, when it is whole and an Int can hold it.
+            private fun whole(number: Number): Int? = when (number) {
+                is Int -> number
+                is Long, is Short, is Byte ->
+                    number.toLong().takeIf { it in Int.MIN_VALUE..Int.MAX_VALUE }?.toInt()
+                is Double, is Float -> number.toDouble().takeIf {
+                    it.isFinite() && it % 1.0 == 0.0 &&
+                        it >= Int.MIN_VALUE.toDouble() && it <= Int.MAX_VALUE.toDouble()
+                }?.toInt()
+                is java.math.BigInteger -> runCatching { number.intValueExact() }.getOrNull()
+                is java.math.BigDecimal -> runCatching { number.intValueExact() }.getOrNull()
+                else -> null
+            }
         }
     }
     """

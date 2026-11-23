@@ -304,8 +304,8 @@ public class PrismButtonLooks(
 /**
  * A button: the design's look on Compose's `clickable`, which
  * keeps the button's role, focus and keyboard, with the app's indication (Material's ripple
- * under a `MaterialTheme`). Pressed, hovered and focused come from `interactionSource`,
- * disabled from `enabled`.
+ * under a `MaterialTheme`) inside its shape. Pressed, hovered and focused come from
+ * `interactionSource`, disabled from `enabled`.
  *
  * `PrismButton(onClick = save, variant = PrismButtonVariant.Icon) { Text("Save") }`
  */
@@ -337,16 +337,17 @@ public fun PrismButton(
         loading = loading,
     )
     val root = looks.root.animated()
+    // The indication is drawn by the box, inside its shape.
     Box(
         modifier
             .clickable(
                 interactionSource = interactions,
-                indication = LocalIndication.current,
+                indication = null,
                 enabled = enabled,
                 role = Role.Button,
                 onClick = onClick,
             )
-            .prismBox(root),
+            .prismBox(root, interactions, LocalIndication.current),
         contentAlignment = Alignment.Center,
     ) {
         PrismText(root) {

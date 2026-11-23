@@ -144,14 +144,14 @@ public fun PrismTextField(
         decorator = { field ->
             PrismText(root) {
                 Row(Modifier.prismBox(root.withoutPadding).height(IntrinsicSize.Min)) {
-                if (prefix != null) {
-                    Box(
-                        Modifier.fillMaxHeight().prismBox(looks.prefix),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        PrismText(looks.prefix) { prefix() }
+                    if (prefix != null) {
+                        Box(
+                            Modifier.fillMaxHeight().prismBox(looks.prefix),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            PrismText(looks.prefix) { prefix() }
+                        }
                     }
-                }
                     Box(
                         Modifier.weight(1f).padding(root.padding.paddingValues()),
                         contentAlignment = Alignment.CenterStart,

@@ -135,14 +135,14 @@ public fun KitTextField(
         decorator = { field ->
             KitText(root) {
                 Row(Modifier.kitBox(root.withoutPadding).height(IntrinsicSize.Min)) {
-                if (prefix != null) {
-                    Box(
-                        Modifier.fillMaxHeight().kitBox(looks.prefix),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        KitText(looks.prefix) { prefix() }
+                    if (prefix != null) {
+                        Box(
+                            Modifier.fillMaxHeight().kitBox(looks.prefix),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            KitText(looks.prefix) { prefix() }
+                        }
                     }
-                }
                     Box(
                         Modifier.weight(1f).padding(root.padding.paddingValues()),
                         contentAlignment = Alignment.CenterStart,

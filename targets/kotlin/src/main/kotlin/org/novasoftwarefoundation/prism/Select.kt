@@ -136,8 +136,6 @@ public fun PrismSelect(
     modifier: Modifier = Modifier,
     variant: PrismSelectVariant? = null,
     invalid: Boolean = false,
-    hovered: Boolean = false,
-    selected: Boolean = false,
     enabled: Boolean = true,
     icon: (@Composable () -> Unit)? = null,
     label: @Composable () -> Unit,
@@ -189,7 +187,7 @@ public fun PrismSelect(
             containerColor = listbox.background ?: MenuDefaults.containerColor,
             shadowElevation = if (listbox.shadow != null) MenuDefaults.ShadowElevation else 0.dp,
         ) {
-            PrismSelectScope(variant, invalid, hovered, selected).content()
+            PrismSelectScope(variant, invalid).content()
         }
     }
 }
@@ -198,8 +196,6 @@ public fun PrismSelect(
 public class PrismSelectScope internal constructor(
     private val variant: PrismSelectVariant?,
     private val invalid: Boolean,
-    private val hovered: Boolean,
-    private val selected: Boolean,
 ) {
     /**
      * An option: the design's option look on Compose's `selectable`; selected while
@@ -215,14 +211,14 @@ public class PrismSelectScope internal constructor(
     ) {
         val interactions = remember { MutableInteractionSource() }
         val hovered by interactions.collectIsHoveredAsState()
-            val looks = PrismSelectLooks(
-                variant = variant,
-                focused = false,
-                disabled = false,
-                invalid = invalid,
-                hovered = hovered,
-                selected = selected,
-            )
+        val looks = PrismSelectLooks(
+            variant = variant,
+            focused = false,
+            disabled = false,
+            invalid = invalid,
+            hovered = hovered,
+            selected = selected,
+        )
         val option = looks.option.animated()
         Box(
             modifier
