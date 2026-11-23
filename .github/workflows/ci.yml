@@ -341,7 +341,7 @@ jobs:
       - name: Release validation tests
         run: |
           npm ci --prefix .github
-          node --test .github/release-version.test.mjs .github/release-publish.test.mjs .github/release-workflow.test.mjs .github/swift-validation.test.mjs .github/kotlin-release.test.mjs
+          node --test .github/release-version.test.mjs .github/release-publish.test.mjs .github/release-run.test.mjs .github/release-workflow.test.mjs .github/swift-validation.test.mjs .github/kotlin-release.test.mjs
       - name: The package ships exactly the reviewed files
         working-directory: targets/web
         run: |

@@ -1,0 +1,88 @@
+# Publishes the Swift package: mirrors the tag's tracked targets/swift/ files into
+# prism-swift with .github/swift-release.sh, and pushes the branch and the tag together. It
+# starts when Release succeeds for a version tag, and by hand with a released version, to
+# publish that version again (README → Publish → Failed or partial releases). The package
+# is the tag's files, which Release checked; nothing is built. A tag prism-swift already has
+# is verified, not moved.
+name: Publish Swift
+
+on:
+  workflow_run:
+    workflows: [Release]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: The released version to publish, X.Y.Z or X.Y.Z-rc.N
+        required: true
+        type: string
+
+permissions: {}
+
+# Every run waits its turn: with the default queue, a run joining the group would cancel the
+# one already waiting, and that version would quietly go unpublished.
+concurrency:
+  group: prism-publish-swift
+  cancel-in-progress: false
+  queue: max
+
+jobs:
+  swift:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      startsWith(github.event.workflow_run.head_branch, 'v'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      # .github/release-run.mjs, which finds the Release run and checks it.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: .github
+      - name: The Release run of the tag
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_RUN: ${{ toJSON(github.event.workflow_run) }}
+          VERSION: ${{ inputs.version }}
+        run: node .github/release-run.mjs
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ steps.release.outputs.commit }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Release Swift package
+        env:
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+          SWIFT_DEPLOY_KEY: ${{ secrets.PRISM_SWIFT_DEPLOY_KEY }}
+          GH_TOKEN: ${{ github.token }}
+          GIT_AUTHOR_NAME: github-actions[bot]
+          GIT_AUTHOR_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
+          GIT_COMMITTER_NAME: github-actions[bot]
+          GIT_COMMITTER_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
+        run: |
+          key="$RUNNER_TEMP/swift-release-key"
+          known_hosts="$RUNNER_TEMP/github-known-hosts"
+          trap 'rm -f "$key" "$known_hosts"' EXIT
+          umask 077
+          test -n "$SWIFT_DEPLOY_KEY"
+          printf '%s\n' "$SWIFT_DEPLOY_KEY" > "$key"
+          gh api meta --jq '.ssh_keys[] | "github.com " + .' > "$known_hosts"
+          export GIT_SSH_COMMAND="ssh -i $key -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$known_hosts"
+          clone="$RUNNER_TEMP/prism-swift"
+          git clone git@github.com:novasoftwarefoundation/prism-swift.git "$clone"
+          if git -C "$clone" rev-parse --verify "refs/tags/$RELEASE_TAG" >/dev/null 2>&1; then
+            # A rerun verifies the immutable Swift tag instead of moving it.
+            mkdir "$RUNNER_TEMP/expected-swift" "$RUNNER_TEMP/released-swift"
+            git archive "$RELEASE_TAG" targets/swift | tar -x -C "$RUNNER_TEMP/expected-swift"
+            git -C "$clone" archive "$RELEASE_TAG" | tar -x -C "$RUNNER_TEMP/released-swift"
+            diff -r "$RUNNER_TEMP/expected-swift/targets/swift" "$RUNNER_TEMP/released-swift"
+            git -C "$clone" merge-base --is-ancestor "$RELEASE_TAG" origin/main
+          else
+            .github/swift-release.sh "$RELEASE_TAG" "$clone"
+          fi

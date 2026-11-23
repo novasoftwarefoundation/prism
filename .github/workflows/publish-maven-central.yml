@@ -1,0 +1,91 @@
+# Publishes the Kotlin library to Maven Central. It starts when Release succeeds for a
+# version tag, and by hand with a released version, to publish that version again (README →
+# Publish → Failed or partial releases). It holds the four Maven secrets and runs no build:
+# no Gradle, no JDK, no Android SDK (ADR 0015). It checks out the tag's commit and takes the
+# bundle from that Release run's prism-release artifact, and the bundle's digest from
+# release.json on the GitHub release, which only Release's release job can write, after it
+# checked the bundle against maven-bundle's digest (release.yml). .github/kotlin-release.sh
+# stops unless the bundle's digest is that one, then checks it,
+# signs it with gpg, uploads it with curl and waits for Central to publish it. It fails first
+# when a secret is missing, and uploads nothing for a version Central already has.
+name: Publish Maven Central
+
+on:
+  workflow_run:
+    workflows: [Release]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: The released version to publish, X.Y.Z or X.Y.Z-rc.N
+        required: true
+        type: string
+
+permissions: {}
+
+# Every run waits its turn: with the default queue, a run joining the group would cancel the
+# one already waiting, and that version would quietly go unpublished.
+concurrency:
+  group: prism-publish-maven-central
+  cancel-in-progress: false
+  queue: max
+
+jobs:
+  maven-central:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      startsWith(github.event.workflow_run.head_branch, 'v'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      # .github/release-run.mjs, which finds the Release run and checks it.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: .github
+      - name: The Release run of the tag
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_RUN: ${{ toJSON(github.event.workflow_run) }}
+          VERSION: ${{ inputs.version }}
+        run: node .github/release-run.mjs
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ steps.release.outputs.commit }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: prism-release
+          run-id: ${{ steps.release.outputs.run-id }}
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/prism-release
+      # The bundle's digest the release job checked, from release.json on the GitHub release,
+      # which only that job can write, never from the artifact; for this tag and commit.
+      - name: The release job's hand-over
+        id: handover
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+          COMMIT: ${{ steps.release.outputs.commit }}
+        run: |
+          gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --pattern release.json --dir "$RUNNER_TEMP/release-assets"
+          release="$RUNNER_TEMP/release-assets/release.json"
+          test "$(jq -r .tag "$release")" = "$RELEASE_TAG"
+          test "$(jq -r .commit "$release")" = "$COMMIT"
+          echo "sha256=$(jq -r .mavenBundleSha256 "$release")" >> "$GITHUB_OUTPUT"
+      - name: Sign and upload the Kotlin library to Maven Central
+        env:
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+          MAVEN_CENTRAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          MAVEN_CENTRAL_PASSWORD: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+          MAVEN_SIGNING_KEY: ${{ secrets.MAVEN_SIGNING_KEY }}
+          MAVEN_SIGNING_KEY_PASSWORD: ${{ secrets.MAVEN_SIGNING_KEY_PASSWORD }}
+          MAVEN_BUNDLE_SHA256: ${{ steps.handover.outputs.sha256 }}
+        run: .github/kotlin-release.sh "$RELEASE_TAG" "$RUNNER_TEMP/prism-release/prism-compose-bundle"
