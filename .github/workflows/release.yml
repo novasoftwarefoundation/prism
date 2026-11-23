@@ -138,3 +138,43 @@ jobs:
           gh release upload "$RELEASE_TAG" targets/design-tools/tokens.json \
             targets/design-tools/tokens.css targets/design-tools/overview.svg \
             "$RUNNER_TEMP/webflow/prism-tokens-webflow.zip" --clobber
+
+  # The Kotlin library goes to Maven Central after the npm packages and the Swift package,
+  # in a job of its own that can only read: its credentials are the four Maven secrets, and a
+  # failure here leaves the other releases as they are. .github/kotlin-release.sh fails first
+  # when a secret is missing, and uploads nothing for a version Central already has.
+  maven-central:
+    needs: release
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      contents: read
+    env:
+      RELEASE_TAG: ${{ github.ref_name }}
+      GRADLE: "9.9.2"
+      ANDROID_PLATFORM: platforms;android-37.1
+      ANDROID_BUILD_TOOLS: build-tools;36.0.0
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
+        with:
+          gradle-version: ${{ env.GRADLE }}
+          cache-disabled: true
+      - name: Install the Android SDK packages
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "$ANDROID_PLATFORM" "$ANDROID_BUILD_TOOLS" >/dev/null
+      - name: Release the Kotlin library to Maven Central
+        env:
+          MAVEN_CENTRAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          MAVEN_CENTRAL_PASSWORD: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+          MAVEN_SIGNING_KEY: ${{ secrets.MAVEN_SIGNING_KEY }}
+          MAVEN_SIGNING_KEY_PASSWORD: ${{ secrets.MAVEN_SIGNING_KEY_PASSWORD }}
+        run: .github/kotlin-release.sh "$RELEASE_TAG"

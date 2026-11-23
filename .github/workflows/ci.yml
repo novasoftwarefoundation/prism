@@ -261,6 +261,69 @@ jobs:
           path: ${{ runner.temp }}/PrismChecks.xcresult
           if-no-files-found: ignore
 
+  kotlin:
+    name: Kotlin library (Android)
+    needs: [generator, design]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      # The toolchain the library pins (Prism.Generator.Kotlin.versions/0): Compose 1.13 needs
+      # the Android 37.1 SDK; the Android Gradle plugin 9.5 needs Gradle 9.6 or later and JDK 17.
+      GRADLE: "9.9.2"
+      ANDROID_PLATFORM: platforms;android-37.1
+      ANDROID_BUILD_TOOLS: build-tools;36.0.0
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
+        with:
+          distribution: temurin
+          java-version: "17"
+      # One exact Gradle, not a wrapper in each library: the libraries are generated, and an
+      # app gets the published library, not its build.
+      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
+        with:
+          gradle-version: ${{ env.GRADLE }}
+          cache-read-only: ${{ github.ref != 'refs/heads/develop' }}
+      - name: Install the Android SDK packages
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "$ANDROID_PLATFORM" "$ANDROID_BUILD_TOOLS" >/dev/null
+      # Prism's library, and the generator's fixtures: the example design with a component of
+      # every kind, and the one with a token of every kind. A warning fails the build, as
+      # their builds say (allWarningsAsErrors), and explicit API mode refuses a public
+      # declaration without its visibility.
+      - name: Build the libraries
+        run: |
+          for library in targets/kotlin generator/test/fixtures/kotlin/components \
+                         generator/test/fixtures/kotlin/design; do
+            gradle -p "$library" --no-daemon assembleRelease
+          done
+      # Every component that holds text rendered on the JVM (Robolectric) at 100% and 200%:
+      # its text grows and stays inside its box.
+      - name: Render Prism's components at the largest font size
+        run: gradle -p design/test/compose --no-daemon testDebugUnitTest
+      - name: Keep the test report when the render fails
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: prism-checks-attempt-${{ github.run_attempt }}
+          path: design/test/compose/build/reports/tests/
+          if-no-files-found: ignore
+      # The bundle the release uploads to Maven Central, without its signatures: every file
+      # Central requires, with its checksums, and a POM with every field it requires.
+      - name: The Maven Central bundle has its files and its POM
+        run: |
+          version=$(sed -n 's/^ *version: "\(.*\)",$/\1/p' design/mix.exs)
+          .github/kotlin-release.sh --bundle "$version" "$RUNNER_TEMP/bundle"
+          (cd "$RUNNER_TEMP/bundle" && find . -type f | sed 's|^\./||' | LC_ALL=C sort) |
+            sed "s/$version/VERSION/g" | diff -u .github/maven-files.txt -
+          pom="$RUNNER_TEMP/bundle/org/novasoftwarefoundation/prism-compose/$version/prism-compose-$version.pom"
+          for element in name description url licenses developers scm connection; do
+            grep -q "<$element>" "$pom" || { echo "::error::The POM has no <$element>"; exit 1; }
+          done
+
   npm-package:
     name: npm file list
     runs-on: ubuntu-latest

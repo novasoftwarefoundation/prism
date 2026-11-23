@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredHeightIn
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
@@ -342,18 +343,20 @@ public fun KitLook.animated(): KitLook {
 /**
  * Draws a look's box around the content: its margin, size, opacity, shadow, background,
  * border, outline and padding. The border is inside the box, so the padding and size are
- * CSS's border box. A look with text has its height as the least it takes, so it grows
- * with the user's font size instead of cutting its text off.
+ * CSS's border box. A look with text has its height and size as the least it takes, so it
+ * grows with the user's font size instead of cutting its text off.
  */
 public fun Modifier.kitBox(look: KitLook): Modifier {
     val shape = look.shape
     val border = look.borderWidth ?: 0.dp
     var modifier = this
     if (!look.margin.isEmpty) modifier = modifier.padding(look.margin.paddingValues())
-    look.size?.let { modifier = modifier.size(it) }
+    val text = look.typography != null
+    look.size?.let {
+        modifier = if (text) modifier.sizeIn(minWidth = it, minHeight = it) else modifier.size(it)
+    }
     look.width?.let { modifier = modifier.width(it) }
     val least = look.minHeight
-    val text = look.typography != null
     val height = look.height
     when {
         height != null && text -> modifier = modifier.heightIn(min = max(height, least ?: 0.dp))
