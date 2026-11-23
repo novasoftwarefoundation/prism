@@ -124,6 +124,17 @@ test('the digest is the bundle\'s: it changes with a file\'s bytes, and only the
   assert.notEqual(digest(dir, bundleDir), before);
 });
 
+test('the digest of a folder that isn\'t there fails, and prints no digest', () => {
+  const dir = repository();
+  const result = spawnSync('sh', ['.github/kotlin-release.sh', '--digest', join(temp('gone'), 'bundle')], {
+    cwd: dir,
+    encoding: 'utf8',
+  });
+  assert.equal(result.status, 1);
+  assert.equal(result.stdout, '');
+  assert.match(result.stderr, /is no folder/);
+});
+
 test('a bundle put in place of maven-bundle\'s, with checksums of its own, is not signed', () => {
   const dir = repository();
   const bundleDir = bundle();

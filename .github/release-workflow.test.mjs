@@ -73,26 +73,74 @@ test('no job that can write runs the Webflow Designer Extension\'s npm packages'
   for (const file of workflows) assert.deepEqual(writersRunningWebflow(readFileSync(file, 'utf8')), [], file);
 });
 
-test('the release builds the Webflow bundle in a job that can only read, and the release job needs it', () => {
-  const release = jobs(readFileSync('.github/workflows/release.yml', 'utf8'));
-  const builders = release.filter((job) => job.steps.some(runsWebflowPackages));
-  assert.deepEqual(builders.map(({ name, permissions }) => [name, permissions]), [['webflow', { contents: 'read' }]]);
-  const publisher = release.find(({ permissions }) => permissions['id-token'] === 'write');
-  assert.ok(
-    publisher.steps.some(({ uses, with: inputs }) =>
-      uses?.startsWith('actions/download-artifact@') && inputs?.name === 'prism-tokens-webflow'),
-    'the publishing job downloads the bundle',
-  );
-});
-
 // The release's webflow job, edited: its permissions block replaced, or any text.
 const release = readFileSync('.github/workflows/release.yml', 'utf8');
+const webflowOutputs =
+  '    timeout-minutes: 15\n    outputs:\n      artifact-id: ${{ steps.upload.outputs.artifact-id }}\n' +
+  '      sha256: ${{ steps.digest.outputs.sha256 }}\n';
+const bundleOutputs =
+  '    # artifacts too.\n    outputs:\n      artifact-id: ${{ steps.upload.outputs.artifact-id }}\n' +
+  '      sha256: ${{ steps.digest.outputs.sha256 }}\n';
 const block = '    permissions:\n      contents: read\n    defaults:';
 const withPermissions = (written) => release.replace(block, `${written}\n    defaults:`);
 const edited = (yaml, from, to) => {
   assert.equal(yaml.split(from).length, 2, `one ${JSON.stringify(from)}`);
   return yaml.replace(from, to);
 };
+
+// The release's Webflow hand-over: the webflow job, which can only read, builds the zip,
+// uploads it and gives the artifact's id and the zip's sha256 as its outputs; the publishing
+// job downloads that artifact by its id, not by a name another job of the run (maven-bundle's
+// Gradle build) could upload under, and compares the zip's sha256 with the output before it
+// publishes or attaches anything.
+function checkWebflowRelease(yaml) {
+  const jobsOf = jobs(yaml);
+  const builders = jobsOf.filter((job) => job.steps.some(runsWebflowPackages));
+  assert.deepEqual(builders.map(({ name, permissions }) => [name, permissions]), [['webflow', { contents: 'read' }]]);
+  const [webflow] = builders;
+  const upload = webflow.steps.find(({ uses }) => uses?.startsWith('actions/upload-artifact@'));
+  assert.equal(upload?.with?.name, 'prism-tokens-webflow', 'the webflow job uploads the zip');
+  assert.equal(webflow.outputs['artifact-id'], `\${{ steps.${upload.id}.outputs.artifact-id }}`, 'the webflow job gives its artifact id');
+  const digest = webflow.steps.find(({ run }) => /openssl dgst -sha256 prism-tokens-webflow\.zip/.test(run ?? ''));
+  assert.ok(digest?.id, 'the webflow job takes the zip\'s sha256');
+  assert.equal(webflow.outputs.sha256, `\${{ steps.${digest.id}.outputs.sha256 }}`, 'the webflow job gives the sha256');
+
+  const publisher = jobsOf.find(({ permissions }) => permissions['id-token'] === 'write');
+  assert.ok(publisher.needs.includes('webflow'), 'the publishing job needs the webflow job');
+  const steps = publisher.steps;
+  const download = steps.findIndex(({ uses }) => uses?.startsWith('actions/download-artifact@'));
+  assert.equal(steps[download]?.with?.['artifact-ids'], '${{ needs.webflow.outputs.artifact-id }}', 'the publishing job downloads the zip by its id');
+  assert.equal(steps[download].with.name, undefined, 'the publishing job downloads by id, not by name');
+  const compare = steps.findIndex(({ env, run }) =>
+    env?.WEBFLOW_SHA256 === '${{ needs.webflow.outputs.sha256 }}' && /\$WEBFLOW_SHA256/.test(run ?? '') && /exit 1/.test(run ?? ''));
+  assert.ok(compare > download, 'the publishing job compares the zip\'s sha256 with the webflow job\'s');
+  const publishes = steps.findIndex(({ run }) => /release-publish|gh release|swift-release/.test(run ?? ''));
+  assert.ok(publishes > compare, 'it compares before it publishes or attaches anything');
+}
+
+test('the release builds the Webflow bundle in a job that can only read, and the release job takes that zip as data', () => {
+  checkWebflowRelease(release);
+});
+
+for (const [layout, from, to] of [
+  [
+    'the zip downloaded by name',
+    '          artifact-ids: ${{ needs.webflow.outputs.artifact-id }}\n          merge-multiple: true\n',
+    '          name: prism-tokens-webflow\n',
+  ],
+  ['no sha256 among the webflow job\'s outputs', webflowOutputs, webflowOutputs.replace(/      sha256: .*\n/, '')],
+  ['no artifact id among the webflow job\'s outputs', webflowOutputs, webflowOutputs.replace(/      artifact-id: .*\n/, '')],
+  [
+    'no comparison of the zip\'s sha256',
+    '          WEBFLOW_SHA256: ${{ needs.webflow.outputs.sha256 }}\n',
+    '          OTHER: ${{ needs.webflow.outputs.sha256 }}\n',
+  ],
+]) {
+  test(`the check refuses a Webflow release with ${layout}`, () => {
+    const yaml = edited(release, from, to);
+    assert.throws(() => checkWebflowRelease(yaml), assert.AssertionError);
+  });
+}
 
 test('the guard catches the release\'s webflow job given write access in any form', () => {
   assert.equal(release.split(block).length, 2, "the webflow job's permissions block");
@@ -196,8 +244,9 @@ test('the reader sees permissions on one line, and counts what it can\'t read as
 // A job that reads a secret anywhere: in the workflow's environment, which every job has, or
 // anywhere in the job (its environment, its container's or services' credentials and
 // environment, a step, `secrets: inherit`).
+// GitHub reads a context's name in any case (`SECRETS.X`), so the guard does too.
 const readsSecrets = (job) =>
-  /\bsecrets\b/.test(JSON.stringify(job.workflowEnv)) || /\bsecrets\b/.test(JSON.stringify(job.raw));
+  /\bsecrets\b/i.test(JSON.stringify(job.workflowEnv)) || /\bsecrets\b/i.test(JSON.stringify(job.raw));
 // A step that runs the Kotlin build or sets up its toolchain: Gradle, a JDK, the Android SDK,
 // or the bundle's build.
 const runsKotlinBuild = ({ run, uses }) =>
@@ -257,8 +306,8 @@ for (const [layout, from, to] of [
     '          name: prism-compose-bundle\n',
   ],
   ['no digest given to the release step', '          MAVEN_BUNDLE_SHA256: ${{ needs.maven-bundle.outputs.sha256 }}\n', ''],
-  ['no digest among the bundle job\'s outputs', '      sha256: ${{ steps.digest.outputs.sha256 }}\n', ''],
-  ['no artifact id among the bundle job\'s outputs', '      artifact-id: ${{ steps.upload.outputs.artifact-id }}\n', ''],
+  ['no digest among the bundle job\'s outputs', bundleOutputs, bundleOutputs.replace(/      sha256: .*\n/, '')],
+  ['no artifact id among the bundle job\'s outputs', bundleOutputs, bundleOutputs.replace(/      artifact-id: .*\n/, '')],
 ]) {
   test(`the check refuses a Kotlin release with ${layout}`, () => {
     const yaml = edited(release, from, to);
@@ -282,6 +331,8 @@ for (const [layout, edit] of Object.entries({
     edited(release, bundleEnv, `      KEY: \${{ secrets.MAVEN_SIGNING_KEY }}\n${bundleEnv}`),
   'all secrets in the bundle job\'s environment': () =>
     edited(release, bundleEnv, `      ALL: \${{ toJSON(secrets) }}\n${bundleEnv}`),
+  'a secret named in capitals': () =>
+    edited(release, bundleEnv, `      KEY: \${{ SECRETS.MAVEN_SIGNING_KEY }}\n${bundleEnv}`),
   'a secret in the workflow\'s environment': () =>
     edited(release, '\nconcurrency:\n', '\nenv:\n  KEY: ${{ secrets.MAVEN_SIGNING_KEY }}\n\nconcurrency:\n'),
   'a secret in the bundle job\'s container': () =>
@@ -301,3 +352,18 @@ for (const [layout, edit] of Object.entries({
     assert.notDeepEqual(secretHoldersRunningKotlin(edit()), [], layout);
   });
 }
+
+// Every artifact a job downloads is one a job it needs uploaded, by the id that job gives:
+// a name could be another job's upload in the same run.
+test('every artifact a workflow downloads is taken by the id the job that uploaded it gives', () => {
+  for (const file of workflows) {
+    for (const job of jobs(readFileSync(file, 'utf8'))) {
+      for (const step of job.steps.filter(({ uses }) => uses?.startsWith('actions/download-artifact@'))) {
+        const ids = step.with?.['artifact-ids'] ?? '';
+        const from = /^\$\{\{ needs\.([\w-]+)\.outputs\.artifact-id \}\}$/.exec(ids)?.[1];
+        assert.ok(from && job.needs.includes(from), `${file}: ${job.name} downloads ${ids || step.with?.name} by an id of a job it needs`);
+        assert.equal(step.with.name, undefined, `${file}: ${job.name} downloads by id, not by name`);
+      }
+    }
+  }
+});

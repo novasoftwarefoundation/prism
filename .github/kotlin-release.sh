@@ -84,6 +84,7 @@ check() {
 
 # The sha256 of the bundle in $1: of each file's path and sha256, in the paths' order.
 digest() {
+  [ -d "$1" ] || fail "$1 is no folder: no bundle to take the digest of"
   (cd "$1" && find . -type f | LC_ALL=C sort | while read -r file; do
     printf '%s %s\n' "$(openssl dgst -sha256 "$file" | sed 's/.*= //')" "$file"
   done) | openssl dgst -sha256 | sed 's/.*= //'
