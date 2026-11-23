@@ -31,6 +31,8 @@ dependencies {
     implementation("org.novasoftwarefoundation:prism-compose:0")
     testImplementation(platform("androidx.compose:compose-bom:2026.11.01"))
     testImplementation("androidx.compose.ui:ui-test-junit4")
+    // For the READMEs' icons.
+    testImplementation("androidx.compose.material:material-icons-core")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
     testImplementation("org.robolectric:robolectric:4.18.1")
     testImplementation("junit:junit:4.13.2")
