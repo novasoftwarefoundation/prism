@@ -19,9 +19,12 @@ on:
 
 permissions: {}
 
+# Every run waits its turn: with the default queue, a run joining the group would cancel the
+# one already waiting, and that version would quietly go unpublished.
 concurrency:
   group: prism-publish-swift
   cancel-in-progress: false
+  queue: max
 
 jobs:
   swift:

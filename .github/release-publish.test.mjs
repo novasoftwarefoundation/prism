@@ -7,15 +7,30 @@ import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 
 // Exercise the real orchestration with a stub npm; these tests cannot reach a registry.
-// Each tarball's bytes are its name; a swapped one has other bytes than its manifest's sha1.
-function scenario(mode, distTag = 'latest', { tag = 'v1.2.3', swapped } = {}) {
+// Each tarball's bytes are its name. The packages folder is the Release run's artifact, and
+// release.json, beside it, the release job's digests of it from the GitHub release. `edit`
+// changes the folder after release.json was written (as a swapped artifact would), and
+// `edited` before (as if the release job had checked those files).
+const commit = 'f652d710aabcd806e1bc1e0f9d9aa362ff27a32e';
+const hash = (algorithm, bytes) => createHash(algorithm).update(bytes).digest('hex');
+const sha1 = (bytes) => hash('sha1', bytes);
+const manifest = (distTag, bytesOf) => JSON.stringify({ version: '1.2.3', distTag, packages:
+  ['web', 'react'].map((name) => ({ name, version: '1.2.3', shasum: sha1(bytesOf(name)), tarball: name })) });
+
+function scenario(mode, distTag = 'latest', { tag = 'v1.2.3', edit, edited, anchor = (json) => json } = {}) {
   const dir = mkdtempSync(join(tmpdir(), 'prism-release-test-'));
   try {
     mkdirSync(join(dir, 'bin'));
-    const sha1 = (bytes) => createHash('sha1').update(bytes).digest('hex');
-    for (const name of ['web', 'react']) writeFileSync(join(dir, name), name === swapped ? 'another package' : name);
-    writeFileSync(join(dir, 'prism-release.json'), JSON.stringify({ version: '1.2.3', distTag, packages:
-      ['web', 'react'].map((name) => ({ name, version: '1.2.3', shasum: sha1(name), tarball: name })) }));
+    const packages = join(dir, 'packages');
+    mkdirSync(packages);
+    const write = (file, bytes) => writeFileSync(join(packages, file), bytes);
+    for (const name of ['web', 'react']) write(name, name);
+    write('prism-release.json', manifest(distTag, (name) => name));
+    edited?.(write);
+    const npm = Object.fromEntries(['web', 'react', 'prism-release.json'].map((file) =>
+      [file, hash('sha256', readFileSync(join(packages, file)))]));
+    writeFileSync(join(dir, 'release.json'), JSON.stringify(anchor({ tag: 'v1.2.3', commit, mavenBundleSha256: '0'.repeat(64), npm })));
+    edit?.(write);
     writeFileSync(join(dir, 'bin', 'npm'), `#!${process.execPath}
 import fs from 'node:fs';
 import path from 'node:path';
@@ -34,7 +49,8 @@ if (args[0] === 'publish') {
 }
 `, { mode: 0o755 });
     const result = spawnSync(process.execPath, [resolve('.github/release-publish.mjs')], {
-      encoding: 'utf8', env: { ...process.env, MODE: mode, RUNNER_TEMP: dir, NPM_PACKAGES: dir, RELEASE_TAG: tag,
+      encoding: 'utf8', env: { ...process.env, MODE: mode, RUNNER_TEMP: dir, NPM_PACKAGES: packages, RELEASE_TAG: tag,
+        RELEASE_COMMIT: commit, RELEASE_JSON: join(dir, 'release.json'),
         web: sha1('web'), react: sha1('react'),
         PATH: `${join(dir, 'bin')}:${process.env.PATH}` }, timeout: 5000,
     });
@@ -72,15 +88,33 @@ test('registry failures cannot be mistaken for an unpublished version', () => {
   assert.notEqual(result.status, 0);
   assert.equal(result.calls.length, 1);
 });
-test('a tarball swapped for another package stops the release before npm runs', () => {
-  const result = scenario('new', 'latest', { swapped: 'react' });
-  assert.notEqual(result.status, 0);
-  assert.deepEqual(result.calls, []);
-  assert.match(result.stderr, /react is not the prepared package/);
-});
-test('the packages of another version than the tag\'s are not published', () => {
-  const result = scenario('new', 'latest', { tag: 'v1.2.4' });
-  assert.notEqual(result.status, 0);
-  assert.deepEqual(result.calls, []);
-  assert.match(result.stderr, /not v1\.2\.4's/);
-});
+// The folder is checked against release.json from the GitHub release, never against the
+// manifest inside it: a folder swapped whole, its manifest's sha1s matching its own tarballs,
+// is still refused.
+for (const [layout, options, refusal] of [
+  ['a tarball swapped for another package', { edit: (write) => write('react', 'another package') },
+    /react is not the file the release job checked/],
+  ['the artifact swapped whole, its manifest matching its tarballs', {
+    edit: (write) => {
+      write('react', 'another package');
+      write('prism-release.json', manifest('latest', (name) => (name === 'react' ? 'another package' : name)));
+    },
+  }, /is not the file the release job checked/],
+  ['a file release.json doesn\'t name', { edit: (write) => write('extra.tgz', 'extra') }, /not the files release\.json names/],
+  ['a file release.json names missing', { anchor: (json) => ({ ...json, npm: { ...json.npm, 'gone.tgz': '0'.repeat(64) } }) },
+    /not the files release\.json names/],
+  ['release.json of another tag', { anchor: (json) => ({ ...json, tag: 'v1.2.4' }) }, /release\.json is not v1\.2\.3's/],
+  ['release.json of another commit', { anchor: (json) => ({ ...json, commit: '1'.repeat(40) }) }, /release\.json is not of f652d71/],
+  ['release.json without npm digests', { anchor: ({ npm, ...json }) => json }, /not the files release\.json names/],
+  ['a manifest whose sha1 is not its tarball\'s', { edited: (write) => write('react', 'another package') },
+    /react is not the prepared package/],
+  ['the packages of another version than the tag\'s', { tag: 'v1.2.4', anchor: (json) => ({ ...json, tag: 'v1.2.4' }) },
+    /The packages are not v1\.2\.4's/],
+]) {
+  test(`${layout} stops the release before npm runs`, () => {
+    const result = scenario('new', 'latest', options);
+    assert.notEqual(result.status, 0);
+    assert.deepEqual(result.calls, []);
+    assert.match(result.stderr, refusal);
+  });
+}

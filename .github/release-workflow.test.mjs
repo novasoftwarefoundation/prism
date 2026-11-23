@@ -164,7 +164,7 @@ test('the guard catches the release\'s webflow job given write access in any for
   // Without its own block, the job has the workflow's; without that, the default's.
   const inherits = release.replace(block, '    defaults:');
   assert.deepEqual(writersRunningWebflow(inherits), [], 'the workflow reads');
-  const noTop = edited(inherits, 'permissions:\n  contents: read\n\nconcurrency:', 'concurrency:');
+  const noTop = edited(inherits, '\npermissions:\n  contents: read\n\n', '\n');
   assert.deepEqual(writersRunningWebflow(noTop), ['webflow'], 'no top-level block');
 });
 
@@ -274,9 +274,10 @@ test('no job that reads a secret runs the Kotlin library\'s Gradle build or its 
 // it and gives the artifact's id and the bundle's digest as its outputs; the release job
 // downloads that artifact by its id, not by a name another job of the run could upload under,
 // compares its digest with maven-bundle's before it attaches or hands on anything, and writes
-// that digest into release.json. publish-maven-central.yml, which holds the Maven secrets,
-// takes the bundle from the Release run's prism-release artifact, and its release step gets
-// release.json's digest, which the script checks before it signs.
+// that digest into release.json, which it attaches to the GitHub release.
+// publish-maven-central.yml, which holds the Maven secrets, takes the bundle from the Release
+// run's prism-release artifact, and its release step gets the digest from release.json on the
+// release, which the script checks before it signs.
 function checkKotlinRelease(yaml, publishing) {
   const jobsOf = jobs(yaml);
   const builders = jobsOf.filter((job) => job.steps.some(runsKotlinBuild));
@@ -306,8 +307,7 @@ function checkKotlinRelease(yaml, publishing) {
   const attaches = steps.findIndex(({ run }) => /gh release/.test(run ?? ''));
   const handsOn = steps.findIndex(({ uses, with: given }) => uses?.startsWith('actions/upload-artifact@') && given?.name === 'prism-release');
   assert.ok(attaches > compare && handsOn > compare, 'it compares before it attaches or hands on anything');
-  const written = steps.find(({ run }) => /release\.json/.test(run ?? ''));
-  assert.equal(written?.env?.MAVEN_BUNDLE_SHA256, '${{ needs.maven-bundle.outputs.sha256 }}', 'release.json holds the bundle job\'s digest');
+  checkAnchorWritten(releaser);
 
   const [publisher] = jobs(publishing);
   assert.ok(readsSecrets(publisher), 'publish-maven-central.yml holds the Maven secrets');
@@ -315,8 +315,7 @@ function checkKotlinRelease(yaml, publishing) {
   const taken = publisher.steps.find(({ uses }) => uses?.startsWith('actions/download-artifact@'));
   assert.equal(taken?.with?.name, 'prism-release', 'it takes the release job\'s hand-over');
   assert.equal(taken.with['run-id'], `\${{ steps.${resolve?.id}.outputs.run-id }}`, 'from the Release run release-run.mjs checked');
-  const handover = publisher.steps.find(({ run }) => /jq -r \.mavenBundleSha256/.test(run ?? ''));
-  assert.ok(handover?.id, 'it reads the digest from release.json');
+  const handover = checkMavenHandover(publisher, resolve);
   const releasing = publisher.steps.find(({ run }) =>
     /kotlin-release\.sh "\$RELEASE_TAG" "\$RUNNER_TEMP\/prism-release\/prism-compose-bundle"/.test(run ?? ''));
   assert.ok(releasing, 'it releases the downloaded bundle');
@@ -324,6 +323,134 @@ function checkKotlinRelease(yaml, publishing) {
 }
 
 const mavenPublishing = readFileSync('.github/workflows/publish-maven-central.yml', 'utf8');
+const npmPublishing = readFileSync('.github/workflows/publish-npm.yml', 'utf8');
+
+// The hand-over's digests are anchored outside the artifact: the release job, which alone can
+// write the GitHub release, writes release.json beside prism-release, never into it, after it
+// checked the bundle and the packages, and attaches it to the release. The publish workflows
+// fetch it from the release and check the artifact against it, never against values inside
+// the artifact, which a job of the Release run that ran third-party code could replace whole.
+const anchorDownload = 'gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --pattern release.json --dir "$RUNNER_TEMP/release-assets"';
+const anchorFile = '"$RUNNER_TEMP/release-assets/release.json"';
+
+function checkAnchorWritten(releaser) {
+  const steps = releaser.steps;
+  const written = steps.findIndex(({ run }) => /> "\$RUNNER_TEMP\/release\.json"/.test(run ?? ''));
+  assert.ok(written >= 0, 'the release job writes release.json beside prism-release');
+  assert.equal(steps[written].env?.MAVEN_BUNDLE_SHA256, '${{ needs.maven-bundle.outputs.sha256 }}', 'release.json holds the bundle job\'s digest');
+  assert.match(steps[written].run, /cd "\$RUNNER_TEMP\/prism-release\/npm-packages"/, 'and the sha256 of each npm file');
+  const checked = steps.findIndex(({ env }) => env?.NPM_SHA256 === '${{ needs.npm-packages.outputs.sha256 }}');
+  assert.ok(checked >= 0 && written > checked, 'after the packages are checked');
+  const attached = steps.findIndex(({ run }) => /gh release upload [^\n]*(\n[^\n]*)*"\$RUNNER_TEMP\/release\.json"/.test(run ?? ''));
+  assert.ok(attached > written, 'the release job attaches release.json to the GitHub release');
+  for (const { run } of steps) {
+    assert.doesNotMatch(run ?? '', /prism-release\/release\.json|> *"\$RUNNER_TEMP\/prism-release/, 'nothing is written into prism-release');
+  }
+}
+
+// The step that gives the bundle's digest: it fetches release.json from the release, checks
+// its tag and commit against the Release run release-run.mjs checked, and only then reads the
+// digest, all from that file.
+function checkMavenHandover(publisher, resolve) {
+  const handover = publisher.steps.find(({ run }) => /mavenBundleSha256/.test(run ?? ''));
+  assert.ok(handover?.id, 'it reads the bundle\'s digest in a step of its own');
+  const lines = handover.run.trim().split('\n');
+  assert.deepEqual(lines, [
+    anchorDownload,
+    `release=${anchorFile}`,
+    'test "$(jq -r .tag "$release")" = "$RELEASE_TAG"',
+    'test "$(jq -r .commit "$release")" = "$COMMIT"',
+    'echo "sha256=$(jq -r .mavenBundleSha256 "$release")" >> "$GITHUB_OUTPUT"',
+  ], 'from release.json on the release, for the checked tag and commit, before the digest');
+  assert.equal(handover.env?.RELEASE_TAG, `\${{ steps.${resolve.id}.outputs.tag }}`, 'the checked tag');
+  assert.equal(handover.env?.COMMIT, `\${{ steps.${resolve.id}.outputs.commit }}`, 'the checked commit');
+  return handover;
+}
+
+// Publish npm: release.json fetched from the release, and handed to release-publish.mjs with
+// the checked tag and commit; release-publish.mjs checks the folder against it.
+function checkNpmHandover(yaml) {
+  const [job] = jobs(yaml);
+  const resolve = job.steps.find(({ run }) => run === 'node .github/release-run.mjs');
+  const fetched = job.steps.findIndex(({ run }) => run === anchorDownload);
+  assert.ok(fetched >= 0, 'Publish npm fetches release.json from the release');
+  assert.equal(job.steps[fetched].env?.RELEASE_TAG, `\${{ steps.${resolve.id}.outputs.tag }}`, 'of the checked tag');
+  const publishing = job.steps.findIndex(({ run }) => run === 'node .github/release-publish.mjs');
+  assert.ok(publishing > fetched, 'before it publishes');
+  assert.deepEqual(job.steps[publishing].env, {
+    RELEASE_TAG: `\${{ steps.${resolve.id}.outputs.tag }}`,
+    RELEASE_COMMIT: `\${{ steps.${resolve.id}.outputs.commit }}`,
+    RELEASE_JSON: '${{ runner.temp }}/release-assets/release.json',
+    NPM_PACKAGES: '${{ runner.temp }}/prism-release/npm-packages',
+  }, 'release-publish.mjs checks the artifact against the release\'s release.json');
+}
+
+test('the publish workflows check prism-release against release.json on the GitHub release, never against the artifact', () => {
+  checkNpmHandover(npmPublishing);
+  const [publisher] = jobs(mavenPublishing);
+  checkMavenHandover(publisher, publisher.steps.find(({ run }) => run === 'node .github/release-run.mjs'));
+  checkAnchorWritten(jobs(release).find(({ name }) => name === 'release'));
+});
+
+const handoverStep = '          release="$RUNNER_TEMP/release-assets/release.json"\n';
+for (const [layout, edit, check] of [
+  ['the bundle\'s digest read from the artifact', () => edited(mavenPublishing, handoverStep,
+    '          release="$RUNNER_TEMP/prism-release/release.json"\n'), 'maven'],
+  ['no tag check of release.json', () => edited(mavenPublishing,
+    '          test "$(jq -r .tag "$release")" = "$RELEASE_TAG"\n', ''), 'maven'],
+  ['no commit check of release.json', () => edited(mavenPublishing,
+    '          test "$(jq -r .commit "$release")" = "$COMMIT"\n', ''), 'maven'],
+  ['the digest read before the checks', () => edited(mavenPublishing,
+    '          test "$(jq -r .tag "$release")" = "$RELEASE_TAG"\n',
+    '          echo "sha256=$(jq -r .mavenBundleSha256 "$release")" >> "$GITHUB_OUTPUT"\n          test "$(jq -r .tag "$release")" = "$RELEASE_TAG"\n'), 'maven'],
+  ['release.json not fetched from the release', () => edited(mavenPublishing, `          ${anchorDownload}\n`, ''), 'maven'],
+  ['the npm digests read from the artifact', () => edited(npmPublishing,
+    '          RELEASE_JSON: ${{ runner.temp }}/release-assets/release.json\n',
+    '          RELEASE_JSON: ${{ runner.temp }}/prism-release/release.json\n'), 'npm'],
+  ['the npm digests read from the artifact\'s manifest', () => edited(npmPublishing,
+    '          RELEASE_JSON: ${{ runner.temp }}/release-assets/release.json\n',
+    '          RELEASE_JSON: ${{ runner.temp }}/prism-release/npm-packages/prism-release.json\n'), 'npm'],
+  ['no commit for the npm check', () => edited(npmPublishing,
+    '          RELEASE_COMMIT: ${{ steps.release.outputs.commit }}\n', ''), 'npm'],
+  ['release.json not fetched for npm', () => edited(npmPublishing, `        run: ${anchorDownload}\n`, '        run: "true"\n'), 'npm'],
+  ['release.json written into prism-release', () => edited(release,
+    '> "$RUNNER_TEMP/release.json"', '> "$RUNNER_TEMP/prism-release/release.json"'), 'release'],
+  ['release.json not attached to the release', () => edited(release,
+    ' "$RUNNER_TEMP/release.json" --clobber', ' --clobber'), 'release'],
+]) {
+  test(`the hand-over check refuses ${layout}`, () => {
+    const yaml = edit();
+    assert.throws(() => {
+      if (check === 'npm') return checkNpmHandover(yaml);
+      if (check === 'release') return checkAnchorWritten(jobs(yaml).find(({ name }) => name === 'release'));
+      const [publisher] = jobs(yaml);
+      return checkMavenHandover(publisher, publisher.steps.find(({ run }) => run === 'node .github/release-run.mjs'));
+    }, assert.AssertionError);
+  });
+}
+
+// Every run of Release and of each publish workflow waits its turn in its group: with the
+// default queue (`single`), a run joining the group cancels the one already waiting, and that
+// version goes unpublished without a failure.
+const queued = {
+  '.github/workflows/release.yml': 'prism-release',
+  '.github/workflows/publish-npm.yml': 'prism-publish-npm',
+  '.github/workflows/publish-swift.yml': 'prism-publish-swift',
+  '.github/workflows/publish-maven-central.yml': 'prism-publish-maven-central',
+};
+const checkQueue = (file, yaml) =>
+  assert.deepEqual(parse(yaml).concurrency, { group: queued[file], 'cancel-in-progress': false, queue: 'max' }, file);
+
+test('no run of Release or a publish workflow is cancelled by a later one: their groups queue every run', () => {
+  for (const file of Object.keys(queued)) checkQueue(file, readFileSync(file, 'utf8'));
+});
+
+for (const file of Object.keys(queued)) {
+  test(`the queue check refuses ${file} with the default queue`, () => {
+    const yaml = edited(readFileSync(file, 'utf8'), '  queue: max\n', '');
+    assert.throws(() => checkQueue(file, yaml), assert.AssertionError);
+  });
+}
 
 test('the release builds the Kotlin bundle without secrets, and the workflow that signs it takes that bundle as data', () => {
   checkKotlinRelease(release, mavenPublishing);
@@ -556,7 +683,6 @@ test('each target is published by a workflow of its own, from a successful Relea
   for (const file of Object.keys(publishers)) checkPublisher(file, readFileSync(file, 'utf8'));
 });
 
-const npmPublishing = readFileSync('.github/workflows/publish-npm.yml', 'utf8');
 for (const [layout, from, to] of [
   ['started by a published release', '  workflow_dispatch:\n', '  release:\n    types: [published]\n  workflow_dispatch:\n'],
   ['started by a failed Release run', "(github.event.workflow_run.conclusion == 'success' &&", '('],

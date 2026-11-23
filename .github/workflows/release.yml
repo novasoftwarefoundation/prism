@@ -12,9 +12,12 @@ on:
 permissions:
   contents: read
 
+# Every run waits its turn: with the default queue, a run joining the group would cancel the
+# one already waiting, and that version would quietly go unpublished.
 concurrency:
   group: prism-release
   cancel-in-progress: false
+  queue: max
 
 jobs:
   checks:
@@ -67,12 +70,14 @@ jobs:
   # The GitHub release, and the hand-over to the publish workflows. This job builds nothing
   # and runs no package of the build trees: it downloads each building job's artifact by the
   # id that job gave, and stops unless its digest is that job's. Then it attaches the
-  # design-tools files, the Webflow zip and the Kotlin bundle to the release, and uploads the
-  # npm packages and the Kotlin bundle as one artifact, prism-release, with release.json:
-  # the tag, its commit and the bundle's digest. Every other job of the run has ended by
-  # then, and a run has one artifact of a name, so the prism-release the publish workflows
-  # download is this job's: when another job took the name first, this upload fails, and the
-  # run with it.
+  # design-tools files, the Webflow zip, the Kotlin bundle and release.json (the tag, its
+  # commit, the bundle's digest and each npm file's sha256) to the release, and uploads the npm
+  # packages and the Kotlin bundle as one artifact, prism-release. The publish workflows check
+  # that artifact against release.json on the release, which only this job can write, never
+  # against values inside the artifact, which any job of the run can upload. A run has one
+  # artifact of a name: when another job took prism-release first, this upload fails, and the
+  # run with it. The artifact keeps its name across attempts, so a repeated job's upload fails
+  # too: re-run failed jobs only (README → Failed or partial releases).
   release:
     needs: [checks, webflow, maven-bundle, npm-packages]
     runs-on: ubuntu-latest
@@ -144,6 +149,20 @@ jobs:
             echo "::error::The npm packages' digest is $actual, not the npm-packages job's ${NPM_SHA256:-(none)}"
             exit 1
           fi
+      # What the publish workflows check prism-release against: the tag, its commit, the
+      # Kotlin bundle's digest and each npm file's sha256. It goes on the GitHub release, which
+      # only this job can write, never into the artifact, which any job of the run can upload.
+      - name: The hand-over's digests
+        env:
+          MAVEN_BUNDLE_SHA256: ${{ needs.maven-bundle.outputs.sha256 }}
+        run: |
+          cd "$RUNNER_TEMP/prism-release/npm-packages"
+          npm_files=$(for file in *; do
+            printf '%s\t%s\n' "$file" "$(openssl dgst -sha256 "$file" | sed 's/.*= //')"
+          done | jq -R -s 'split("\n") | map(select(length > 0) | split("\t") | {(.[0]): .[1]}) | add')
+          jq -n --arg tag "$RELEASE_TAG" --arg commit "$(git -C "$GITHUB_WORKSPACE" rev-parse HEAD)" \
+            --arg maven "$MAVEN_BUNDLE_SHA256" --argjson npm "$npm_files" \
+            '{tag: $tag, commit: $commit, mavenBundleSha256: $maven, npm: $npm}' > "$RUNNER_TEMP/release.json"
       - name: Create GitHub release with design assets and bundles
         env:
           GH_TOKEN: ${{ github.token }}
@@ -157,13 +176,7 @@ jobs:
           fi
           gh release upload "$RELEASE_TAG" targets/design-tools/tokens.json \
             targets/design-tools/tokens.css targets/design-tools/overview.svg \
-            "$RUNNER_TEMP/webflow/prism-tokens-webflow.zip" "$kotlin" --clobber
-      - name: What the publish workflows publish
-        env:
-          MAVEN_BUNDLE_SHA256: ${{ needs.maven-bundle.outputs.sha256 }}
-        run: |
-          printf '{"tag":"%s","commit":"%s","mavenBundleSha256":"%s"}\n' \
-            "$RELEASE_TAG" "$(git rev-parse HEAD)" "$MAVEN_BUNDLE_SHA256" > "$RUNNER_TEMP/prism-release/release.json"
+            "$RUNNER_TEMP/webflow/prism-tokens-webflow.zip" "$kotlin" "$RUNNER_TEMP/release.json" --clobber
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: prism-release

@@ -2,9 +2,9 @@
 # publishing. It starts when Release succeeds for a version tag, and by hand with a released
 # version, to publish that version again (README → Publish → Failed or partial releases).
 # It runs no build: it checks out the tag's commit and takes the packages from that Release
-# run's prism-release artifact, which only Release's release job uploads (release.yml).
-# release-publish.mjs stops unless each package's sha1 is the one Release packed, and a
-# version npm already has is verified, not published again.
+# run's prism-release artifact. release-publish.mjs stops unless every file of them has the
+# sha256 that the release job put in release.json on the GitHub release, which no other job
+# can write, and a version npm already has is verified, not published again.
 name: Publish npm
 
 on:
@@ -20,9 +20,12 @@ on:
 
 permissions: {}
 
+# Every run waits its turn: with the default queue, a run joining the group would cancel the
+# one already waiting, and that version would quietly go unpublished.
 concurrency:
   group: prism-publish-npm
   cancel-in-progress: false
+  queue: max
 
 jobs:
   npm:
@@ -64,8 +67,17 @@ jobs:
           run-id: ${{ steps.release.outputs.run-id }}
           github-token: ${{ github.token }}
           path: ${{ runner.temp }}/prism-release
+      # The digests the release job put on the GitHub release, which only it can write: the
+      # packages are checked against these, never against anything in the artifact.
+      - name: The release's digests
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+        run: gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --pattern release.json --dir "$RUNNER_TEMP/release-assets"
       - name: Publish web then React with npm trusted publishing
         env:
           RELEASE_TAG: ${{ steps.release.outputs.tag }}
+          RELEASE_COMMIT: ${{ steps.release.outputs.commit }}
+          RELEASE_JSON: ${{ runner.temp }}/release-assets/release.json
           NPM_PACKAGES: ${{ runner.temp }}/prism-release/npm-packages
         run: node .github/release-publish.mjs

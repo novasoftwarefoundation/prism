@@ -34,35 +34,43 @@ export function releaseRun(run, { repository, tag, tagCommit }) {
 // The version typed in by hand, as its tag: X.Y.Z or vX.Y.Z.
 export const tagOf = (version) => (version.startsWith('v') ? version : `v${version}`);
 
+// The commit a tag points at, through `api` (a GET of a REST path, giving its JSON): an
+// annotated tag's ref points at the tag object, and that one at the commit.
+export function commitOf(api, repository, tag) {
+  let { object } = api(`repos/${repository}/git/ref/tags/${tag}`);
+  while (object.type === 'tag') ({ object } = api(`repos/${repository}/git/tags/${object.sha}`));
+  assert.equal(object.type, 'commit', `${tag} points at no commit`);
+  return object.sha;
+}
+
+// By hand: the newest successful Release run of the version's tag at the commit the tag points
+// at, and that commit. GitHub lists the runs newest first.
+export function dispatchRun(api, repository, version) {
+  const tag = tagOf(version);
+  releaseVersion(tag);
+  const tagCommit = commitOf(api, repository, tag);
+  const { workflow_runs: runs } = api(
+    `repos/${repository}/actions/workflows/release.yml/runs?event=push&branch=${tag}&status=success&per_page=100`,
+  );
+  const run = runs.find((candidate) => candidate.head_sha === tagCommit);
+  assert.ok(run, `No successful Release run of ${tag} at ${tagCommit}: release it first`);
+  return { run, tag };
+}
+
 function main() {
   const repository = process.env.GITHUB_REPOSITORY;
   const api = (path) => JSON.parse(execFileSync('gh', ['api', path], { encoding: 'utf8' }));
-  // The commit a tag points at: an annotated tag's object is the tag, and that one's the commit.
-  const commitOf = (tag) => {
-    let { object } = api(`repos/${repository}/git/ref/tags/${tag}`);
-    while (object.type === 'tag') ({ object } = api(`repos/${repository}/git/tags/${object.sha}`));
-    assert.equal(object.type, 'commit', `${tag} points at no commit`);
-    return object.sha;
-  };
 
   let run;
   let tag;
   if (process.env.GITHUB_EVENT_NAME === 'workflow_dispatch') {
-    tag = tagOf(process.env.VERSION ?? '');
-    releaseVersion(tag);
-    const tagCommit = commitOf(tag);
-    const { workflow_runs: runs } = api(
-      `repos/${repository}/actions/workflows/release.yml/runs?event=push&branch=${tag}&status=success&per_page=100`,
-    );
-    // Newest first.
-    run = runs.find((candidate) => candidate.head_sha === tagCommit);
-    assert.ok(run, `No successful Release run of ${tag} at ${tagCommit}: release it first`);
+    ({ run, tag } = dispatchRun(api, repository, process.env.VERSION ?? ''));
   } else {
     assert.equal(process.env.GITHUB_EVENT_NAME, 'workflow_run', 'Started by neither workflow_run nor workflow_dispatch');
     run = JSON.parse(process.env.RELEASE_RUN);
     tag = run.head_branch;
   }
-  const { version, commit, runId } = releaseRun(run, { repository, tag, tagCommit: commitOf(tag) });
+  const { version, commit, runId } = releaseRun(run, { repository, tag, tagCommit: commitOf(api, repository, tag) });
   appendFileSync(process.env.GITHUB_OUTPUT, `tag=${tag}\nversion=${version}\ncommit=${commit}\nrun-id=${runId}\n`);
   console.log(`Publishing ${tag} (${commit}) from Release run ${run.html_url ?? runId}.`);
 }

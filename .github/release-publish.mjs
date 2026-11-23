@@ -1,21 +1,33 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { releaseVersion } from './release-version.mjs';
 
 // Publishes the packages release-prepare.mjs made for the tag RELEASE_TAG, from the folder
-// NPM_PACKAGES that holds them and their manifest, prism-release.json.
+// NPM_PACKAGES that holds them and their manifest, prism-release.json. RELEASE_JSON is the
+// release job's release.json, from the GitHub release: the folder must hold exactly the files
+// it names, each with its sha256, for RELEASE_TAG at RELEASE_COMMIT, before the manifest is
+// read. Values inside the folder can't vouch for the folder.
 const dir = process.env.NPM_PACKAGES;
 const run = (args, options = {}) => execFileSync('npm', args, { encoding: 'utf8', ...options });
+const sha = (algorithm, file) => createHash(algorithm).update(readFileSync(join(dir, file))).digest('hex');
+
+const anchor = JSON.parse(readFileSync(process.env.RELEASE_JSON, 'utf8'));
+assert.equal(anchor.tag, process.env.RELEASE_TAG, `release.json is not ${process.env.RELEASE_TAG}'s`);
+assert.equal(anchor.commit, process.env.RELEASE_COMMIT, `release.json is not of ${process.env.RELEASE_COMMIT}`);
+assert.deepEqual(readdirSync(dir).toSorted(), Object.keys(anchor.npm ?? {}).toSorted(), 'The packages are not the files release.json names');
+for (const [file, sha256] of Object.entries(anchor.npm)) {
+  assert.equal(sha('sha256', file), sha256, `${file} is not the file the release job checked`);
+}
+
 const { version, distTag, packages } = JSON.parse(readFileSync(join(dir, 'prism-release.json'), 'utf8'));
 assert.equal(version, releaseVersion(process.env.RELEASE_TAG).version, `The packages are not ${process.env.RELEASE_TAG}'s`);
 
 // Every tarball is the one the manifest names, before anything is published.
 for (const pack of packages) {
-  const shasum = createHash('sha1').update(readFileSync(join(dir, pack.tarball))).digest('hex');
-  assert.equal(shasum, pack.shasum, `${pack.tarball} is not the prepared package`);
+  assert.equal(sha('sha1', pack.tarball), pack.shasum, `${pack.tarball} is not the prepared package`);
 }
 
 function published(pack) {
