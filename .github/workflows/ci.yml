@@ -284,11 +284,14 @@ jobs:
       # app gets the published library, not its build.
       # The basic cache provider, the action's own (MIT): the default, "enhanced", loads a
       # closed-source library under Gradle's terms of use.
+      # develop and main write the cache, every other run only reads it. A release's tag run
+      # can read only its own ref's cache and main's, the default branch's: without main's,
+      # it downloads everything from Maven Central again and gets rate-limited (HTTP 429).
       - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
         with:
           gradle-version: ${{ env.GRADLE }}
           cache-provider: basic
-          cache-read-only: ${{ github.ref != 'refs/heads/develop' }}
+          cache-read-only: ${{ github.ref != 'refs/heads/develop' && github.ref != 'refs/heads/main' }}
       - name: Install the Android SDK packages
         run: |
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null

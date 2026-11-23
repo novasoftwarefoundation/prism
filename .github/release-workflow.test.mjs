@@ -367,3 +367,33 @@ test('every artifact a workflow downloads is taken by the id the job that upload
     }
   }
 });
+
+// Every Gradle setup uses the cache, and develop and main write it: a release's tag run can
+// read only its own ref's cache and main's, the default branch's. With only develop writing,
+// run 45257823269 (v0.6.0) downloaded everything from Maven Central and got an HTTP 429.
+// A run writes the cache when its `cache-read-only` is false: `true` reads only, and an
+// expression of the form `github.ref != 'A' && github.ref != 'B'` lets A and B write.
+function cacheWriters(yaml) {
+  const writers = [];
+  for (const job of jobs(yaml)) {
+    for (const step of job.steps) {
+      if (step.uses?.startsWith('actions/setup-java@')) {
+        assert.equal(step.with?.cache, undefined, `${job.name}: setup-gradle caches Gradle, not setup-java`);
+      }
+      if (!step.uses?.startsWith('gradle/actions/setup-gradle@')) continue;
+      assert.notEqual(step.with?.['cache-disabled'], true, `${job.name}: the Gradle cache is on`);
+      const readOnly = step.with?.['cache-read-only'];
+      if (readOnly === true) continue;
+      const refs = /^\$\{\{ github\.ref != '[^']+'(?: && github\.ref != '[^']+')* \}\}$/.test(readOnly ?? '')
+        ? [...readOnly.matchAll(/'([^']+)'/g)].map(([, ref]) => ref)
+        : ['unknown'];
+      writers.push(...refs);
+    }
+  }
+  return writers.sort();
+}
+
+test('develop and main write the Gradle cache, and every other run reads it', () => {
+  assert.deepEqual(cacheWriters(readFileSync('.github/workflows/ci.yml', 'utf8')), ['refs/heads/develop', 'refs/heads/main']);
+  assert.deepEqual(cacheWriters(release), []);
+});
