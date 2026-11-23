@@ -165,3 +165,66 @@ test('the bundle maven-bundle built gets past the digest to the signing', () => 
   assert.doesNotMatch(result.stderr, /digest/);
   assert.ok(result.ran.includes('gpg'), `gpg ran: ${result.stderr}`);
 });
+
+// Stand-ins that let the release through to Central: `gpg` imports and signs anything, `curl`
+// finds no published version, takes the upload and answers each status request with the next
+// of `states`, and `date` and `sleep` share a clock that only `sleep` moves.
+function central(states) {
+  const bin = temp('central');
+  const clock = join(bin, 'clock');
+  const queue = join(bin, 'states');
+  writeFileSync(clock, '1000\n');
+  writeFileSync(queue, `${states.join('\n')}\n`);
+  const tools = {
+    gpg: `case "$*" in
+  *--list-secret-keys*) echo 'sec:u:4096:1:F9156907F9CCAC8D' ;;
+  *--detach-sign*) while [ "$1" != --output ]; do shift; done; echo signature > "$2" ;;
+  *) cat > /dev/null ;;
+esac`,
+    curl: `case "$*" in
+  *repo1.maven.org*) exit 22 ;;
+  */upload*) echo deployment-1 ;;
+  */status*)
+    state=$(head -n 1 "${queue}")
+    sed -i.old 1d "${queue}"
+    echo "{\\"deploymentState\\":\\"$state\\"}" ;;
+esac`,
+    date: `cat "${clock}"`,
+    sleep: `echo $(($(cat "${clock}") + $1)) > "${clock}"`,
+  };
+  for (const [tool, body] of Object.entries(tools)) {
+    writeFileSync(join(bin, tool), `#!/bin/sh\n${body}\n`);
+    chmodSync(join(bin, tool), 0o755);
+  }
+  return bin;
+}
+
+test('while Central works, the release says where it is: each new state, and every 5 minutes', () => {
+  const dir = repository();
+  const bundleDir = bundle();
+  // A poll every 30 seconds: PENDING at 0, VALIDATING from 0:30 to 6:00, then on to PUBLISHED.
+  const states = ['PENDING', ...Array(12).fill('VALIDATING'), 'VALIDATED', 'PUBLISHING', 'PUBLISHED'];
+  const result = spawnSync('sh', ['.github/kotlin-release.sh', `v${version}`, bundleDir], {
+    cwd: dir,
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      PATH: `${central(states)}:${process.env.PATH}`,
+      MAVEN_CENTRAL_USERNAME: 'username',
+      MAVEN_CENTRAL_PASSWORD: 'password',
+      MAVEN_SIGNING_KEY: 'key',
+      MAVEN_SIGNING_KEY_PASSWORD: 'passphrase',
+      MAVEN_BUNDLE_SHA256: digest(dir, bundleDir),
+    },
+  });
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(result.stdout.split('\n').filter((line) => /^Deployment /.test(line)), [
+    'Deployment deployment-1 is PENDING after 0 min.',
+    'Deployment deployment-1 is VALIDATING after 0 min.',
+    'Deployment deployment-1 is still VALIDATING after 5 min.',
+    'Deployment deployment-1 is VALIDATED after 6 min.',
+    'Deployment deployment-1 is PUBLISHING after 7 min.',
+    'Deployment deployment-1 is PUBLISHED after 7 min.',
+  ]);
+  assert.match(result.stdout, /Released org\.novasoftwarefoundation:prism-compose:9\.9\.9/);
+});

@@ -1,10 +1,22 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { releaseVersion } from './release-version.mjs';
 
+// Publishes the packages release-prepare.mjs made for the tag RELEASE_TAG, from the folder
+// NPM_PACKAGES that holds them and their manifest, prism-release.json.
+const dir = process.env.NPM_PACKAGES;
 const run = (args, options = {}) => execFileSync('npm', args, { encoding: 'utf8', ...options });
-const { distTag, packages } = JSON.parse(readFileSync(join(process.env.RUNNER_TEMP, 'prism-release.json'), 'utf8'));
+const { version, distTag, packages } = JSON.parse(readFileSync(join(dir, 'prism-release.json'), 'utf8'));
+assert.equal(version, releaseVersion(process.env.RELEASE_TAG).version, `The packages are not ${process.env.RELEASE_TAG}'s`);
+
+// Every tarball is the one the manifest names, before anything is published.
+for (const pack of packages) {
+  const shasum = createHash('sha1').update(readFileSync(join(dir, pack.tarball))).digest('hex');
+  assert.equal(shasum, pack.shasum, `${pack.tarball} is not the prepared package`);
+}
 
 function published(pack) {
   try {
@@ -21,7 +33,7 @@ function published(pack) {
 for (const pack of packages) {
   let remote = published(pack);
   if (!remote) {
-    run(['publish', pack.tarball, '--access', 'public', '--tag', distTag,
+    run(['publish', join(dir, pack.tarball), '--access', 'public', '--tag', distTag,
       '--registry=https://registry.npmjs.org/'], { stdio: 'inherit' });
     // npm can accept HTTP 202 before the version is visible. Do not submit it again.
     for (let attempt = 0; attempt < 60; attempt++) {
