@@ -28,6 +28,10 @@ defmodule Prism.Design.Tokens do
   # The Swift package: `Prism`, its types `PrismButtonStyle`, `Prism.Colors`, ….
   swift module: "Prism"
 
+  # The Android library: `org.novasoftwarefoundation:prism-compose`, its types `PrismButton`,
+  # `Prism.Colors`, ….
+  kotlin package: "org.novasoftwarefoundation.prism", name: "Prism", artifact: "prism-compose"
+
   group "Brand colors" do
     color :primary, "#4272EF"
     color :primarylight, "#E3EAFD"
@@ -102,7 +106,7 @@ defmodule Prism.Design.Tokens do
   # SF Pro as heavy as Nunito and Nunito Sans: the stem of each emphasis's weight,
   # measured at each Typography's size and at a large Dynamic Type size (ADR 0013).
   @sf_pro [reading: 300, data: 400, supporting: 400, subheading: 500, strong: 600, headline: 700]
-  # No Android target reads these yet: today's weights until one does.
+  # Roboto at Nunito's weights, until they are measured against Nunito as SF Pro's were.
   @android @nunito
 
   # Families are roles; each platform binds them to a font. The web keeps 0.1.7's

@@ -3,12 +3,14 @@ defmodule Prism.Generator.Schema do
   The schema of a design, written as a DSL. A module that `use`s it is a
   design: it declares design tokens, components (`Prism.Generator.Schema.Components`)
   and how the web files are named. `use Prism.Generator.Schema, tokens: Other`
-  takes the tokens and the web and Swift declarations of the design `Other`, so
-  the components can live in a file of their own; such a design declares no
-  tokens and no `swift`, and its `web` declaration only adds `components_doc:`.
+  takes the tokens and the web, Swift and Kotlin declarations of the design
+  `Other`, so the components can live in a file of their own; such a design
+  declares no tokens, no `swift` and no `kotlin`, and its `web` declaration only
+  adds `components_doc:`.
 
       web prefix: "acme", fonts_url: "../fonts"
       swift module: "Acme"
+      kotlin package: "com.example.acme", name: "Acme"
       group "Brand colors" do
         color :accent, "#1A73E8"
         color :link, :accent               # an alias: same value, its own name
@@ -48,7 +50,7 @@ defmodule Prism.Generator.Schema do
   It returns
 
       %{tokens: [token], components: [component], web: web | nil,
-        swift: swift | nil, file: file, tokens_file: file}
+        swift: swift | nil, kotlin: kotlin | nil, file: file, tokens_file: file}
 
   - Every token is a map with `kind`, `name` (an atom) and `group` (its
     group's text or `nil`), in the order of the design, plus per kind:
@@ -126,6 +128,8 @@ defmodule Prism.Generator.Schema do
     `components_doc`), or `nil` without one.
   - `swift` is the `swift` declaration as a map with every key (`module`,
     `fonts`, `font_files`), or `nil` without one.
+  - `kotlin` is the `kotlin` declaration as a map with every key (`package`,
+    `name`, `artifact`), or `nil` without one.
   """
 
   @platforms [:web, :ios, :android]
@@ -175,6 +179,7 @@ defmodule Prism.Generator.Schema do
       Module.register_attribute(__MODULE__, :prism_tokens, accumulate: true)
       Module.register_attribute(__MODULE__, :prism_web, accumulate: true)
       Module.register_attribute(__MODULE__, :prism_swift, accumulate: true)
+      Module.register_attribute(__MODULE__, :prism_kotlin, accumulate: true)
       Module.register_attribute(__MODULE__, :prism_nodes, accumulate: true)
       Module.put_attribute(__MODULE__, :prism_group, nil)
       Module.put_attribute(__MODULE__, :prism_stack, [])
@@ -241,6 +246,30 @@ defmodule Prism.Generator.Schema do
       )
 
       @prism_swift {unquote(opts), unquote(__CALLER__.line)}
+    end
+  end
+
+  @doc """
+  How the Kotlin library is named. Once per design; the Kotlin target needs it.
+  A design that takes its tokens from another takes that design's declaration.
+
+  - `package:` (required) the Kotlin package of the library's code and its
+    Android namespace, e.g. `"com.example.acme"`.
+  - `name:` (required) the prefix of its types and the object of its tokens,
+    e.g. `"Acme"` gives `AcmeButton` and `Acme.Colors`.
+  - `artifact:` the library's Maven artifact id (default: `name:` in lower
+    case), e.g. `"acme-compose"`.
+  """
+  defmacro kotlin(opts) do
+    quote do
+      Prism.Generator.Schema.Components.__top_level__!(
+        __MODULE__,
+        __ENV__.file,
+        unquote(__CALLER__.line),
+        "kotlin"
+      )
+
+      @prism_kotlin {unquote(opts), unquote(__CALLER__.line)}
     end
   end
 
@@ -408,20 +437,22 @@ defmodule Prism.Generator.Schema do
     own = env.module |> Module.get_attribute(:prism_tokens) |> Enum.reverse()
     web = env.module |> Module.get_attribute(:prism_web) |> Enum.reverse()
     swift = env.module |> Module.get_attribute(:prism_swift) |> Enum.reverse()
+    kotlin = env.module |> Module.get_attribute(:prism_kotlin) |> Enum.reverse()
 
-    {tokens, tokens_file, web, swift} =
+    {tokens, tokens_file, web, swift, kotlin} =
       case Module.get_attribute(env.module, :prism_import) do
         {nil, _} ->
           tokens = own |> validate!(env.file) |> Enum.map(&Map.delete(&1, :line))
 
           {tokens, file(env.file), validate_web!(web, env.file, nil),
-           validate_swift!(swift, env.file, nil)}
+           validate_swift!(swift, env.file, nil), validate_kotlin!(kotlin, env.file, nil)}
 
         {module, line} ->
           imported = imported!(module, own, env.file, line)
 
           {imported.tokens, imported.tokens_file, validate_web!(web, env.file, imported),
-           validate_swift!(swift, env.file, imported)}
+           validate_swift!(swift, env.file, imported),
+           validate_kotlin!(kotlin, env.file, imported)}
       end
 
     nodes = env.module |> Module.get_attribute(:prism_nodes) |> Enum.reverse()
@@ -431,6 +462,7 @@ defmodule Prism.Generator.Schema do
       components: Prism.Generator.Schema.Components.validate!(nodes, tokens, env.file),
       web: web,
       swift: swift,
+      kotlin: kotlin,
       file: file(env.file),
       tokens_file: tokens_file
     }
@@ -757,6 +789,44 @@ defmodule Prism.Generator.Schema do
       do: fail.(": font_files: needs fonts:, the folder they are in")
 
     swift
+  end
+
+  # A design that takes its tokens from another takes that design's Kotlin declaration;
+  # either may declare it, not both.
+  defp validate_kotlin!([], _, imported), do: imported && imported.kotlin
+
+  defp validate_kotlin!([{opts, line} | rest], file, imported) do
+    fail = &__fail__(file, line, "kotlin#{&1}")
+    if rest != [], do: fail.(" is declared more than once")
+    unless Keyword.keyword?(opts), do: fail.(": options must be a keyword list")
+
+    case Keyword.keys(opts) -- [:package, :name, :artifact] do
+      [] -> :ok
+      extra -> fail.(": unknown option #{Enum.map_join(extra, ", ", &inspect/1)}")
+    end
+
+    if imported && imported.kotlin,
+      do: fail.(": it comes with the tokens; declare it once, in the design the tokens come from")
+
+    kotlin = Map.merge(%{package: nil, name: nil, artifact: nil}, Map.new(opts))
+
+    checks = [
+      package:
+        {&(is_binary(&1) and Regex.match?(~r/\A[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+\z/, &1)),
+         "a Kotlin package of at least two lower case names (com.example.acme)"},
+      name:
+        {&(is_binary(&1) and Regex.match?(~r/\A[A-Z][A-Za-z0-9]*\z/, &1)),
+         "an upper camel case Kotlin name"},
+      artifact:
+        {&(is_nil(&1) or (is_binary(&1) and Regex.match?(~r/\A[a-z][a-z0-9-]*\z/, &1))),
+         "a Maven artifact id (a-z 0-9 -)"}
+    ]
+
+    for {key, {ok?, rule}} <- checks, not ok?.(kotlin[key]) do
+      fail.(": #{key} must be #{rule}, got #{inspect(kotlin[key])}")
+    end
+
+    %{kotlin | artifact: kotlin.artifact || String.downcase(kotlin.name)}
   end
 
   defp file_name?(name),

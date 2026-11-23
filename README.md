@@ -4,7 +4,7 @@ A Tailwind-based UI framework for scientific software, published on npm as `@nov
 
 Part of the [Nova Software Foundation](https://novasf.org) - open source software for science.
 
-To use Prism in an app, see the package's README: [targets/web/README.md](targets/web/README.md) (install, Tailwind preset, CSS, classes). A Phoenix app also gets Prism's components as function components; see [Use it in a Phoenix app](#use-it-in-a-phoenix-app). A React app gets them from `@novasoftwarefoundation/prism-react`; see [Use it in a React app](#use-it-in-a-react-app). An iOS app gets the tokens and the components in SwiftUI from the `prism-swift` package; see [Use it in a SwiftUI app](#use-it-in-a-swiftui-app). A design tool gets the tokens and an overview of the design; see [Use it in a design tool](#use-it-in-a-design-tool).
+To use Prism in an app, see the package's README: [targets/web/README.md](targets/web/README.md) (install, Tailwind preset, CSS, classes). A Phoenix app also gets Prism's components as function components; see [Use it in a Phoenix app](#use-it-in-a-phoenix-app). A React app gets them from `@novasoftwarefoundation/prism-react`; see [Use it in a React app](#use-it-in-a-react-app). An iOS app gets the tokens and the components in SwiftUI from the `prism-swift` package; see [Use it in a SwiftUI app](#use-it-in-a-swiftui-app). An Android app gets them in Jetpack Compose from Maven Central, `org.novasoftwarefoundation:prism-compose`; see [Use it in a Compose app](#use-it-in-a-compose-app). A design tool gets the tokens and an overview of the design; see [Use it in a design tool](#use-it-in-a-design-tool).
 
 ## Layout
 
@@ -13,14 +13,15 @@ Prism's look is written once, as a design in Elixir, and generated into code for
 | Folder | What |
 |---|---|
 | `design/` | Prism's design, a Mix project (`:prism_design`): `lib/tokens.ex` (`Prism.Design.Tokens`), `lib/components.ex` (`Prism.Design.Components`, which takes the tokens and is the whole design), `config/config.exs` (the design module and the folder of each target), and its checks: the 0.1.7 golden test, the version check, the font roles, the typography, the components. |
-| `generator/` | The generic part, a Mix project of its own (`:prism_generator`): the design format (`lib/schema.ex`, with components in `lib/schema/components.ex`), the header of generated files (`lib/header.ex`), the web target (`lib/web.ex`, its templates in `lib/web/`, the component mechanics in `lib/web/components.ex`, the class names in `lib/web/classes.ex`, and the components' markup in `lib/web/elements.ex`), the Phoenix components (`lib/phoenix.ex`, `Prism.Generator.Phoenix`), the React target (`lib/react.ex`, `Prism.Generator.React`), the design-tool target (`lib/design_tools.ex`, `Prism.Generator.DesignTools`, with the overview in `lib/design_tools/overview.ex`), and `mix prism.gen` (`lib/mix/tasks/prism.gen.ex`). It knows nothing about Prism's values. |
+| `generator/` | The generic part, a Mix project of its own (`:prism_generator`): the design format (`lib/schema.ex`, with components in `lib/schema/components.ex`), the header of generated files (`lib/header.ex`), the web target (`lib/web.ex`, its templates in `lib/web/`, the component mechanics in `lib/web/components.ex`, the class names in `lib/web/classes.ex`, and the components' markup in `lib/web/elements.ex`), the Phoenix components (`lib/phoenix.ex`, `Prism.Generator.Phoenix`), the React target (`lib/react.ex`, `Prism.Generator.React`), the Swift target (`lib/swift.ex`, `lib/swift/`) and the Kotlin target (`lib/kotlin.ex`, `lib/kotlin/`), which share the look layering (`lib/looks.ex`), the design-tool target (`lib/design_tools.ex`, `Prism.Generator.DesignTools`, with the overview in `lib/design_tools/overview.ex`), and `mix prism.gen` (`lib/mix/tasks/prism.gen.ex`). It knows nothing about Prism's values. |
 | `targets/web/` | The npm package `@novasoftwarefoundation/prism`: `package.json`, the generated `tailwind.preset.js`, `css/base.css` and `css/components.css`, and `fonts/`. |
 | `targets/react/` | The npm package `@novasoftwarefoundation/prism-react`: `package.json`, `tsconfig.json`, the generated components in `src/`, and their tests in `test/`. |
 | `targets/swift/` | The Swift package `Prism`, released as the `prism-swift` repository: the generated `Package.swift` and `Sources/Prism/` (the tokens, the looks and one file per component), with a hand-written `README.md` and `LICENSE`. |
+| `targets/kotlin/` | The Android library `org.novasoftwarefoundation:prism-compose`, released to Maven Central: the generated `settings.gradle.kts`, `build.gradle.kts` and `src/main/kotlin/` (the tokens, the looks and one file per component), with a hand-written `gradle.properties` (the Maven group and the POM) and `README.md`. |
 | `targets/design-tools/` | Files for design tools, attached to each release: the generated `tokens.json` (DTCG), `tokens.css` (CSS custom properties) and `overview.svg`, and their checks (`package.json`, `test/`). |
 | `targets/webflow/` | The Webflow Designer Extension "Prism tokens", hand-written, which writes `tokens.json` into a site's variables; its bundle is attached to each release. |
 
-`design/` depends on `generator/` with `{:prism_generator, path: "../generator"}`; there is no Mix project at the root. Decisions are in `docs/adr/`: [0001: design format](docs/adr/0001-design-format.md), [0002: Prism's design](docs/adr/0002-prism-design.md), [0003: Phoenix components at compile time](docs/adr/0003-phoenix-components.md), [0004: React components](docs/adr/0004-react-components.md), [0005: files for design tools](docs/adr/0005-design-tools.md), [0006: button looks](docs/adr/0006-button-looks.md), [0007: spinner sizes and progress](docs/adr/0007-spinner-sizes-progress.md), [0008: a state the app sets outweighs the pointer and the focus](docs/adr/0008-app-state-over-interaction.md), [0009: the Swift target](docs/adr/0009-swift-target.md), [0010: the text field's prefix](docs/adr/0010-text-field-prefix.md), [0011: the image picker](docs/adr/0011-image-picker.md) and [0013: an emphasis per font, a weight per family](docs/adr/0013-emphasis-per-family.md).
+`design/` depends on `generator/` with `{:prism_generator, path: "../generator"}`; there is no Mix project at the root. Decisions are in `docs/adr/`: [0001: design format](docs/adr/0001-design-format.md), [0002: Prism's design](docs/adr/0002-prism-design.md), [0003: Phoenix components at compile time](docs/adr/0003-phoenix-components.md), [0004: React components](docs/adr/0004-react-components.md), [0005: files for design tools](docs/adr/0005-design-tools.md), [0006: button looks](docs/adr/0006-button-looks.md), [0007: spinner sizes and progress](docs/adr/0007-spinner-sizes-progress.md), [0008: a state the app sets outweighs the pointer and the focus](docs/adr/0008-app-state-over-interaction.md), [0009: the Swift target](docs/adr/0009-swift-target.md), [0010: the text field's prefix](docs/adr/0010-text-field-prefix.md), [0011: the image picker](docs/adr/0011-image-picker.md) and [0013: an emphasis per font, a weight per family](docs/adr/0013-emphasis-per-family.md), [0014: the Webflow Designer Extension](docs/adr/0014-webflow-designer-extension.md) and [0015: the Kotlin target](docs/adr/0015-kotlin-target.md).
 
 ## Change the design
 
@@ -40,16 +41,18 @@ Prism.Generator.InputMetadata.validate!(
 React consumers import `textFieldInputMetadata({ debounceMs: 500 })`
 and `TextFieldInputMetadata` from `@novasoftwarefoundation/prism-react`.
 Swift consumers construct `try PrismTextFieldInputMetadata(debounceMs: 500)`
-or decode that Codable type from snake_case input metadata. Text areas have the
+or decode that Codable type from snake_case input metadata. Kotlin consumers
+construct `PrismTextFieldInputMetadata(debounceMs = 500)` or read it with
+`PrismTextFieldInputMetadata.from(values)` from parsed snake_case values. Text areas have the
 corresponding `TextArea` APIs. These data types belong in the Form's input model;
 they do not change styled field APIs or submit forms by themselves.
 
-`targets/web/tailwind.preset.js`, `targets/web/css/base.css`, `targets/web/css/components.css`, `targets/react/src/`, the three files in `targets/design-tools/`, and `targets/swift/Package.swift` and `targets/swift/Sources/` are generated: don't edit them by hand. Change `design/lib/tokens.ex` (tokens) or `design/lib/components.ex` (components), then regenerate and commit the result. An app adjusts a component through the component's own API, never by editing a generated file.
+`targets/web/tailwind.preset.js`, `targets/web/css/base.css`, `targets/web/css/components.css`, `targets/react/src/`, the three files in `targets/design-tools/`, `targets/swift/Package.swift` and `targets/swift/Sources/`, and `targets/kotlin/settings.gradle.kts`, `targets/kotlin/build.gradle.kts` and `targets/kotlin/src/` are generated: don't edit them by hand. Change `design/lib/tokens.ex` (tokens) or `design/lib/components.ex` (components), then regenerate and commit the result. An app adjusts a component through the component's own API, never by editing a generated file.
 
 ```sh
 cd design
 mix deps.get
-mix prism.gen   # writes every target: ../targets/web (the preset and the CSS), ../targets/react/src, ../targets/design-tools and ../targets/swift
+mix prism.gen   # writes every target: ../targets/web (the preset and the CSS), ../targets/react/src, ../targets/design-tools, ../targets/swift and ../targets/kotlin
 mix test
 ```
 
@@ -178,6 +181,44 @@ PrismTag(tone: .success) { Text("Done") }
 
 Each component takes SwiftUI's own form ([ADR 0009](docs/adr/0009-swift-target.md)): a `ButtonStyle` for the button, a `ProgressViewStyle` for the spinner, a `ToggleStyle` for the checkbox, a modifier for the text field and the text area, and a view for the others. Axes are enums of the design's values (`.primary`, `.danger`, `.size32`) with the design's defaults; flags and the states the app sets are parameters; pressed, disabled and checked come from SwiftUI. A component's looks are data too (`PrismButtonLooks`), laid over each other as the web's CSS does. A look animates and a move in the same update doesn't, except a button's: put `.geometryGroup()` on a Prism button whose place can change. Type follows Dynamic Type. The package's README ([targets/swift/README.md](targets/swift/README.md)) has the details. The package is generated into `targets/swift/`; CI builds it with `xcodebuild` for the iOS Simulator.
 
+## Use it in a Compose app
+
+An Android app (Kotlin 2.2 or later, minSdk 23 or later, compileSdk 37.1 with the Android Gradle plugin 9, Compose 1.13 and Material 3 1.5 from the Compose BOM 2026.11.01) depends on the library `org.novasoftwarefoundation:prism-compose`, on Maven Central at Prism's version:
+
+```kotlin
+// build.gradle.kts; settings.gradle.kts lists mavenCentral()
+dependencies {
+    implementation("org.novasoftwarefoundation:prism-compose:0.6.0")
+}
+```
+
+```kotlin
+import org.novasoftwarefoundation.prism.*
+
+PrismButton(
+    onClick = save,
+    variant = PrismButtonVariant.Primary,
+    tone = PrismButtonTone.Danger,
+    loading = saving,
+) {
+    Text("Save")
+}
+
+// email is a TextFieldState; the field's label follows its text field's focus.
+PrismField(
+    invalid = error != null,
+    label = { Text("Email") },
+    errorMessage = error?.let { message -> @Composable { Text(message) } },
+) {
+    PrismTextField(email, invalid = error != null)
+}
+
+PrismSpinner(variant = PrismSpinnerVariant.Accent, size = PrismSpinnerSize.Size32, progress = 0.4f)
+PrismTag(tone = PrismTagTone.Success) { Text("Done") }
+```
+
+Each component is a composable in Compose's own form ([ADR 0015](docs/adr/0015-kotlin-target.md)): on Compose's `clickable`, `toggleable` and `selectable` for the button, the checkbox and the radio, a `BasicTextField` with a decorator for the text field and the text area, Material's `ExposedDropdownMenuBox` for the select, and a box for the others. Axes are enum classes of the design's values (`PrismButtonVariant.Primary`, `PrismSpinnerSize.Size32`) with the design's defaults; flags and the states the app sets are parameters; pressed, hovered and focused come from the `interactionSource`, disabled from `enabled`. A component's looks are data too (`PrismButtonLooks`), laid over each other as the web's CSS does. Type follows the user's font size (sp): a box that holds text grows with it. The library's README ([targets/kotlin/README.md](targets/kotlin/README.md)) has the details. The library is generated into `targets/kotlin/`; CI builds it with Gradle, renders its components at 200% font size, and checks its Maven Central bundle.
+
 ## Use it in a design tool
 
 `targets/design-tools/` holds three files, generated from the design and attached to each release:
@@ -224,10 +265,10 @@ Each step is checked against the tool's documentation (October 2026), not tried 
 
 - The schema turns a design into plain data, `__schema__/0`, whose shape is documented in `Prism.Generator.Schema`. The targets read only that data, never the schema's internals; a test checks that no other file calls into the schema.
 - A component's look is shared by every target. Each target's mechanics (for the web: display, cursors, focus outlines, keyframes, the check mark) are in the generator, and a value that really differs per platform is a `web:`, `ios:` or `android:` binding in the design; see ADR 0001, decision 3.
-- `mix prism.gen` generates every target named in the config (today `web`, `react`, `design_tools` and `swift`), puts a `Prism.Generator.Header` line on each file, and never overwrites a file that doesn't start with exactly that line. It removes a left-over file, which no target generates now (a renamed or removed component's), and `--check` fails on one. Only a regular file, not a link, of a type the targets write, in a folder a target writes into (not the folders below it), that starts with exactly the header is left over; everything else there stays, such as a `package.json` or a note that mentions the header. A target may also copy a file (the Swift package's fonts, when the design binds iOS to named fonts): a copy has no header and is written byte for byte, and `--check` compares its bytes. In a folder a target copies into (it names them, also while it copies nothing), any file that no target copies now is left over too, and a linked copy folder fails the task. A later target adds a module and its templates, not a task.
+- `mix prism.gen` generates every target named in the config (today `web`, `react`, `design_tools`, `swift` and `kotlin`), puts a `Prism.Generator.Header` line on each file, and never overwrites a file that doesn't start with exactly that line. It removes a left-over file, which no target generates now (a renamed or removed component's), and `--check` fails on one. Only a regular file, not a link, of a type the targets write, in a folder a target writes into (not the folders below it), that starts with exactly the header is left over; everything else there stays, such as a `package.json` or a note that mentions the header. A target may name source folders, below which a left-over generated file is found at any depth (the Kotlin library's `src/main/kotlin`, so a renamed package leaves no sources behind). A target may also copy a file (the Swift package's fonts, when the design binds iOS to named fonts): a copy has no header and is written byte for byte, and `--check` compares its bytes. In a folder a target copies into (it names them, also while it copies nothing), any file that no target copies now is left over too, and a linked copy folder fails the task. A later target adds a module and its templates, not a task.
 - `Prism.Generator.Phoenix` is no file target: an app's module `use`s it and gets its components at compile time (ADR 0003). Phoenix LiveView is an optional dependency of the generator; CI compiles the generator without it too (`mix compile --no-optional-deps`). The web target, the Phoenix components and the React target share `Prism.Generator.Web.Classes` for class names, and the two kinds of components share `Prism.Generator.Web.Elements` for their markup.
 - The generator gets the design only from the config, never by naming it. It compiles and tests on its own, without `design/`, so a reference to Prism's design fails its build. CI also checks that it mentions none of Prism's values.
-- Its tests use neutral example designs: `generator/test/support/example_design.ex`, whose files they compare with reviewed fixtures in `generator/test/fixtures/`, and `example_components.ex`, one component of every kind, which they render through `Prism.Generator.Phoenix` and check against its CSS. Its React components are a fixture package too, `generator/test/fixtures/react/`, whose `npm test` type-checks them and renders them against the example's CSS (`generator/test/fixtures/example_components/`). Its Swift packages are fixtures as well, `generator/test/fixtures/swift/components/` and `…/design/`, which CI builds with `xcodebuild`.
+- Its tests use neutral example designs: `generator/test/support/example_design.ex`, whose files they compare with reviewed fixtures in `generator/test/fixtures/`, and `example_components.ex`, one component of every kind, which they render through `Prism.Generator.Phoenix` and check against its CSS. Its React components are a fixture package too, `generator/test/fixtures/react/`, whose `npm test` type-checks them and renders them against the example's CSS (`generator/test/fixtures/example_components/`). Its Swift packages are fixtures as well, `generator/test/fixtures/swift/components/` and `…/design/`, which CI builds with `xcodebuild`, and so are its Kotlin libraries, `generator/test/fixtures/kotlin/components/` and `…/design/`, which CI builds with Gradle.
 - Its `mix test` needs Node (`nodejs` in `.tool-versions`): a test loads the generated preset in plain Node.
 - **Moving it to its own repository:** move `generator/` out as it is, and change one line in `design/mix.exs` from `path: "../generator"` to a git or Hex dependency.
 
@@ -258,25 +299,32 @@ Before tagging, bump the version in `design/mix.exs`, `targets/web/package.json`
 
 1. Publishes `targets/web/` and `targets/react/`, in that order. It waits for npm's processing to finish and verifies package hashes. npm trusted publishing provides authentication.
 2. Mirrors the tag's tracked `targets/swift/` files into `prism-swift` using `.github/swift-release.sh`, committing and pushing the branch and tag atomically.
-3. Creates the GitHub release and attaches `tokens.json`, `tokens.css`, `overview.svg` and the Webflow Designer Extension's bundle, `prism-tokens-webflow.zip`. A job of its own, which can only read, builds that zip before step 1; the publishing job takes it as an artifact and checks its file list, so Webflow's CLI never runs where npm and the Swift deploy key can be used.
+3. Creates the GitHub release and attaches `tokens.json`, `tokens.css`, `overview.svg` and the Webflow Designer Extension's bundle, `prism-tokens-webflow.zip`. A job of its own, which can only read, builds that zip before step 1 and gives the artifact's id and the zip's sha256 as its outputs; the publishing job downloads that artifact by its id, stops unless the zip's sha256 is that job's, and checks its file list, so Webflow's CLI never runs where npm and the Swift deploy key can be used, and no other job of the run can put another zip in its place.
+4. Releases the Kotlin library to Maven Central in two jobs that never meet. `maven-bundle`, with read access and no secret, builds `targets/kotlin/` at the tag's version with Gradle into the bundle (`.github/kotlin-release.sh --bundle`), checks it, and passes it on as an artifact, with the artifact's id and the bundle's digest as its outputs. `maven-central`, after the steps above and that job, runs no build: it downloads that artifact by its id, and `.github/kotlin-release.sh vX.Y.Z <bundle>` stops unless the bundle's digest is `maven-bundle`'s, checks the bundle, signs every file with gpg, uploads it through the Central Publisher Portal (published automatically once it validates), and waits until Central has published it, which takes minutes. A failure there leaves the other releases as they are. It reads the repository secrets `MAVEN_CENTRAL_USERNAME`, `MAVEN_CENTRAL_PASSWORD`, `MAVEN_SIGNING_KEY` and `MAVEN_SIGNING_KEY_PASSWORD`, and fails first, with the secret's name, when one is missing.
 
-Stable tags use `vX.Y.Z` and npm's `latest` dist-tag. Release candidates use `vX.Y.Z-rc.N`, npm's `next` dist-tag and a GitHub prerelease. Candidates do not move `latest`.
+Stable tags use `vX.Y.Z` and npm's `latest` dist-tag. Release candidates use `vX.Y.Z-rc.N`, npm's `next` dist-tag and a GitHub prerelease. Candidates do not move `latest`. On Maven Central, which has no dist-tags, a candidate is the version `X.Y.Z-rc.N`, which Gradle and Maven order before `X.Y.Z`; like every version there, it stays.
 
 ### One-time release setup
 
 - On each npm package (`@novasoftwarefoundation/prism` and `@novasoftwarefoundation/prism-react`), configure GitHub Actions trusted publishing: owner `novasoftwarefoundation`, repository `prism`, workflow filename `release.yml`, no environment restriction. Enable publishing for that trusted publisher. The job uses `id-token: write`; no npm token secret is needed. The pinned Node version includes a compatible npm CLI (11.5.1 or later).
 - Create a write-enabled deploy key on `novasoftwarefoundation/prism-swift` only. Store its private half in the `novasoftwarefoundation/prism` Actions secret `PRISM_SWIFT_DEPLOY_KEY`. The workflow pins the SSH host keys from GitHub's HTTPS metadata API and removes the temporary private key when the step ends.
 - GitHub's workflow token creates the Prism release/assets with `contents: write`.
+- Maven Central: the namespace `org.novasoftwarefoundation` is verified in the [Central Publisher Portal](https://central.sonatype.com/) with a DNS TXT record on `novasoftwarefoundation.org`. Four Actions secrets on `novasoftwarefoundation/prism` hold the credentials: `MAVEN_CENTRAL_USERNAME` and `MAVEN_CENTRAL_PASSWORD`, the two parts of a Portal user token (it expires: generate a new one before it does), and `MAVEN_SIGNING_KEY`, the ASCII-armored secret key that signs the files, with its passphrase in `MAVEN_SIGNING_KEY_PASSWORD`. The key is RSA 4096, signing only, fingerprint `24270AF8F9E30AD3EDF7A0B0F9156907F9CCAC8D`, published on `keyserver.ubuntu.com`, where Central and apps verify the signatures.
 
 ### Failed or partial releases
 
-Check the failed step before rerunning the workflow. Published npm versions are reused only when their hashes match the prepared packages. An existing Swift tag must contain exactly the expected tracked files and belong to its main branch. Existing GitHub releases receive the tag's design assets again. Nothing moves or deletes a published version tag. If npm accepted an upload but is still processing it, wait for processing to finish before rerunning; do not submit another upload manually. Fix incorrect published content in a new patch version.
+Check the failed step before rerunning the workflow. Published npm versions are reused only when their hashes match the prepared packages. An existing Swift tag must contain exactly the expected tracked files and belong to its main branch. Existing GitHub releases receive the tag's design assets again. A version Maven Central already has is not uploaded again; a deployment Central refused (`FAILED`) is shown in the Portal with its reasons. Nothing moves or deletes a published version tag. If npm accepted an upload but is still processing it, wait for processing to finish before rerunning; do not submit another upload manually. Fix incorrect published content in a new patch version.
 
 The local release checks can be run without publishing:
 
 ```sh
 npm ci --prefix .github   # the YAML parser of the workflow guard
-node --test .github/release-version.test.mjs .github/release-publish.test.mjs .github/release-workflow.test.mjs
+node --test .github/release-version.test.mjs .github/release-publish.test.mjs .github/release-workflow.test.mjs .github/kotlin-release.test.mjs
+# The Maven Central bundle, unsigned and not uploaded (Gradle, JDK 17 and the Android SDK),
+# into an empty folder, then its check and its digest:
+.github/kotlin-release.sh --bundle X.Y.Z /path/to/bundle
+.github/kotlin-release.sh --check X.Y.Z /path/to/bundle
+.github/kotlin-release.sh --digest /path/to/bundle
 # After npm ci in targets/react; choose an existing directory outside the checkout:
 RELEASE_TAG=vX.Y.Z RUNNER_TEMP=/path/to/temp node .github/release-prepare.mjs
 ```
