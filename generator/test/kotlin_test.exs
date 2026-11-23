@@ -253,6 +253,9 @@ defmodule Prism.Generator.KotlinTest do
       assert metadata =~ "return (value as? Number)?.let(::whole)"
       assert metadata =~ "is Double, is Float -> number.toDouble().takeIf {"
       assert metadata =~ "it.isFinite() && it % 1.0 == 0.0 &&"
+      # Another kind of number, such as Gson's LazilyParsedNumber, by its decimal text.
+      assert metadata =~
+               "else -> runCatching { java.math.BigDecimal(number.toString()).intValueExact() }"
     end
 
     test "the input metadata validates its range and reads snake_case keys" do

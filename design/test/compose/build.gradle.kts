@@ -37,5 +37,7 @@ dependencies {
     testImplementation("androidx.compose.material:material-icons-core")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
     testImplementation("org.robolectric:robolectric:4.18.1")
+    // What an app's JSON parser gives the input metadata.
+    testImplementation("com.google.code.gson:gson:2.15.0")
     testImplementation("junit:junit:4.13.2")
 }

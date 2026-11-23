@@ -4,6 +4,7 @@
 #
 #   .github/kotlin-release.sh --bundle X.Y.Z <out dir>
 #   .github/kotlin-release.sh --check X.Y.Z <bundle dir>
+#   .github/kotlin-release.sh --digest <bundle dir>
 #   .github/kotlin-release.sh vX.Y.Z <bundle dir>
 #
 # --bundle builds targets/kotlin/ at the version X.Y.Z with Gradle, and writes the bundle's
@@ -16,7 +17,13 @@
 # --check checks a bundle: it holds exactly the files of .github/maven-files.txt for the
 # version, each matches its checksums, and its POM has every field Maven Central requires.
 #
-# vX.Y.Z releases a bundle: it checks it as --check does, signs every file, and uploads it
+# --digest prints the bundle's sha256: of each file's path and sha256, in order. The job that
+# builds the bundle gives it as its output, so the job that signs can tell that the bundle it
+# got is the one that job built, not one another job of the run put in its place.
+#
+# vX.Y.Z releases a bundle: it checks that its digest is MAVEN_BUNDLE_SHA256, the building
+# job's, and checks it as --check does, before it imports the key; then it signs every file,
+# and uploads it
 # through the Central Publisher Portal, which publishes it once it validates, then waits until
 # it has. It runs no Gradle, only gpg, openssl, zip and curl. Run it from the repository
 # root, with Prism's tag vX.Y.Z checked out and checked as README → Publish says. It reads four
@@ -35,7 +42,7 @@ central=https://central.sonatype.com/api/v1/publisher
 library=targets/kotlin
 
 usage() {
-  echo "usage: $0 --bundle X.Y.Z <out dir> | $0 --check X.Y.Z <bundle dir> | $0 vX.Y.Z <bundle dir>" >&2
+  echo "usage: $0 --bundle X.Y.Z <out dir> | $0 --check X.Y.Z <bundle dir> | $0 --digest <bundle dir> | $0 vX.Y.Z <bundle dir>" >&2
   exit 2
 }
 
@@ -74,6 +81,19 @@ check() {
   done
   grep -q "<version>$version</version>" "$pom" || fail "The POM is not at $version"
 }
+
+# The sha256 of the bundle in $1: of each file's path and sha256, in the paths' order.
+digest() {
+  (cd "$1" && find . -type f | LC_ALL=C sort | while read -r file; do
+    printf '%s %s\n' "$(openssl dgst -sha256 "$file" | sed 's/.*= //')" "$file"
+  done) | openssl dgst -sha256 | sed 's/.*= //'
+}
+
+if [ "${1-}" = --digest ]; then
+  [ $# -eq 2 ] || usage
+  digest "$2"
+  exit 0
+fi
 
 if [ "${1-}" = --check ]; then
   [ $# -eq 3 ] || usage
@@ -125,7 +145,14 @@ head=$(git rev-parse HEAD)
 [ -z "$(git status --porcelain)" ] || fail "Prism's tree has changes or untracked files"
 grep -q "version: \"$version\"" design/mix.exs || fail "design/mix.exs is not at $version"
 
-# The bundle the job without secrets built, as Central requires it.
+# The bundle the job without secrets built, and no other: its digest is that job's output.
+[ -n "${MAVEN_BUNDLE_SHA256-}" ] ||
+  fail "MAVEN_BUNDLE_SHA256 is not set: the release gives it from maven-bundle's output"
+actual=$(digest "$bundle")
+[ "$actual" = "$MAVEN_BUNDLE_SHA256" ] ||
+  fail "The bundle's digest is $actual, not maven-bundle's $MAVEN_BUNDLE_SHA256: not signing it"
+
+# As Central requires it.
 check "$version" "$bundle"
 
 work=$(mktemp -d)

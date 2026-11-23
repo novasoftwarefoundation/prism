@@ -242,7 +242,8 @@ defmodule Prism.Generator.InputMetadata do
             /**
              * The metadata from its snake_case keys in `values`, parsed from JSON into plain
              * values. A number is any `Number` with a whole value, as parsers give one (`500` from
-             * org.json, `500.0` from Gson or Moshi). A missing or `null` value is `null`; an
+             * org.json, `500.0` from Gson's or Moshi's maps, a `LazilyParsedNumber` from Gson's
+             * tree). A missing or `null` value is `null`; an
              * unknown key, or a value that is not a whole number in range, fails, never clamped
              * or coerced.
              */
@@ -271,7 +272,9 @@ defmodule Prism.Generator.InputMetadata do
                 }?.toInt()
                 is java.math.BigInteger -> runCatching { number.intValueExact() }.getOrNull()
                 is java.math.BigDecimal -> runCatching { number.intValueExact() }.getOrNull()
-                else -> null
+                // Another kind, such as Gson's LazilyParsedNumber, by its decimal text.
+                else -> runCatching { java.math.BigDecimal(number.toString()).intValueExact() }
+                    .getOrNull()
             }
         }
     }
