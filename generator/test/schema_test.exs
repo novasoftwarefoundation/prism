@@ -552,6 +552,113 @@ defmodule Prism.Generator.SchemaTest do
     )
   end
 
+  test "the kotlin declaration is checked" do
+    [{module, _}] =
+      compile(~s(  kotlin package: "com.example.acme", name: "Acme", artifact: "acme-compose"))
+
+    assert module.__schema__().kotlin == %{
+             package: "com.example.acme",
+             name: "Acme",
+             artifact: "acme-compose"
+           }
+
+    # The artifact is the name in lower case unless the design gives one.
+    [{module, _}] = compile(~s(  kotlin package: "com.example.acme", name: "AcmeKit"))
+    assert module.__schema__().kotlin.artifact == "acmekit"
+
+    assert_compile_error(
+      ~s(  kotlin package: "com.example.a", name: "A"\n  kotlin package: "com.example.a", name: "A"),
+      "kotlin is declared more than once",
+      3
+    )
+
+    assert_compile_error(
+      ~s(  kotlin ["com.example.a"]),
+      "kotlin: options must be a keyword list",
+      3
+    )
+
+    assert_compile_error(
+      ~s(  kotlin package: "com.example.a", name: "A", module: "A"),
+      "unknown option :module",
+      3
+    )
+
+    # The package is the library's folder (src/main/kotlin/<package>): at least two lower-case
+    # names, so no path of another shape.
+    for package <- [
+          "acme",
+          "Com.Example",
+          "com.example.",
+          "com..example",
+          "com/example",
+          "../x.y",
+          nil
+        ] do
+      assert_compile_error(
+        "  kotlin package: #{inspect(package)}, name: \"A\"",
+        "package must be a Kotlin package of at least two lower case names",
+        3
+      )
+    end
+
+    for name <- ["acme", "Acme Kit", "1Acme", nil] do
+      assert_compile_error(
+        ~s(  kotlin package: "com.example.a", name: #{inspect(name)}),
+        "name must be an upper camel case Kotlin name",
+        3
+      )
+    end
+
+    for artifact <- ["Acme", "acme_compose", "-acme", 1] do
+      assert_compile_error(
+        ~s(  kotlin package: "com.example.a", name: "A", artifact: #{inspect(artifact)}),
+        "artifact must be a Maven artifact id",
+        3
+      )
+    end
+  end
+
+  test "a design that takes its tokens from another takes its kotlin declaration" do
+    [{tokens, _}] =
+      compile(
+        ~s(  web prefix: "acme", fonts_url: "f"\n  kotlin package: "com.example.acme", name: "Acme"\n  color :ink, "#101010")
+      )
+
+    module = "Design#{System.unique_integer([:positive])}"
+
+    [{components, _}] =
+      Code.compile_string(
+        "defmodule #{module} do\n  use Prism.Generator.Schema, tokens: #{inspect(tokens)}\nend\n",
+        "design.ex"
+      )
+
+    assert components.__schema__().kotlin.package == "com.example.acme"
+
+    error =
+      assert_raise CompileError, fn ->
+        Code.compile_string(
+          "defmodule #{module}B do\n  use Prism.Generator.Schema, tokens: #{inspect(tokens)}\n  kotlin package: \"com.example.b\", name: \"B\"\nend\n",
+          "design.ex"
+        )
+      end
+
+    assert Exception.message(error) =~ "kotlin: it comes with the tokens"
+  end
+
+  # The design DSL is written without parentheses, as the docs show it, also in a design
+  # project that imports the generator's formatter.
+  test "mix format keeps the swift and kotlin declarations without parentheses" do
+    {formatter, _} = Code.eval_file(".formatter.exs")
+
+    for code <- [
+          ~s(swift module: "Acme"\n),
+          ~s(kotlin package: "com.example.acme", name: "Acme"\n)
+        ] do
+      assert IO.iodata_to_binary([Code.format_string!(code, formatter), "\n"]) == code
+    end
+  end
+
   test "a design that takes its tokens from another takes its swift declaration" do
     [{tokens, _}] =
       compile(

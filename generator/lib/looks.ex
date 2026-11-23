@@ -1,13 +1,13 @@
-defmodule Prism.Generator.Swift.Looks do
+defmodule Prism.Generator.Looks do
   @moduledoc """
-  A component's looks as layers, for the Swift target: each layer is the look
+  A component's looks as layers, for a native target: each layer is the look
   of one node of the design (the component, a part, a variant, a flag, a look
-  with a part or with a variant, a state) with the `ios:` binding's properties
-  in place of the shared ones, the conditions under which it holds, and its
-  rank.
+  with a part or with a variant, a state) with the platform's binding (`ios:`
+  or `android:`) in place of the shared properties, the conditions under which
+  it holds, and its rank.
 
-  The Swift target lays the layers that hold over each other, so a component
-  looks as its CSS makes it look on the web: a layer of a higher rank wins,
+  The Swift and Kotlin targets lay the layers that hold over each other, so a
+  component looks as its CSS makes it look on the web: a layer of a higher rank wins,
   and of two layers of the same rank, the later one in the design. The rank is
   what the web's selector for the node weighs (`Prism.Generator.Web.Classes`):
 
@@ -44,15 +44,16 @@ defmodule Prism.Generator.Swift.Looks do
   @states [:pressed, :hovered, :focused, :disabled, :checked, :selected, :loading, :invalid]
 
   @doc """
-  The layers of component `c`, in the order they are laid over each other:
+  The layers of component `c` on `platform` (`:ios` or `:android`), in the order
+  they are laid over each other:
   `[%{part, conditions, style}]`. `part` is `nil` for the component itself or
   a part's name; `conditions` are `{:axis, axis, variant}`, `{:flag, name}`,
   `{:with, part}`, `{:value, name}`, `{:state, name}` (a state of the
-  component) and `{:part_state, part, name}`; `style` is the node's look on iOS, a keyword
-  list of properties. Layers without properties are left out.
+  component) and `{:part_state, part, name}`; `style` is the node's look on the
+  platform, a keyword list of properties. Layers without properties are left out.
   """
-  def layers(c) do
-    indexed = c |> nodes() |> Enum.with_index()
+  def layers(c, platform) when platform in [:ios, :android] do
+    indexed = c |> Map.put(:platform, platform) |> nodes() |> Enum.with_index()
 
     (indexed ++ over(indexed, c))
     |> Enum.sort_by(fn {layer, index} -> {layer.rank, index} end)
@@ -136,11 +137,11 @@ defmodule Prism.Generator.Swift.Looks do
   end
 
   @doc """
-  The states a component's layers depend on, in the format's order:
+  The states a component's layers on `platform` depend on, in the format's order:
   `[{:state, name}]` and `[{:part_state, part, name}]`, the component's first.
   """
-  def states(c) do
-    conditions = c |> layers() |> Enum.flat_map(& &1.conditions) |> Enum.uniq()
+  def states(c, platform) do
+    conditions = c |> layers(platform) |> Enum.flat_map(& &1.conditions) |> Enum.uniq()
     own = for s <- @states, {:state, s} in conditions, do: {:state, s}
 
     parts =
@@ -152,9 +153,12 @@ defmodule Prism.Generator.Swift.Looks do
     own ++ parts
   end
 
-  @doc "A node's look on iOS: its shared style, with its `ios:` binding's properties in place."
-  def style(node) do
-    overrides = node.ios
+  @doc """
+  A node's look on `platform`: its shared style, with its binding's properties
+  (`ios:` or `android:`) in place.
+  """
+  def style(node, platform) do
+    overrides = Map.fetch!(node, platform)
 
     Enum.map(node.style, fn {key, value} -> {key, Keyword.get(overrides, key, value)} end) ++
       Keyword.drop(overrides, Keyword.keys(node.style))
@@ -257,8 +261,8 @@ defmodule Prism.Generator.Swift.Looks do
     if pseudo? or not element?, do: rank + 1, else: rank
   end
 
-  defp layer(_c, part, conditions, rank, node),
-    do: %{part: part, conditions: conditions, style: style(node), rank: rank}
+  defp layer(c, part, conditions, rank, node),
+    do: %{part: part, conditions: conditions, style: style(node, c.platform), rank: rank}
 
   # Conditions in the order of the component's axes.
   defp sort(conditions, c) do

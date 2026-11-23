@@ -181,6 +181,106 @@ defmodule Prism.Generator.InputMetadata do
     """
   end
 
+  @doc false
+  def kotlin_files(design, name, package) do
+    case components(design) do
+      [] ->
+        []
+
+      components ->
+        [
+          {"InputMetadata.kt",
+           """
+           package #{package}
+
+           """ <> Enum.map_join(components, "\n", &kotlin(&1, name))}
+        ]
+    end
+  end
+
+  # Kotlin has no Codable: `from` reads the snake_case keys from values already parsed
+  # into plain values (`Map`, `Number`, …), as an app's JSON parser gives them.
+  defp kotlin(component, name) do
+    type = name <> pascal(component.name) <> "InputMetadata"
+    props = component.input_properties
+
+    fields =
+      Enum.map_join(props, "", fn p ->
+        "    /** Integer milliseconds #{p.min}..#{p.max}; `null` disables. */\n" <>
+          "    public val #{Prism.Generator.Kotlin.ident(p.name)}: Int? = null,\n"
+      end)
+
+    checks =
+      Enum.map_join(props, "", fn p ->
+        key = Prism.Generator.Kotlin.ident(p.name)
+
+        """
+                require(#{key} == null || #{key} in #{p.min}..#{p.max}) {
+                    "#{p.name}: expected integer milliseconds #{p.min}..#{p.max}"
+                }
+        """
+      end)
+
+    keys = Enum.map_join(props, ", ", &~s("#{&1.name}"))
+
+    reads =
+      Enum.map_join(props, ",\n", fn p ->
+        "                #{Prism.Generator.Kotlin.ident(p.name)} = int(values, \"#{p.name}\")"
+      end)
+
+    """
+    /**
+     * Semantic data for one input instance; does not change the styled field. The form owns
+     * scheduling and submission.
+     */
+    public data class #{type}(
+    #{fields}) {
+        init {
+    #{checks}    }
+
+        public companion object {
+            /**
+             * The metadata from its snake_case keys in `values`, parsed from JSON into plain
+             * values. A number is any `Number` with a whole value, as parsers give one (`500` from
+             * org.json, `500.0` from Gson's or Moshi's maps, a `LazilyParsedNumber` from Gson's
+             * tree). A missing or `null` value is `null`; an
+             * unknown key, or a value that is not a whole number in range, fails, never clamped
+             * or coerced.
+             */
+            public fun from(values: Map<String, Any?>): #{type} {
+                val unknown = values.keys - setOf(#{keys})
+                require(unknown.isEmpty()) { "unknown input property: ${unknown.first()}" }
+                return #{type}(
+    #{reads},
+                )
+            }
+
+            private fun int(values: Map<String, Any?>, key: String): Int? {
+                val value = values[key] ?: return null
+                return (value as? Number)?.let(::whole)
+                    ?: throw IllegalArgumentException("$key: expected integer milliseconds")
+            }
+
+            // A number's value as an Int, when it is whole and an Int can hold it.
+            private fun whole(number: Number): Int? = when (number) {
+                is Int -> number
+                is Long, is Short, is Byte ->
+                    number.toLong().takeIf { it in Int.MIN_VALUE..Int.MAX_VALUE }?.toInt()
+                is Double, is Float -> number.toDouble().takeIf {
+                    it.isFinite() && it % 1.0 == 0.0 &&
+                        it >= Int.MIN_VALUE.toDouble() && it <= Int.MAX_VALUE.toDouble()
+                }?.toInt()
+                is java.math.BigInteger -> runCatching { number.intValueExact() }.getOrNull()
+                is java.math.BigDecimal -> runCatching { number.intValueExact() }.getOrNull()
+                // Another kind, such as Gson's LazilyParsedNumber, by its decimal text.
+                else -> runCatching { java.math.BigDecimal(number.toString()).intValueExact() }
+                    .getOrNull()
+            }
+        }
+    }
+    """
+  end
+
   defp pascal(name), do: name |> Atom.to_string() |> Macro.camelize()
 
   defp camel(name) do

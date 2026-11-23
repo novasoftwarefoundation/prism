@@ -1,0 +1,15 @@
+org/novasoftwarefoundation/prism-compose/VERSION/prism-compose-VERSION-javadoc.jar
+org/novasoftwarefoundation/prism-compose/VERSION/prism-compose-VERSION-javadoc.jar.md5
+org/novasoftwarefoundation/prism-compose/VERSION/prism-compose-VERSION-javadoc.jar.sha1
+org/novasoftwarefoundation/prism-compose/VERSION/prism-compose-VERSION-sources.jar
+org/novasoftwarefoundation/prism-compose/VERSION/prism-compose-VERSION-sources.jar.md5
+org/novasoftwarefoundation/prism-compose/VERSION/prism-compose-VERSION-sources.jar.sha1
+org/novasoftwarefoundation/prism-compose/VERSION/prism-compose-VERSION.aar
+org/novasoftwarefoundation/prism-compose/VERSION/prism-compose-VERSION.aar.md5
+org/novasoftwarefoundation/prism-compose/VERSION/prism-compose-VERSION.aar.sha1
+org/novasoftwarefoundation/prism-compose/VERSION/prism-compose-VERSION.module
+org/novasoftwarefoundation/prism-compose/VERSION/prism-compose-VERSION.module.md5
+org/novasoftwarefoundation/prism-compose/VERSION/prism-compose-VERSION.module.sha1
+org/novasoftwarefoundation/prism-compose/VERSION/prism-compose-VERSION.pom
+org/novasoftwarefoundation/prism-compose/VERSION/prism-compose-VERSION.pom.md5
+org/novasoftwarefoundation/prism-compose/VERSION/prism-compose-VERSION.pom.sha1

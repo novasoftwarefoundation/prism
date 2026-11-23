@@ -3,6 +3,7 @@
 design_dsl = [
   web: 1,
   swift: 1,
+  kotlin: 1,
   color: 2,
   shadow: 2,
   shadow: 3,
