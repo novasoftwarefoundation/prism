@@ -369,10 +369,10 @@ defmodule Mix.Tasks.Prism.GenTest do
     Application.put_env(:prism_generator, :targets, [])
     assert_raise Mix.Error, ~r/no targets/, fn -> gen() end
 
-    Application.put_env(:prism_generator, :targets, kotlin: dir)
+    Application.put_env(:prism_generator, :targets, android: dir)
 
     assert_raise Mix.Error,
-                 ~r/unknown target :kotlin; known: \[:design_tools, :react, :swift, :web\]/,
+                 ~r/unknown target :android; known: \[:design_tools, :kotlin, :react, :swift, :web\]/,
                  fn -> gen() end
 
     assert File.ls!(dir) == []

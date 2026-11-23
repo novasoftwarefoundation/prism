@@ -25,7 +25,7 @@ defmodule Prism.Generator.Swift.Components do
 
   Each component also has `MComponentLooks`: its look and each part's in one
   choice of variants, flags, parts, values and states, as `MLook`s, laid over
-  each other as on the web (`Prism.Generator.Swift.Looks`). The styles and
+  each other as on the web (`Prism.Generator.Looks`). The styles and
   views draw from it; an app can read it too, for a view of its own.
 
   ## The API
@@ -72,7 +72,7 @@ defmodule Prism.Generator.Swift.Components do
   """
 
   alias Prism.Generator.Swift
-  alias Prism.Generator.Swift.Looks
+  alias Prism.Generator.Looks
 
   @kinds [
     :button,
@@ -250,7 +250,7 @@ defmodule Prism.Generator.Swift.Components do
             kind: {:value, v.name}
           }
 
-    states = Looks.states(c)
+    states = Looks.states(c, :ios)
 
     states =
       for s <- states do
@@ -312,7 +312,7 @@ defmodule Prism.Generator.Swift.Components do
     params = spec.args |> Enum.map(&param/1) |> wrap("        ", ",")
 
     statements =
-      for layer <- Looks.layers(c) do
+      for layer <- Looks.layers(c, :ios) do
         target = if layer.part, do: Swift.ident(layer.part), else: "root"
         fields = look_fields(ctx, c, layer)
 

@@ -7,5 +7,6 @@ config :prism_generator,
     web: "../targets/web",
     react: "../targets/react",
     design_tools: "../targets/design-tools",
-    swift: "../targets/swift"
+    swift: "../targets/swift",
+    kotlin: "../targets/kotlin"
   ]

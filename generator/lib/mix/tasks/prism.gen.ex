@@ -19,7 +19,9 @@ defmodule Mix.Tasks.Prism.Gen do
   - `design_tools`: `Prism.Generator.DesignTools` (a DTCG tokens file, the
     tokens as CSS custom properties, and an SVG overview of the design);
   - `swift`: `Prism.Generator.Swift` (a Swift package: the tokens, a style or
-    view per component, and the fonts it bundles).
+    view per component, and the fonts it bundles);
+  - `kotlin`: `Prism.Generator.Kotlin` (an Android library: its Gradle build,
+    the tokens, and a composable per component).
 
   Each file starts with a `Prism.Generator.Header` line (in a JSON file, the
   root's `$description`). A file that doesn't start with exactly that line,
@@ -58,7 +60,8 @@ defmodule Mix.Tasks.Prism.Gen do
     web: Prism.Generator.Web,
     react: Prism.Generator.React,
     design_tools: Prism.Generator.DesignTools,
-    swift: Prism.Generator.Swift
+    swift: Prism.Generator.Swift,
+    kotlin: Prism.Generator.Kotlin
   }
 
   @impl true
