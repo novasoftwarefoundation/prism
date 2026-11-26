@@ -1154,12 +1154,7 @@ defmodule Prism.Generator.Swift.Components do
                     .#{ctx.lower}Look(#{field_look})
     #{icon}        }
             .menuIndicator(.hidden)
-            #if os(macOS)
-                // The label as it is: macOS's default is a grey pull-down button. iOS
-                // draws it as it is already, and a plain button there moves the icon.
-                .menuStyle(.button)
-                .buttonStyle(.plain)
-            #endif
+            .#{ctx.lower}PlainMenu()
             .#{ctx.lower}Look(looks.root)
         }#{room}
     }

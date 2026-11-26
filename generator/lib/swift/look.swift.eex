@@ -527,6 +527,16 @@ extension View {
     public func <%= @lower %>Look(_ look: <%= @m %>Look) -> some View {
         <%= @lower %>Text(look).<%= @lower %>Box(look)
     }
+
+    /// A `Menu` that draws its label as it is: macOS's default is a grey pull-down button.
+    /// iOS draws the label as it is already, and a plain button there moves what it draws.
+    func <%= @lower %>PlainMenu() -> some View {
+#if os(macOS)
+        menuStyle(.button).buttonStyle(.plain)
+#else
+        self
+#endif
+    }
 }
 
 /// A look's text; what the look doesn't set, it takes from around it. A line is as

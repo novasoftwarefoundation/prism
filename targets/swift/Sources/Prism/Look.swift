@@ -550,6 +550,16 @@ extension View {
     public func prismLook(_ look: PrismLook) -> some View {
         prismText(look).prismBox(look)
     }
+
+    /// A `Menu` that draws its label as it is: macOS's default is a grey pull-down button.
+    /// iOS draws the label as it is already, and a plain button there moves what it draws.
+    func prismPlainMenu() -> some View {
+#if os(macOS)
+        menuStyle(.button).buttonStyle(.plain)
+#else
+        self
+#endif
+    }
 }
 
 /// A look's text; what the look doesn't set, it takes from around it. A line is as

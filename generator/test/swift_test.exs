@@ -66,6 +66,7 @@ defmodule Prism.Generator.SwiftTest do
           not String.ends_with?(path, "/Fonts.swift") do
       code = Regex.replace(~r|^\s*//.*\n|m, body, "")
       refute code =~ ~r/\bUI[A-Z]|\bNS[A-Z]/, "#{path} names UIKit or AppKit outside Look.swift"
+      refute code =~ "#if os", "#{path} has a platform branch outside Look.swift"
     end
   end
 
@@ -386,9 +387,17 @@ defmodule Prism.Generator.SwiftTest do
 
       select = body(ExampleComponents.__schema__(), "Sources/Kit/Select.swift")
 
-      # On macOS only: on iOS a plain button moves the icon.
       assert select =~
-               ~r/\.menuIndicator\(\.hidden\)\n +#if os\(macOS\)\n(?: +\/\/.*\n)* +\.menuStyle\(\.button\)\n +\.buttonStyle\(\.plain\)\n +#endif\n +\.kitLook\(looks\.root\)\n/
+               ".menuIndicator(.hidden)\n        .kitPlainMenu()\n        .kitLook(looks.root)\n"
+
+      refute select =~ "#if os"
+
+      # On macOS only, in Look.swift: on iOS a plain button moves the icon.
+      look = body(ExampleComponents.__schema__(), "Sources/Kit/Look.swift")
+
+      assert look =~
+               "    func kitPlainMenu() -> some View {\n#if os(macOS)\n" <>
+                 "        menuStyle(.button).buttonStyle(.plain)\n#else\n        self\n#endif\n    }\n"
     end
 
     test "a part that is a spinner is drawn with the variants the part picks" do
