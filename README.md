@@ -8,6 +8,8 @@ Before (`develop` at 7d4dc55) and after the PR, the same screen on each target:
 | `ios-default.png`, `ios-ax5.png` | SwiftUI on the iPhone 17 simulator (iOS 27.0, Xcode 27.0) | Dynamic Type Large and AX5 |
 | `web-100.png`, `web-200.png` | The CSS in Chrome (headless), a 393 px screen (the dashed line is its edge) | zoom 100% and 200% |
 
+`message-bars/` has the iOS message bars before (d206785) and after 43a68d8, where a least height stopped scaling with Dynamic Type: a one-line bar at AX5 was 116 pt and is now 70.7 pt, its text and 2 × 12 pt (`harness/MessageBarShots.swift`).
+
 `harness/` has the code that made them, not part of the PR: `ScreenshotTest.kt` goes in
 `design/test/compose/src/test/kotlin/org/novasoftwarefoundation/prism/checks/` (run with
 `PRISM_SHOTS=<folder> gradle -p design/test/compose testDebugUnitTest --tests '*ScreenshotTest*'`),
