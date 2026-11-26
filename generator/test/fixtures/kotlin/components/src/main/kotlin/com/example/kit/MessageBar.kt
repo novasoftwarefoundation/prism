@@ -3,10 +3,13 @@ package com.example.kit
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 
 /** The tone of a message bar. */
@@ -39,7 +42,7 @@ public class KitMessageBarLooks(
 }
 
 /**
- * A message bar: a message across the width it is given.
+ * A message bar: a message across the width it is given, each line centred.
  *
  * `KitMessageBar(tone = KitMessageBarTone.Danger) { Text("…") }`
  */
@@ -50,7 +53,12 @@ public fun KitMessageBar(
     content: @Composable () -> Unit,
 ) {
     val looks = KitMessageBarLooks(tone = tone)
-    Box(modifier.fillMaxWidth().kitBox(looks.root), contentAlignment = Alignment.CenterStart) {
-        KitText(looks.root) { content() }
+    Box(modifier.fillMaxWidth().kitBox(looks.root), contentAlignment = Alignment.Center) {
+        KitText(looks.root) {
+            CompositionLocalProvider(
+                LocalTextStyle provides LocalTextStyle.current.copy(textAlign = TextAlign.Center),
+                content = content,
+            )
+        }
     }
 }

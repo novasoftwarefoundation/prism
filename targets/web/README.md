@@ -250,7 +250,7 @@ Font classes: `font-title0` through `font-title7`, `font-body`, `font-button`, `
 
 | Class | Description |
 | --- | --- |
-| `prism-image-picker` | A preview and the app's button beside it |
+| `prism-image-picker` | A preview and the app's button beside it, or below it where the row has no room |
 | `prism-image-picker--round` | A round preview, for a profile photo (rectangular has no class) |
 | `prism-image-picker__preview` | The preview; an `<img>` in it covers it |
 
@@ -324,7 +324,7 @@ With a progress value, the spinner holds an SVG ring instead of the image, in a 
 
 | Class | Description |
 | --- | --- |
-| `prism-message-bar` | Base message bar |
+| `prism-message-bar` | Base message bar: its message centred, 40px high with one line, and 12px above and below more lines |
 | `prism-message-bar--info`, `--success`, `--warning`, `--danger` | Tones |
 
 ### Step Indicators

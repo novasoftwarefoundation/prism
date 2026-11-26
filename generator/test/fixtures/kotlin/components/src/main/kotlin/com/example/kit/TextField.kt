@@ -144,7 +144,7 @@ public fun KitTextField(
                         }
                     }
                     Box(
-                        Modifier.weight(1f).padding(root.padding.paddingValues()),
+                        Modifier.weight(1f).fillMaxHeight().padding(root.padding.paddingValues()),
                         contentAlignment = Alignment.CenterStart,
                     ) {
                         if (placeholder != null && state.text.isEmpty()) {

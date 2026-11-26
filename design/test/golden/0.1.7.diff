@@ -489,7 +489,15 @@
     ========================================================================== */
  
  .prism-select {
-@@ -363,6 +601,18 @@
+@@ -356,6 +594,7 @@
+   border-radius: 0.25rem;
+   outline: none;
+   cursor: pointer;
++  text-align: start;
+   white-space: pre-wrap;
+ }
+ 
+@@ -363,6 +602,18 @@
    border-color: #4272ef;
  }
  
@@ -508,7 +516,7 @@
  .prism-select__icon {
    position: absolute;
    right: 12px;
-@@ -409,13 +659,22 @@
+@@ -409,13 +660,22 @@
    color: #4272ef;
  }
  
@@ -531,7 +539,7 @@
    animation: prism-spin 1s linear infinite;
  }
  
-@@ -424,6 +683,11 @@
+@@ -424,6 +684,11 @@
    height: 16px;
  }
  
@@ -543,7 +551,7 @@
  .prism-spinner--32 {
    width: 32px;
    height: 32px;
-@@ -438,16 +702,43 @@
+@@ -438,16 +703,43 @@
    }
  }
  
@@ -592,7 +600,7 @@
  /* ==========================================================================
     Checkbox (bonus component)
     ========================================================================== */
-@@ -477,7 +768,7 @@
+@@ -477,7 +769,7 @@
  }
  
  /* ==========================================================================
@@ -601,7 +609,7 @@
     ========================================================================== */
  
  /* Base tag styles - colored label with background opacity */
-@@ -502,7 +793,7 @@
+@@ -502,7 +794,7 @@
    line-height: 16px;
  }
  
@@ -610,7 +618,7 @@
  .prism-tag--accent .prism-tag__label {
    background-color: rgba(66, 114, 239, 0.2);
    color: #4272ef;
-@@ -520,24 +811,23 @@
+@@ -520,30 +812,31 @@
    color: #f28d15;
  }
  
@@ -637,9 +645,19 @@
 -/* Base alert styles */
 +/* Base message bar styles */
  .prism-message-bar {
++  box-sizing: border-box;
    display: flex;
    justify-content: center;
-@@ -551,35 +841,35 @@
+   align-items: center;
+-  height: 40px;
+-  padding: 0 16px;
++  text-align: center;
++  min-height: 40px;
++  padding: 12px 16px;
+   border-radius: 0.25rem;
+   font-family: "Nunito Sans", sans-serif;
+   font-weight: 600;
+@@ -551,42 +844,44 @@
    line-height: 16px;
  }
  
@@ -679,9 +697,18 @@
 -/* Base number icon - circular badge with number */
 +/* Base step indicator - circular badge with number */
  .prism-step-indicator {
++  box-sizing: border-box;
    display: flex;
    align-items: center;
-@@ -595,20 +885,53 @@
+   justify-content: center;
+   flex-shrink: 0;
+   width: 24px;
+   height: 24px;
++  padding: 4px;
+   border-radius: 50%;
+   font-family: "Nunito Sans", sans-serif;
+   font-weight: 700;
+@@ -595,20 +890,54 @@
    font-variant-numeric: tabular-nums;
  }
  
@@ -713,6 +740,7 @@
 +.prism-image-picker {
 +  display: flex;
 +  flex-direction: row;
++  flex-wrap: wrap;
 +  align-items: center;
 +  gap: 24px;
 +}

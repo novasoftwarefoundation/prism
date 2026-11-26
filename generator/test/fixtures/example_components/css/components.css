@@ -269,6 +269,7 @@
   height: 40px;
   outline: none;
   cursor: pointer;
+  text-align: start;
   white-space: pre-wrap;
 }
 
@@ -433,9 +434,11 @@
 }
 
 .kit-message-bar {
+  box-sizing: border-box;
   display: flex;
   justify-content: center;
   align-items: center;
+  text-align: center;
   height: 40px;
 }
 
@@ -448,6 +451,7 @@
 }
 
 .kit-step-indicator {
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -464,6 +468,7 @@
 .kit-image-picker {
   display: flex;
   flex-direction: row;
+  flex-wrap: wrap;
   align-items: center;
   gap: 16px;
 }

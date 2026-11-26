@@ -104,7 +104,7 @@ PrismImagePicker(
 | Checkbox | `PrismCheckbox(checked, onCheckedChange)`, on `Modifier.toggleable` |
 | Text field, text area | `PrismTextField(state)`, `PrismTextArea(state)`, a `BasicTextField` with a decorator |
 | Field | `PrismField(label =, errorMessage =) { control }` |
-| Radio group, radio | `PrismRadioGroup { … }` (`Modifier.selectableGroup`), `PrismRadio(checked, onClick) { label }` (`Modifier.selectable`) |
+| Radio group, radio | `PrismRadioGroup { … }`, its radios in a row, its content `RowScope` (it was `ColumnScope` in 0.6.0) (`Modifier.selectableGroup`), `PrismRadio(checked, onClick) { label }` (`Modifier.selectable`) |
 | Select | `PrismSelect(expanded, onExpandedChange, label =) { Option(…) { … } }`, on `ExposedDropdownMenuBox` |
 | Image picker | `PrismImagePicker(preview =, button =)` |
 | Tag, message bar, step indicator | `PrismTag(tone =)`, `PrismMessageBar(tone =)`, `PrismStepIndicator(status =)` |

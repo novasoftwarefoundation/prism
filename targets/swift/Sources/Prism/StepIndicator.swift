@@ -14,7 +14,8 @@ public struct PrismStepIndicatorLooks: Sendable, Hashable {
         status: PrismStepIndicatorStatus = .incomplete
     ) {
         root.apply(PrismLook(
-            radius: Prism.Radii.full, size: 24,
+            radius: Prism.Radii.full, padding: .init(top: 4, leading: 4, bottom: 4, trailing: 4),
+            size: 24,
             typography: PrismTypography(
                 family: Prism.Families.text, emphasis: .strong, italic: false, size: 12,
                 lineHeight: 12, textStyle: .caption)))
