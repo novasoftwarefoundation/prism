@@ -280,10 +280,11 @@ test('no job that reads a secret runs the Kotlin library\'s Gradle build or its 
 // release, which the script checks before it signs.
 function checkKotlinRelease(yaml, publishing) {
   const jobsOf = jobs(yaml);
+  // The bundle's build, and the compare's Android images (Robolectric), which ship nothing.
   const builders = jobsOf.filter((job) => job.steps.some(runsKotlinBuild));
   assert.deepEqual(
     builders.map(({ name, permissions }) => [name, permissions]),
-    [['maven-bundle', { contents: 'read' }]],
+    [['maven-bundle', { contents: 'read' }], ['compare-android', { contents: 'read' }]],
   );
   const [bundle] = builders;
   const upload = bundle.steps.find(({ uses }) => uses?.startsWith('actions/upload-artifact@'));
@@ -590,6 +591,45 @@ test('the release packs the npm packages in a job that can only read, and the re
   assert.equal(/echo "sha256=\$\((.*)\)" >> "\$GITHUB_OUTPUT"/.exec(digest.run)?.[1],
     /actual=\$\((.*)\)\n/.exec(steps[compare].run)?.[1], 'both jobs take the digest the same way');
 });
+
+// The compare images, as the other hand-overs: each compare job, which can only read, makes its
+// target's images with compare.sh and gives the artifact's id and their digest; the release job
+// downloads them by that id and compares each digest before it attaches the images.
+function checkCompare(yaml) {
+  const jobsOf = jobs(yaml);
+  const steps = jobsOf.find(({ name }) => name === 'release').steps;
+  const compare = steps.findIndex(({ run }) => /for target in android ios web/.test(run ?? ''));
+  const attaches = steps.findIndex(({ run }) => /gh release upload[^\n]*(\n[^\n]*)*compare\/\*\/compare-\*\.png/.test(run ?? ''));
+  assert.ok(compare >= 0 && attaches > compare, 'the release job compares the images\' digests before it attaches them');
+  assert.match(steps[compare].run, /exit 1/);
+  for (const target of ['android', 'ios', 'web']) {
+    const maker = jobsOf.find(({ name }) => name === `compare-${target}`);
+    assert.deepEqual(maker?.permissions, { contents: 'read' }, `compare-${target} can only read`);
+    assert.ok(maker.steps.some(({ run }) => run === `design/test/compare/compare.sh --only ${target} "$RUNNER_TEMP/compare"`));
+    const upload = maker.steps.find(({ uses }) => uses?.startsWith('actions/upload-artifact@'));
+    assert.equal(maker.outputs['artifact-id'], `\${{ steps.${upload.id}.outputs.artifact-id }}`);
+    const digest = maker.steps.find(({ id }) => `\${{ steps.${id}.outputs.sha256 }}` === maker.outputs.sha256);
+    assert.equal(/echo "sha256=\$\((.*)\)" >> "\$GITHUB_OUTPUT"/.exec(digest?.run ?? '')?.[1],
+      /actual=\$\(cd "\$RUNNER_TEMP\/compare\/\$target" && (.*)\)\n/.exec(steps[compare].run)?.[1],
+      `compare-${target} and the release job take the digest the same way`);
+    const download = steps.findIndex(({ with: given }) => given?.['artifact-ids'] === `\${{ needs.compare-${target}.outputs.artifact-id }}`);
+    assert.ok(download >= 0 && download < compare, `the release job downloads compare-${target}'s images by its id first`);
+    assert.equal(steps[compare].env?.[`${target.toUpperCase()}_SHA256`], `\${{ needs.compare-${target}.outputs.sha256 }}`);
+  }
+}
+
+test('the release makes the compare images in jobs that can only read, and the release job takes them as data', () => {
+  checkCompare(release);
+});
+
+for (const [layout, from, to] of [
+  ['the web images\' digest not compared', '          WEB_SHA256: ${{ needs.compare-web.outputs.sha256 }}\n', ''],
+  ['no digest among the iOS job\'s outputs', '      sha256: ${{ steps.digest.outputs.sha256 }}\n    steps:\n      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1\n        with:\n          persist-credentials: false\n      # CI\'s Xcode', '    steps:\n      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1\n        with:\n          persist-credentials: false\n      # CI\'s Xcode'],
+]) {
+  test(`the check refuses a compare with ${layout}`, () => {
+    assert.throws(() => checkCompare(edited(release, from, to)), assert.AssertionError);
+  });
+}
 
 // What Release does: it publishes nothing but the GitHub release. No job of it reads a secret
 // or can get an OIDC token, the release job is the only one that can write, and it builds

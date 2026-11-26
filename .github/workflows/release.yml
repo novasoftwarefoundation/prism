@@ -1,5 +1,5 @@
 # A version tag's release: the checks, every package built, and the GitHub release with the
-# design-tools files, the Webflow bundle and the Kotlin bundle attached. It publishes nothing
+# design-tools files, the Webflow bundle, the Kotlin bundle and the compare images attached. It publishes nothing
 # else: each target has a workflow of its own, which starts when this one succeeds for a
 # version tag and publishes what this run built, from its prism-release artifact (README →
 # Publish): publish-npm.yml, publish-swift.yml and publish-maven-central.yml.
@@ -70,7 +70,7 @@ jobs:
   # The GitHub release, and the hand-over to the publish workflows. This job builds nothing
   # and runs no package of the build trees: it downloads each building job's artifact by the
   # id that job gave, and stops unless its digest is that job's. Then it attaches the
-  # design-tools files, the Webflow zip, the Kotlin bundle and release.json (the tag, its
+  # design-tools files, the Webflow zip, the Kotlin bundle, the compare images and release.json (the tag, its
   # commit, the bundle's digest and each npm file's sha256) to the release, and uploads the npm
   # packages and the Kotlin bundle as one artifact, prism-release. The publish workflows check
   # that artifact against release.json on the release, which only this job can write, never
@@ -79,7 +79,7 @@ jobs:
   # run with it. The artifact keeps its name across attempts, so a repeated job's upload fails
   # too: re-run failed jobs only (README → Failed or partial releases).
   release:
-    needs: [checks, webflow, maven-bundle, npm-packages]
+    needs: [checks, webflow, maven-bundle, npm-packages, compare-android, compare-ios, compare-web]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -111,6 +111,21 @@ jobs:
           artifact-ids: ${{ needs.npm-packages.outputs.artifact-id }}
           merge-multiple: true
           path: ${{ runner.temp }}/prism-release/npm-packages
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          artifact-ids: ${{ needs.compare-android.outputs.artifact-id }}
+          merge-multiple: true
+          path: ${{ runner.temp }}/compare/android
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          artifact-ids: ${{ needs.compare-ios.outputs.artifact-id }}
+          merge-multiple: true
+          path: ${{ runner.temp }}/compare/ios
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          artifact-ids: ${{ needs.compare-web.outputs.artifact-id }}
+          merge-multiple: true
+          path: ${{ runner.temp }}/compare/web
       # The zip webflow built, and no other, before anything is attached.
       - name: The Webflow bundle is the one the webflow job built
         env:
@@ -149,6 +164,22 @@ jobs:
             echo "::error::The npm packages' digest is $actual, not the npm-packages job's ${NPM_SHA256:-(none)}"
             exit 1
           fi
+      # The images each compare job made, and no others: the sha256 of each image's name and
+      # sha256, as that job took it.
+      - name: The compare images are the ones the compare jobs made
+        env:
+          ANDROID_SHA256: ${{ needs.compare-android.outputs.sha256 }}
+          IOS_SHA256: ${{ needs.compare-ios.outputs.sha256 }}
+          WEB_SHA256: ${{ needs.compare-web.outputs.sha256 }}
+        run: |
+          for target in android ios web; do
+            expected=$(printenv "$(echo "$target" | tr a-z A-Z)_SHA256" || true)
+            actual=$(cd "$RUNNER_TEMP/compare/$target" && LC_ALL=C openssl dgst -sha256 compare-*.png | openssl dgst -sha256 | sed 's/.*= //')
+            if [ -z "$expected" ] || [ "$actual" != "$expected" ]; then
+              echo "::error::The $target compare images' digest is $actual, not the compare-$target job's ${expected:-(none)}"
+              exit 1
+            fi
+          done
       # What the publish workflows check prism-release against: the tag, its commit, the
       # Kotlin bundle's digest and each npm file's sha256. It goes on the GitHub release, which
       # only this job can write, never into the artifact, which any job of the run can upload.
@@ -176,7 +207,8 @@ jobs:
           fi
           gh release upload "$RELEASE_TAG" targets/design-tools/tokens.json \
             targets/design-tools/tokens.css targets/design-tools/overview.svg \
-            "$RUNNER_TEMP/webflow/prism-tokens-webflow.zip" "$kotlin" "$RUNNER_TEMP/release.json" --clobber
+            "$RUNNER_TEMP/webflow/prism-tokens-webflow.zip" "$kotlin" \
+            "$RUNNER_TEMP"/compare/*/compare-*.png "$RUNNER_TEMP/release.json" --clobber
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: prism-release
@@ -298,5 +330,127 @@ jobs:
         with:
           name: prism-npm-packages
           path: ${{ runner.temp }}/npm-packages
+          if-no-files-found: error
+          retention-days: 30
+
+  # The compare (README → The compare): the same screen on Android, iOS and the web, at the
+  # default text size and at the largest, made by design/test/compare/compare.sh, one target a
+  # job, so the release keeps a set to compare the next one with. Each job can only read and
+  # holds no secret; it gives its artifact's id and the images' digest, which the release job
+  # checks before it attaches them.
+  compare-android:
+    needs: checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    outputs:
+      artifact-id: ${{ steps.upload.outputs.artifact-id }}
+      sha256: ${{ steps.digest.outputs.sha256 }}
+    env:
+      GRADLE: "9.9.2"
+      ANDROID_PLATFORM: platforms;android-37.1
+      ANDROID_BUILD_TOOLS: build-tools;36.0.0
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
+        with:
+          distribution: temurin
+          java-version: "17"
+      # main's cache, read only, as maven-bundle.
+      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
+        with:
+          gradle-version: ${{ env.GRADLE }}
+          cache-provider: basic
+          cache-read-only: true
+      - name: Install the Android SDK packages
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "$ANDROID_PLATFORM" "$ANDROID_BUILD_TOOLS" >/dev/null
+      - name: The compare on Android
+        run: design/test/compare/compare.sh --only android "$RUNNER_TEMP/compare"
+      - name: The images' digest
+        id: digest
+        run: |
+          cd "$RUNNER_TEMP/compare"
+          echo "sha256=$(LC_ALL=C openssl dgst -sha256 compare-*.png | openssl dgst -sha256 | sed 's/.*= //')" >> "$GITHUB_OUTPUT"
+      - id: upload
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: prism-compare-android
+          path: ${{ runner.temp }}/compare/compare-*.png
+          if-no-files-found: error
+          retention-days: 30
+
+  compare-ios:
+    needs: checks
+    runs-on: macos-26
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    outputs:
+      artifact-id: ${{ steps.upload.outputs.artifact-id }}
+      sha256: ${{ steps.digest.outputs.sha256 }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # CI's Xcode (ci.yml's swift job).
+      - name: Select Xcode
+        env:
+          XCODE: "26.6"
+        run: |
+          app="/Applications/Xcode_$XCODE.app"
+          [ -d "$app" ] || {
+            echo "::error::Xcode $XCODE is not on this image; it has: $(ls -d /Applications/Xcode_*.app | xargs)"
+            exit 1
+          }
+          sudo xcode-select -s "$app"
+      - name: The compare on iOS
+        run: design/test/compare/compare.sh --only ios "$RUNNER_TEMP/compare"
+      - name: The images' digest
+        id: digest
+        run: |
+          cd "$RUNNER_TEMP/compare"
+          echo "sha256=$(LC_ALL=C openssl dgst -sha256 compare-*.png | openssl dgst -sha256 | sed 's/.*= //')" >> "$GITHUB_OUTPUT"
+      - id: upload
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: prism-compare-ios
+          path: ${{ runner.temp }}/compare/compare-*.png
+          if-no-files-found: error
+          retention-days: 30
+
+  compare-web:
+    needs: checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    outputs:
+      artifact-id: ${{ steps.upload.outputs.artifact-id }}
+      sha256: ${{ steps.digest.outputs.sha256 }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .tool-versions
+      # The image's Google Chrome.
+      - name: The compare on the web
+        run: design/test/compare/compare.sh --only web "$RUNNER_TEMP/compare"
+      - name: The images' digest
+        id: digest
+        run: |
+          cd "$RUNNER_TEMP/compare"
+          echo "sha256=$(LC_ALL=C openssl dgst -sha256 compare-*.png | openssl dgst -sha256 | sed 's/.*= //')" >> "$GITHUB_OUTPUT"
+      - id: upload
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: prism-compare-web
+          path: ${{ runner.temp }}/compare/compare-*.png
           if-no-files-found: error
           retention-days: 30
