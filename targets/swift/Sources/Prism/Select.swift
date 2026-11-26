@@ -119,6 +119,7 @@ public struct PrismSelect<Label: View, Content: View>: View {
                 }
         }
         .menuIndicator(.hidden)
+        .prismPlainMenu()
         .prismLook(looks.root)
     }
 

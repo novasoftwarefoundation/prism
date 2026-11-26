@@ -107,6 +107,7 @@ public struct KitSelect<Label: View, Content: View>: View {
                 }
         }
         .menuIndicator(.hidden)
+        .kitPlainMenu()
         .kitLook(looks.root)
     }
 

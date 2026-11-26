@@ -1,3 +1,4 @@
+#if os(iOS)
 import Prism
 import SwiftUI
 import Testing
@@ -392,3 +393,4 @@ import UIKit
         "\(Int(frame.top)) \(frame.look.map { ($0 * 1000).rounded() / 1000 })"
     }
 }
+#endif

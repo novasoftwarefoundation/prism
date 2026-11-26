@@ -1,3 +1,4 @@
+#if os(iOS)
 import Prism
 import SwiftUI
 import Testing
@@ -206,3 +207,4 @@ struct DynamicTypeTests {
         }
     }
 }
+#endif

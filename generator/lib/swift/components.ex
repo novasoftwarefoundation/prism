@@ -784,13 +784,14 @@ defmodule Prism.Generator.Swift.Components do
     on = if k == :text_field, do: "TextField", else: "TextEditor"
     # A TextEditor takes no height of its own; the app gives it one, and it is at least
     # one line of its text, which scales with Dynamic Type, with the text view's inset
-    # above and below it, so the line is never cut off.
+    # above and below it, so the line is never cut off. A TextField has the plain style,
+    # since macOS's default draws a bordered field inside the box.
     {hidden, line, size} =
       if k == :text_area,
         do:
           {"\n            .scrollContentBackground(.hidden)\n            .frame(minHeight: line(looks.root))",
            "", "    @Environment(\\.dynamicTypeSize) private var dynamicTypeSize\n"},
-        else: {"", "", ""}
+        else: {"\n            .textFieldStyle(.plain)", "", ""}
 
     least =
       if k == :text_area,
@@ -798,10 +799,9 @@ defmodule Prism.Generator.Swift.Components do
 
             /// One line of the look's text, as Dynamic Type scales it, in the text view's
             /// inset: `UITextView` draws its text 8pt below its top and needs 8pt below it.
+            /// macOS keeps the same 16pt.
             private func line(_ look: #{m}Look) -> CGFloat? {
-                let traits = UITraitCollection(
-                    preferredContentSizeCategory: UIContentSizeCategory(dynamicTypeSize))
-                return look.font.map { ($0.uiFont(compatibleWith: traits).lineHeight).rounded(.up) + 16 }
+                look.font.map { $0.scaled(dynamicTypeSize).fontLineHeight.rounded(.up) + 16 }
             }
         """,
         else: ""
@@ -825,6 +825,7 @@ defmodule Prism.Generator.Swift.Components do
                             .frame(maxHeight: .infinity)
                             .#{ctx.lower}Box(looks.prefix)
                         content
+                            .textFieldStyle(.plain)
                             .padding(looks.root.padding.edgeInsets())
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
@@ -835,6 +836,7 @@ defmodule Prism.Generator.Swift.Components do
                     .geometryGroup()
                 } else {
                     content
+                        .textFieldStyle(.plain)
                         .#{ctx.lower}Text(looks.root)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .#{ctx.lower}Box(looks.root)
@@ -1152,6 +1154,7 @@ defmodule Prism.Generator.Swift.Components do
                     .#{ctx.lower}Look(#{field_look})
     #{icon}        }
             .menuIndicator(.hidden)
+            .#{ctx.lower}PlainMenu()
             .#{ctx.lower}Look(looks.root)
         }#{room}
     }

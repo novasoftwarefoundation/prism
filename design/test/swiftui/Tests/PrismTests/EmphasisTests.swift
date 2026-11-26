@@ -1,3 +1,4 @@
+#if os(iOS)
 import Prism
 import SwiftUI
 import Testing
@@ -58,3 +59,4 @@ struct EmphasisTests {
         #expect(PrismButtonLooks(.primary).root.font?.weight == 600)
     }
 }
+#endif

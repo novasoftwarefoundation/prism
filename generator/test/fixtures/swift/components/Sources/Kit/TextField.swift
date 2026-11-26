@@ -76,6 +76,7 @@ public struct KitTextFieldModifier: ViewModifier {
                     .frame(maxHeight: .infinity)
                     .kitBox(looks.prefix)
                 content
+                    .textFieldStyle(.plain)
                     .padding(looks.root.padding.edgeInsets())
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -86,6 +87,7 @@ public struct KitTextFieldModifier: ViewModifier {
             .geometryGroup()
         } else {
             content
+                .textFieldStyle(.plain)
                 .kitText(looks.root)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .kitBox(looks.root)

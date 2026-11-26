@@ -27,7 +27,8 @@ const run = () => ({
 });
 const jobs = () => [{
   name: 'Swift package (iOS Simulator)', conclusion: 'success',
-  steps: ['Build the packages', "Render Prism's components", 'Record successful Swift validation']
+  steps: ['Build the packages', "Render Prism's components", "Render Prism's components on macOS",
+    'Record successful Swift validation']
     .map(name => ({ name, conclusion: 'success' })),
 }];
 const record = () => ({ ...expected(), repository, runId: 100, runAttempt: 1 });
@@ -111,7 +112,8 @@ test('absent, expired, corrupt, foreign or mismatched evidence requires the full
     { run: async () => ({ ...run(), event: 'workflow_dispatch' }) },
     { jobs: async () => [] },
     { jobs: async () => [{ ...jobs()[0], conclusion: 'skipped' }] },
-    ...['Build the packages', "Render Prism's components", 'Record successful Swift validation']
+    ...['Build the packages', "Render Prism's components", "Render Prism's components on macOS",
+      'Record successful Swift validation']
       .map(name => ({ jobs: async () => [{ ...jobs()[0], steps: jobs()[0].steps
         .map(step => step.name === name ? { ...step, conclusion: 'skipped' } : step) }] })),
   ];

@@ -157,7 +157,7 @@ The props follow the same rules as the Phoenix components: axes are props typed 
 
 ## Use it in a SwiftUI app
 
-An iOS app (iOS 26 or later) depends on the Swift package `Prism`, from the `prism-swift` repository at Prism's version:
+An iOS app (iOS 26 or later) or a macOS app (macOS 26 or later) depends on the Swift package `Prism`, from the `prism-swift` repository at Prism's version:
 
 ```swift
 .package(url: "https://github.com/novasoftwarefoundation/prism-swift.git", exact: "0.6.0")
@@ -179,7 +179,7 @@ ProgressView(value: 0.4).progressViewStyle(.prism(.accent, size: .size32))
 PrismTag(tone: .success) { Text("Done") }
 ```
 
-Each component takes SwiftUI's own form ([ADR 0009](docs/adr/0009-swift-target.md)): a `ButtonStyle` for the button, a `ProgressViewStyle` for the spinner, a `ToggleStyle` for the checkbox, a modifier for the text field and the text area, and a view for the others. Axes are enums of the design's values (`.primary`, `.danger`, `.size32`) with the design's defaults; flags and the states the app sets are parameters; pressed, disabled and checked come from SwiftUI. A component's looks are data too (`PrismButtonLooks`), laid over each other as the web's CSS does. A look animates and a move in the same update doesn't, except a button's: put `.geometryGroup()` on a Prism button whose place can change. Type follows Dynamic Type. The package's README ([targets/swift/README.md](targets/swift/README.md)) has the details. The package is generated into `targets/swift/`; CI builds it with `xcodebuild` for the iOS Simulator.
+Each component takes SwiftUI's own form ([ADR 0009](docs/adr/0009-swift-target.md)): a `ButtonStyle` for the button, a `ProgressViewStyle` for the spinner, a `ToggleStyle` for the checkbox, a modifier for the text field and the text area, and a view for the others. Axes are enums of the design's values (`.primary`, `.danger`, `.size32`) with the design's defaults; flags and the states the app sets are parameters; pressed, disabled and checked come from SwiftUI. A component's looks are data too (`PrismButtonLooks`), laid over each other as the web's CSS does. A look animates and a move in the same update doesn't, except a button's: put `.geometryGroup()` on a Prism button whose place can change. Type follows Dynamic Type on iOS; macOS has none, so there type is at the design's sizes. The package's README ([targets/swift/README.md](targets/swift/README.md)) has the details. The package is generated into `targets/swift/`; CI builds it with `xcodebuild` for the iOS Simulator and for macOS, renders the components on a simulator, and renders them on macOS in light and dark (`swift test` in `design/test/swiftui/`, which keeps the drawings as an artifact).
 
 ## Use it in a Compose app
 
@@ -292,7 +292,7 @@ Each is a 393-wide screen at 3 pixels a point, dp or CSS pixel; on the web a das
 
 ## Swift validation in CI
 
-Swift builds and simulator tests run when their tested inputs or environment have no matching successful validation record. CI always runs the generator tests and checks generated files first. Thus a design/generator change that changes Swift must update the committed package or fixtures; stale output cannot use a prior Swift pass. A design change with identical Swift output needs no second simulator run.
+Swift builds, simulator tests and the macOS render run when their tested inputs or environment have no matching successful validation record. CI always runs the generator tests and checks generated files first. Thus a design/generator change that changes Swift must update the committed package or fixtures; stale output cannot use a prior Swift pass. A design change with identical Swift output needs no second simulator run.
 
 The fingerprint covers all tracked files in `targets/swift/` (except its README, license and gitignore), `generator/test/fixtures/swift/`, and `design/test/swiftui/`, plus the tool versions, CI/release workflows and validation scripts/tests. Added/deleted files count too. Runner image/OS/architecture, exact Xcode build, Node version, simulator runtime build and selected iPhone type also belong to the fingerprint. Version metadata, web/React-only changes and documentation outside those inputs leave it unchanged.
 
