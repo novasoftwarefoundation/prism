@@ -1,0 +1,171 @@
+name: Compare trial
+on:
+  push:
+    branches:
+      - hp/next/t-0495-compare-trial-2
+permissions: {}
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      tag: trial
+      commit: ${{ github.sha }}
+    steps:
+      - run: echo "$GITHUB_SHA"
+  compare-android:
+    needs: tag
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    outputs:
+      artifact-id: ${{ steps.upload.outputs.artifact-id }}
+      sha256: ${{ steps.digest.outputs.sha256 }}
+    env:
+      GRADLE: 9.9.2
+      ANDROID_PLATFORM: platforms;android-37.1
+      ANDROID_BUILD_TOOLS: build-tools;36.0.0
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ needs.tag.outputs.commit }}
+          persist-credentials: false
+      - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c
+        with:
+          gradle-version: ${{ env.GRADLE }}
+          cache-provider: basic
+          cache-read-only: true
+      - name: Install the Android SDK packages
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "$ANDROID_PLATFORM" "$ANDROID_BUILD_TOOLS" >/dev/null
+      - name: The compare on Android
+        run: design/test/compare/compare.sh --only android "$RUNNER_TEMP/compare"
+      - name: The images' digest
+        id: digest
+        run: |
+          cd "$RUNNER_TEMP/compare"
+          echo "sha256=$(LC_ALL=C openssl dgst -sha256 compare-*.png | openssl dgst -sha256 | sed 's/.*= //')" >> "$GITHUB_OUTPUT"
+      - id: upload
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: prism-compare-android
+          path: ${{ runner.temp }}/compare/compare-*.png
+          if-no-files-found: error
+          retention-days: 30
+  compare-ios:
+    needs: tag
+    runs-on: macos-26
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    outputs:
+      artifact-id: ${{ steps.upload.outputs.artifact-id }}
+      sha256: ${{ steps.digest.outputs.sha256 }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ needs.tag.outputs.commit }}
+          persist-credentials: false
+      - name: Select Xcode
+        env:
+          XCODE: "26.6"
+        run: |
+          app="/Applications/Xcode_$XCODE.app"
+          [ -d "$app" ] || {
+            echo "::error::Xcode $XCODE is not on this image; it has: $(ls -d /Applications/Xcode_*.app | xargs)"
+            exit 1
+          }
+          sudo xcode-select -s "$app"
+      - name: The compare on iOS
+        run: design/test/compare/compare.sh --only ios "$RUNNER_TEMP/compare"
+      - name: The images' digest
+        id: digest
+        run: |
+          cd "$RUNNER_TEMP/compare"
+          echo "sha256=$(LC_ALL=C openssl dgst -sha256 compare-*.png | openssl dgst -sha256 | sed 's/.*= //')" >> "$GITHUB_OUTPUT"
+      - id: upload
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: prism-compare-ios
+          path: ${{ runner.temp }}/compare/compare-*.png
+          if-no-files-found: error
+          retention-days: 30
+  compare-web:
+    needs: tag
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    outputs:
+      artifact-id: ${{ steps.upload.outputs.artifact-id }}
+      sha256: ${{ steps.digest.outputs.sha256 }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ needs.tag.outputs.commit }}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version-file: .tool-versions
+      - name: The compare on the web
+        run: design/test/compare/compare.sh --only web "$RUNNER_TEMP/compare"
+      - name: The images' digest
+        id: digest
+        run: |
+          cd "$RUNNER_TEMP/compare"
+          echo "sha256=$(LC_ALL=C openssl dgst -sha256 compare-*.png | openssl dgst -sha256 | sed 's/.*= //')" >> "$GITHUB_OUTPUT"
+      - id: upload
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: prism-compare-web
+          path: ${{ runner.temp }}/compare/compare-*.png
+          if-no-files-found: error
+          retention-days: 30
+  attach:
+    needs:
+      - tag
+      - compare-android
+      - compare-ios
+      - compare-web
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          artifact-ids: ${{ needs.compare-android.outputs.artifact-id }}
+          merge-multiple: true
+          path: ${{ runner.temp }}/compare/android
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          artifact-ids: ${{ needs.compare-ios.outputs.artifact-id }}
+          merge-multiple: true
+          path: ${{ runner.temp }}/compare/ios
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          artifact-ids: ${{ needs.compare-web.outputs.artifact-id }}
+          merge-multiple: true
+          path: ${{ runner.temp }}/compare/web
+      - name: The compare images are the ones the compare jobs made
+        env:
+          ANDROID_SHA256: ${{ needs.compare-android.outputs.sha256 }}
+          IOS_SHA256: ${{ needs.compare-ios.outputs.sha256 }}
+          WEB_SHA256: ${{ needs.compare-web.outputs.sha256 }}
+        run: |
+          for target in android ios web; do
+            expected=$(printenv "$(echo "$target" | tr a-z A-Z)_SHA256" || true)
+            actual=$(cd "$RUNNER_TEMP/compare/$target" && LC_ALL=C openssl dgst -sha256 compare-*.png | openssl dgst -sha256 | sed 's/.*= //')
+            if [ -z "$expected" ] || [ "$actual" != "$expected" ]; then
+              echo "::error::The $target compare images' digest is $actual, not the compare-$target job's ${expected:-(none)}"
+              exit 1
+            fi
+          done
+      - run: ls -la "$RUNNER_TEMP"/compare/*/
