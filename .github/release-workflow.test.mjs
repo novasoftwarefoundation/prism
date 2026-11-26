@@ -18,7 +18,7 @@ const publishers = {
   '.github/workflows/publish-swift.yml': { contents: 'read', actions: 'read' },
   '.github/workflows/publish-maven-central.yml': { contents: 'read', actions: 'read' },
 };
-const workflows = ['.github/workflows/release.yml', '.github/workflows/ci.yml', ...Object.keys(publishers)];
+const workflows = ['.github/workflows/release.yml', '.github/workflows/ci.yml', ...Object.keys(publishers), '.github/workflows/compare.yml'];
 
 // A `permissions` value: a level for every scope (`write-all`, `read-all`) or an
 // object of scopes; undefined without one. Anything else (an expression, a null, an
@@ -280,11 +280,10 @@ test('no job that reads a secret runs the Kotlin library\'s Gradle build or its 
 // release, which the script checks before it signs.
 function checkKotlinRelease(yaml, publishing) {
   const jobsOf = jobs(yaml);
-  // The bundle's build, and the compare's Android images (Robolectric), which ship nothing.
   const builders = jobsOf.filter((job) => job.steps.some(runsKotlinBuild));
   assert.deepEqual(
     builders.map(({ name, permissions }) => [name, permissions]),
-    [['maven-bundle', { contents: 'read' }], ['compare-android', { contents: 'read' }]],
+    [['maven-bundle', { contents: 'read' }]],
   );
   const [bundle] = builders;
   const upload = bundle.steps.find(({ uses }) => uses?.startsWith('actions/upload-artifact@'));
@@ -438,6 +437,7 @@ const queued = {
   '.github/workflows/publish-npm.yml': 'prism-publish-npm',
   '.github/workflows/publish-swift.yml': 'prism-publish-swift',
   '.github/workflows/publish-maven-central.yml': 'prism-publish-maven-central',
+  '.github/workflows/compare.yml': 'prism-compare',
 };
 const checkQueue = (file, yaml) =>
   assert.deepEqual(parse(yaml).concurrency, { group: queued[file], 'cancel-in-progress': false, queue: 'max' }, file);
@@ -592,42 +592,69 @@ test('the release packs the npm packages in a job that can only read, and the re
     /actual=\$\((.*)\)\n/.exec(steps[compare].run)?.[1], 'both jobs take the digest the same way');
 });
 
-// The compare images, as the other hand-overs: each compare job, which can only read, makes its
-// target's images with compare.sh and gives the artifact's id and their digest; the release job
-// downloads them by that id and compares each digest before it attaches the images.
+// The compare (compare.yml), as the other hand-overs, and apart from the release: it starts
+// after a successful Release run, which never waits on it. Each compare job, which can only
+// read, makes its target's images with compare.sh at the tag's commit and gives the artifact's
+// id and their digest; the attach job, the only one that can write, builds nothing, downloads
+// them by that id and compares each digest before it attaches the images.
+const compareWorkflow = readFileSync('.github/workflows/compare.yml', 'utf8');
 function checkCompare(yaml) {
+  const workflow = parse(yaml);
+  assert.deepEqual(workflow.on.workflow_run, { workflows: ['Release'], types: ['completed'] }, 'it starts after Release');
   const jobsOf = jobs(yaml);
-  const steps = jobsOf.find(({ name }) => name === 'release').steps;
+  assert.deepEqual(jobsOf.filter(canWrite).map(({ name }) => name), ['attach'], 'only the attach job can write');
+  const tag = jobsOf.find(({ name }) => name === 'tag');
+  assert.ok(tag.steps.some(({ run }) => run === 'node .github/release-run.mjs'), 'the tag job checks the Release run');
+  const attach = jobsOf.find(({ name }) => name === 'attach');
+  for (const { uses, run } of attach.steps) {
+    assert.doesNotMatch(uses ?? '', /^(actions\/checkout|actions\/setup-|erlef\/|gradle\/)/, 'the attach job checks out and sets up nothing');
+    assert.doesNotMatch(run ?? '', /(^|[;&|(]\s*)(npm|npx|mix|gradle|node)\s|compare\.sh/m, 'the attach job runs no build');
+  }
+  const steps = attach.steps;
   const compare = steps.findIndex(({ run }) => /for target in android ios web/.test(run ?? ''));
-  const attaches = steps.findIndex(({ run }) => /gh release upload[^\n]*(\n[^\n]*)*compare\/\*\/compare-\*\.png/.test(run ?? ''));
-  assert.ok(compare >= 0 && attaches > compare, 'the release job compares the images\' digests before it attaches them');
+  const attaches = steps.findIndex(({ run }) => /gh release upload "\$RELEASE_TAG" "\$RUNNER_TEMP"\/compare\/\*\/compare-\*\.png/.test(run ?? ''));
+  assert.ok(compare >= 0 && attaches > compare, 'the attach job compares the images\' digests before it attaches them');
   assert.match(steps[compare].run, /exit 1/);
+  assert.equal(steps[attaches].env?.RELEASE_TAG, '${{ needs.tag.outputs.tag }}', 'it attaches them to the checked tag\'s release');
   for (const target of ['android', 'ios', 'web']) {
     const maker = jobsOf.find(({ name }) => name === `compare-${target}`);
     assert.deepEqual(maker?.permissions, { contents: 'read' }, `compare-${target} can only read`);
+    assert.ok(maker.needs.includes('tag') && attach.needs.includes(`compare-${target}`));
+    const checkout = maker.steps.find(({ uses }) => uses?.startsWith('actions/checkout@'));
+    assert.equal(checkout?.with?.ref, '${{ needs.tag.outputs.commit }}', `compare-${target} makes the tag's commit's images`);
     assert.ok(maker.steps.some(({ run }) => run === `design/test/compare/compare.sh --only ${target} "$RUNNER_TEMP/compare"`));
     const upload = maker.steps.find(({ uses }) => uses?.startsWith('actions/upload-artifact@'));
     assert.equal(maker.outputs['artifact-id'], `\${{ steps.${upload.id}.outputs.artifact-id }}`);
     const digest = maker.steps.find(({ id }) => `\${{ steps.${id}.outputs.sha256 }}` === maker.outputs.sha256);
     assert.equal(/echo "sha256=\$\((.*)\)" >> "\$GITHUB_OUTPUT"/.exec(digest?.run ?? '')?.[1],
       /actual=\$\(cd "\$RUNNER_TEMP\/compare\/\$target" && (.*)\)\n/.exec(steps[compare].run)?.[1],
-      `compare-${target} and the release job take the digest the same way`);
+      `compare-${target} and the attach job take the digest the same way`);
     const download = steps.findIndex(({ with: given }) => given?.['artifact-ids'] === `\${{ needs.compare-${target}.outputs.artifact-id }}`);
-    assert.ok(download >= 0 && download < compare, `the release job downloads compare-${target}'s images by its id first`);
+    assert.ok(download >= 0 && download < compare, `the attach job downloads compare-${target}'s images by its id first`);
     assert.equal(steps[compare].env?.[`${target.toUpperCase()}_SHA256`], `\${{ needs.compare-${target}.outputs.sha256 }}`);
   }
 }
 
-test('the release makes the compare images in jobs that can only read, and the release job takes them as data', () => {
-  checkCompare(release);
+test('the compare makes its images in jobs that can only read, and the attach job takes them as data', () => {
+  checkCompare(compareWorkflow);
+});
+
+test('Release and the publish workflows never wait on the compare', () => {
+  for (const file of ['.github/workflows/release.yml', ...Object.keys(publishers)]) {
+    assert.doesNotMatch(readFileSync(file, 'utf8'), /compare-|compare\.(sh|yml)|\bCompare\b/, file);
+  }
 });
 
 for (const [layout, from, to] of [
   ['the web images\' digest not compared', '          WEB_SHA256: ${{ needs.compare-web.outputs.sha256 }}\n', ''],
-  ['no digest among the iOS job\'s outputs', '      sha256: ${{ steps.digest.outputs.sha256 }}\n    steps:\n      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1\n        with:\n          persist-credentials: false\n      # CI\'s Xcode', '    steps:\n      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1\n        with:\n          persist-credentials: false\n      # CI\'s Xcode'],
+  ['no digest among the iOS job\'s outputs',
+    '      sha256: ${{ steps.digest.outputs.sha256 }}\n    steps:\n      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1\n        with:\n          ref: ${{ needs.tag.outputs.commit }}\n          persist-credentials: false\n      # CI\'s Xcode',
+    '    steps:\n      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1\n        with:\n          ref: ${{ needs.tag.outputs.commit }}\n          persist-credentials: false\n      # CI\'s Xcode'],
+  ['the web images made from the default branch', '          ref: ${{ needs.tag.outputs.commit }}\n          persist-credentials: false\n      - uses: actions/setup-node', '          persist-credentials: false\n      - uses: actions/setup-node'],
+  ['a compare job that can write', '  compare-web:\n    needs: tag\n    runs-on: ubuntu-latest\n    timeout-minutes: 15\n    permissions:\n      contents: read\n', '  compare-web:\n    needs: tag\n    runs-on: ubuntu-latest\n    timeout-minutes: 15\n    permissions:\n      contents: write\n'],
 ]) {
   test(`the check refuses a compare with ${layout}`, () => {
-    assert.throws(() => checkCompare(edited(release, from, to)), assert.AssertionError);
+    assert.throws(() => checkCompare(edited(compareWorkflow, from, to)), assert.AssertionError);
   });
 }
 

@@ -16,8 +16,8 @@
 #   CSS in Chrome, zoom 100% and 200% (web.mjs). Needs Node and Google Chrome (CHROME, or
 #   found).
 #
-# Each is 3 pixels a point, dp or CSS pixel, of a screen 393 wide. Release runs make the
-# same images and attach them to the GitHub release (.github/workflows/release.yml).
+# Each is 3 pixels a point, dp or CSS pixel, of a screen 393 wide. After each release, the
+# workflow Compare makes the same images and attaches them to it (.github/workflows/compare.yml).
 set -eu
 
 repo=$(cd "$(dirname "$0")/../../.." && pwd)
