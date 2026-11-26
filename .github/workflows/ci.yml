@@ -69,6 +69,9 @@ jobs:
       # The 0.1.7 golden test, the version check, the font roles, the typography, and
       # Prism's components rendered through Prism.Generator.Phoenix.
       - run: mix test --warnings-as-errors
+      # The compare's page shows only the images its run made (xcodebuild faked; the compare
+      # itself runs after a release, not here).
+      - run: sh test/compare/compare-test.sh
 
   react:
     name: React components (React ${{ matrix.react }})

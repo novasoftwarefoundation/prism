@@ -85,25 +85,44 @@ web() {
   web_shot compare-web-200.png 229 6 "file://$out/compare-web.html#200"
 }
 
-case $only in
-  android) android ;;
-  ios) (cd "$repo/design/test/swiftui" && ios) ;;
-  web) web ;;
-  *)
-    android
-    (cd "$repo/design/test/swiftui" && ios)
-    web
-    ;;
-esac
+images() { # target
+  case $1 in
+    android) echo compare-android-100.png compare-android-200.png ;;
+    ios) echo compare-ios-default.png compare-ios-ax5.png ;;
+    web) echo compare-web-100.png compare-web-200.png ;;
+  esac
+}
+
+# Makes a target's images, its earlier ones gone first, and stops unless this run made both.
+made=
+make_target() { # target
+  for image in $(images "$1"); do rm -f "$out/$image"; done
+  case $1 in
+    ios) (cd "$repo/design/test/swiftui" && ios) ;;
+    *) "$1" ;;
+  esac
+  for image in $(images "$1"); do
+    [ -f "$out/$image" ] || { echo "$1 made no $image" >&2; exit 1; }
+  done
+  made="$made $1"
+}
+
+if [ -n "$only" ]; then
+  make_target "$only"
+else
+  make_target android
+  make_target ios
+  make_target web
+fi
 
 commit=$(git -C "$repo" rev-parse --short HEAD)
 [ -z "$(git -C "$repo" status --porcelain)" ] || commit="$commit with changes"
-cell() { # image, caption
-  if [ -f "$out/$1" ]; then
-    printf '<td><figure><img srcset="%s 3x" alt="%s"><figcaption>%s</figcaption></figure></td>\n' "$1" "$2" "$2"
-  else
-    printf '<td>%s: not made</td>\n' "$2"
-  fi
+# Only this run's images: one an earlier run left in the folder is of another commit.
+cell() { # target, image, caption
+  case " $made " in
+    *" $1 "*) printf '<td><figure><img srcset="%s 3x" alt="%s"><figcaption>%s</figcaption></figure></td>\n' "$2" "$3" "$3" ;;
+    *) printf '<td>%s: not made</td>\n' "$3" ;;
+  esac
 }
 {
   cat << EOF
@@ -126,14 +145,14 @@ cell() { # image, caption
 <tr><th>Android</th><th>iOS</th><th>Web</th></tr>
 <tr>
 EOF
-  cell compare-android-100.png "Font size 100%"
-  cell compare-ios-default.png "Dynamic Type Large (default)"
-  cell compare-web-100.png "Zoom 100%"
+  cell android compare-android-100.png "Font size 100%"
+  cell ios compare-ios-default.png "Dynamic Type Large (default)"
+  cell web compare-web-100.png "Zoom 100%"
   echo '</tr>'
   echo '<tr>'
-  cell compare-android-200.png "Font size 200%"
-  cell compare-ios-ax5.png "Dynamic Type AX5"
-  cell compare-web-200.png "Zoom 200%"
+  cell android compare-android-200.png "Font size 200%"
+  cell ios compare-ios-ax5.png "Dynamic Type AX5"
+  cell web compare-web-200.png "Zoom 200%"
   echo '</tr>'
   echo '</table>'
 } > "$out/index.html"

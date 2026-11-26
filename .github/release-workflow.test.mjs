@@ -612,7 +612,14 @@ function checkCompare(yaml) {
   }
   const steps = attach.steps;
   const compare = steps.findIndex(({ run }) => /for target in android ios web/.test(run ?? ''));
-  const attaches = steps.findIndex(({ run }) => /gh release upload "\$RELEASE_TAG" "\$RUNNER_TEMP"\/compare\/\*\/compare-\*\.png/.test(run ?? ''));
+  // The one other job than Release's release job that can write a release: it uploads the
+  // compare images and nothing else, never release.json, which the publish workflows trust.
+  const writers = steps.filter(({ run }) => /\bgh\b/.test(run ?? ''));
+  assert.equal(writers.length, 1, 'the attach job runs gh once');
+  const attaches = steps.indexOf(writers[0]);
+  assert.equal(steps[attaches].run,
+    'gh release upload "$RELEASE_TAG" "$RUNNER_TEMP"/compare/*/compare-*.png --clobber --repo "$GITHUB_REPOSITORY"',
+    'the attach job uploads only the compare images');
   assert.ok(compare >= 0 && attaches > compare, 'the attach job compares the images\' digests before it attaches them');
   assert.match(steps[compare].run, /exit 1/);
   assert.equal(steps[attaches].env?.RELEASE_TAG, '${{ needs.tag.outputs.tag }}', 'it attaches them to the checked tag\'s release');
@@ -641,7 +648,12 @@ test('the compare makes its images in jobs that can only read, and the attach jo
 
 test('Release and the publish workflows never wait on the compare', () => {
   for (const file of ['.github/workflows/release.yml', ...Object.keys(publishers)]) {
-    assert.doesNotMatch(readFileSync(file, 'utf8'), /compare-|compare\.(sh|yml)|\bCompare\b/, file);
+    const yaml = readFileSync(file, 'utf8');
+    assert.ok(![].concat(parse(yaml).on?.workflow_run?.workflows ?? []).includes('Compare'), `${file} starts after Compare`);
+    for (const job of jobs(yaml)) {
+      assert.ok(!job.needs.some((name) => name.startsWith('compare-')), `${file}: ${job.name} needs a compare job`);
+      for (const { run } of job.steps) assert.doesNotMatch(run ?? '', /compare\.(sh|yml)/, `${file}: ${job.name} runs the compare`);
+    }
   }
 });
 
@@ -651,6 +663,11 @@ for (const [layout, from, to] of [
     '      sha256: ${{ steps.digest.outputs.sha256 }}\n    steps:\n      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1\n        with:\n          ref: ${{ needs.tag.outputs.commit }}\n          persist-credentials: false\n      # CI\'s Xcode',
     '    steps:\n      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1\n        with:\n          ref: ${{ needs.tag.outputs.commit }}\n          persist-credentials: false\n      # CI\'s Xcode'],
   ['the web images made from the default branch', '          ref: ${{ needs.tag.outputs.commit }}\n          persist-credentials: false\n      - uses: actions/setup-node', '          persist-credentials: false\n      - uses: actions/setup-node'],
+  ['release.json uploaded with the images',
+    '"$RUNNER_TEMP"/compare/*/compare-*.png --clobber', '"$RUNNER_TEMP"/compare/*/compare-*.png "$RUNNER_TEMP"/compare/*/release.json --clobber'],
+  ['another upload after the images',
+    ' --clobber --repo "$GITHUB_REPOSITORY"\n',
+    ' --clobber --repo "$GITHUB_REPOSITORY"\n      - run: gh release upload "$RELEASE_TAG" "$RUNNER_TEMP/compare/web/release.json" --clobber\n        env:\n          GH_TOKEN: ${{ github.token }}\n          RELEASE_TAG: ${{ needs.tag.outputs.tag }}\n'],
   ['a compare job that can write', '  compare-web:\n    needs: tag\n    runs-on: ubuntu-latest\n    timeout-minutes: 15\n    permissions:\n      contents: read\n', '  compare-web:\n    needs: tag\n    runs-on: ubuntu-latest\n    timeout-minutes: 15\n    permissions:\n      contents: write\n'],
 ]) {
   test(`the check refuses a compare with ${layout}`, () => {

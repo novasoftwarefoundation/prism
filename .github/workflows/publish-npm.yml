@@ -67,8 +67,9 @@ jobs:
           run-id: ${{ steps.release.outputs.run-id }}
           github-token: ${{ github.token }}
           path: ${{ runner.temp }}/prism-release
-      # The digests the release job put on the GitHub release, which only it can write: the
-      # packages are checked against these, never against anything in the artifact.
+      # The digests the release job put on the GitHub release, which only it can write a
+      # release.json to (Compare's attach job uploads only compare-*.png): the packages are
+      # checked against these, never against anything in the artifact.
       - name: The release's digests
         env:
           GH_TOKEN: ${{ github.token }}
