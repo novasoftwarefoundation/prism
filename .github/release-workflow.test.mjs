@@ -610,19 +610,39 @@ function checkCompare(yaml) {
     assert.doesNotMatch(uses ?? '', /^(actions\/checkout|actions\/setup-|erlef\/|gradle\/)/, 'the attach job checks out and sets up nothing');
     assert.doesNotMatch(run ?? '', /(^|[;&|(]\s*)(npm|npx|mix|gradle|node)\s|compare\.sh/m, 'the attach job runs no build');
   }
-  const steps = attach.steps;
-  const compare = steps.findIndex(({ run }) => /for target in android ios web/.test(run ?? ''));
-  // The one other job than Release's release job that can write a release: it uploads the
-  // compare images and nothing else, never release.json, which the publish workflows trust.
-  const writers = steps.filter(({ run }) => /\bgh\b/.test(run ?? ''));
-  assert.equal(writers.length, 1, 'the attach job runs gh once');
-  const attaches = steps.indexOf(writers[0]);
+  // The one other job than Release's release job that can write a release, held to exactly
+  // its steps: the three downloads by id, the digest check and the upload of the compare
+  // images, each with exactly its keys (no if, shell or continue-on-error), and only the
+  // upload has the token. No step of it can write release.json, which the publish workflows
+  // trust, by gh, an action, curl or anything else.
+  assert.equal(workflow.env, undefined, 'the workflow has no environment every job gets');
+  assert.equal(workflow.defaults, undefined, 'the workflow has no defaults every job gets');
+  assert.deepEqual(Object.keys(attach.raw).toSorted(), ['needs', 'permissions', 'runs-on', 'steps', 'timeout-minutes'],
+    'the attach job has no environment, defaults, container or services');
+  const steps = attach.raw.steps;
+  assert.deepEqual(steps.map((step) => Object.keys(step).toSorted()),
+    [['uses', 'with'], ['uses', 'with'], ['uses', 'with'], ['env', 'name', 'run'], ['env', 'name', 'run']],
+    'the attach job\'s steps: three downloads, the digest check and the upload');
+  for (const [index, target] of ['android', 'ios', 'web'].entries()) {
+    assert.match(steps[index].uses, /^actions\/download-artifact@[0-9a-f]{40}$/);
+    assert.deepEqual(steps[index].with, {
+      'artifact-ids': `\${{ needs.compare-${target}.outputs.artifact-id }}`,
+      'merge-multiple': true,
+      path: `\${{ runner.temp }}/compare/${target}`,
+    });
+  }
+  const [compare, attaches] = [3, 4];
+  assert.match(steps[compare].run, /for target in android ios web/);
+  assert.deepEqual(Object.keys(steps[compare].env).toSorted(), ['ANDROID_SHA256', 'IOS_SHA256', 'WEB_SHA256']);
+  assert.deepEqual(steps[attaches].env, { GH_TOKEN: '${{ github.token }}', RELEASE_TAG: '${{ needs.tag.outputs.tag }}' },
+    'it attaches them to the checked tag\'s release');
   assert.equal(steps[attaches].run,
     'gh release upload "$RELEASE_TAG" "$RUNNER_TEMP"/compare/*/compare-*.png --clobber --repo "$GITHUB_REPOSITORY"',
     'the attach job uploads only the compare images');
-  assert.ok(compare >= 0 && attaches > compare, 'the attach job compares the images\' digests before it attaches them');
+  for (const step of steps.slice(0, attaches)) {
+    assert.doesNotMatch(JSON.stringify(step), /github\.token|GITHUB_TOKEN|secrets\./i, 'only the upload step has the token');
+  }
   assert.match(steps[compare].run, /exit 1/);
-  assert.equal(steps[attaches].env?.RELEASE_TAG, '${{ needs.tag.outputs.tag }}', 'it attaches them to the checked tag\'s release');
   for (const target of ['android', 'ios', 'web']) {
     const maker = jobsOf.find(({ name }) => name === `compare-${target}`);
     assert.deepEqual(maker?.permissions, { contents: 'read' }, `compare-${target} can only read`);
@@ -668,6 +688,21 @@ for (const [layout, from, to] of [
   ['another upload after the images',
     ' --clobber --repo "$GITHUB_REPOSITORY"\n',
     ' --clobber --repo "$GITHUB_REPOSITORY"\n      - run: gh release upload "$RELEASE_TAG" "$RUNNER_TEMP/compare/web/release.json" --clobber\n        env:\n          GH_TOKEN: ${{ github.token }}\n          RELEASE_TAG: ${{ needs.tag.outputs.tag }}\n'],
+  ['a github-script step that uploads release.json',
+    ' --clobber --repo "$GITHUB_REPOSITORY"\n',
+    ' --clobber --repo "$GITHUB_REPOSITORY"\n      - uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1\n        with:\n          script: |\n            await github.rest.repos.uploadReleaseAsset({owner: context.repo.owner, repo: context.repo.repo, release_id: 1, name: \'release.json\', data: require(\'fs\').readFileSync(process.env.RUNNER_TEMP + \'/compare/web/release.json\')})\n'],
+  ['a curl step that uploads release.json with the token',
+    ' --clobber --repo "$GITHUB_REPOSITORY"\n',
+    ' --clobber --repo "$GITHUB_REPOSITORY"\n      - name: More\n        env:\n          GH_TOKEN: ${{ github.token }}\n        run: |\n          curl -sf -X POST -H "Authorization: Bearer $GH_TOKEN" --data-binary @"$RUNNER_TEMP/compare/web/release.json" "https://uploads.github.com/repos/$GITHUB_REPOSITORY/releases/1/assets?name=release.json"\n'],
+  ['the token given to the digest step',
+    '          WEB_SHA256: ${{ needs.compare-web.outputs.sha256 }}\n',
+    '          WEB_SHA256: ${{ needs.compare-web.outputs.sha256 }}\n          GH_TOKEN: ${{ github.token }}\n'],
+  ['the token in the attach job\'s environment',
+    '    permissions:\n      contents: write\n',
+    '    permissions:\n      contents: write\n    env:\n      GH_TOKEN: ${{ github.token }}\n'],
+  ['the digest check skipped',
+    '      - name: The compare images are the ones the compare jobs made\n',
+    '      - name: The compare images are the ones the compare jobs made\n        if: false\n'],
   ['a compare job that can write', '  compare-web:\n    needs: tag\n    runs-on: ubuntu-latest\n    timeout-minutes: 15\n    permissions:\n      contents: read\n', '  compare-web:\n    needs: tag\n    runs-on: ubuntu-latest\n    timeout-minutes: 15\n    permissions:\n      contents: write\n'],
 ]) {
   test(`the check refuses a compare with ${layout}`, () => {
