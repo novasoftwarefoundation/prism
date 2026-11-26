@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en" class="zoom">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prism comparison screen</title>
+<link rel="stylesheet" href="file:///PRISM_CHECKOUT/targets/web/css/base.css">
+<link rel="stylesheet" href="file:///PRISM_CHECKOUT/targets/web/css/components.css">
+<style>
+  /* Tailwind's preflight, the part an app with Prism's preset has. */
+  *, ::before, ::after { box-sizing: border-box; border: 0 solid; margin: 0; padding: 0; }
+  button { background: transparent; font: inherit; color: inherit; }
+  body { background: #fff; font-family: "Nunito Sans", sans-serif; }
+  html { width: 393px; outline: 1px dashed #f0f; }
+  html.zoom { zoom: 2; width: 196.5px; }
+  .screen { display: flex; flex-direction: column; gap: 16px; padding: 16px; }
+  .steps { display: flex; gap: 8px; }
+  .preview { width: 100%; height: 100%; background: #bbb; }
+</style>
+</head>
+<body>
+<div class="screen">
+  <input class="prism-text-field" value="someone@example.org">
+  <div class="prism-text-field prism-text-field--with-prefix">
+    <span class="prism-text-field__prefix">€</span>
+    <input class="prism-text-field__input" value="100">
+  </div>
+  <div class="prism-select">
+    <button type="button" class="prism-select__field">Bosnia and Herzegovina</button>
+    <span class="prism-select__icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6l5 5 5-5"/></svg></span>
+  </div>
+  <div class="prism-radio-group" role="radiogroup">
+    <label class="prism-radio"><input type="radio" name="r" checked class="prism-radio__control"><span class="prism-radio__label">Yes</span></label>
+    <label class="prism-radio"><input type="radio" name="r" class="prism-radio__control"><span class="prism-radio__label">No</span></label>
+  </div>
+  <div class="prism-message-bar prism-message-bar--info">Saved</div>
+  <div class="prism-message-bar prism-message-bar--warning">Your session ends in 5 minutes. Save your work to keep it.</div>
+  <div class="steps">
+    <span class="prism-step-indicator prism-step-indicator--complete">1</span>
+    <span class="prism-step-indicator prism-step-indicator--current">2</span>
+    <span class="prism-step-indicator prism-step-indicator--incomplete">3</span>
+  </div>
+  <div class="prism-image-picker">
+    <div class="prism-image-picker__preview"><div class="preview"></div></div>
+    <button type="button" class="prism-button prism-button--primary"><span class="prism-button__label">Choose a photo</span></button>
+  </div>
+</div>
+</body>
+</html>
