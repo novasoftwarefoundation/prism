@@ -31,6 +31,7 @@ public class PrismStepIndicatorLooks(
         var root = PrismLook()
         root += PrismLook(
             radius = Prism.Radii.full,
+            padding = PrismInsets(top = 4.dp, start = 4.dp, bottom = 4.dp, end = 4.dp),
             size = 24.dp,
             typography = PrismTypography(
                 family = Prism.Families.text,

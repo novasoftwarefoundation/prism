@@ -40,7 +40,7 @@ defmodule Prism.Generator.SwiftTest do
 
     {_, package, _} = List.keyfind(files, "Package.swift", 0)
     assert package =~ ~r/\A\/\/ swift-tools-version: 6\.2\n/
-    assert package =~ ~s|platforms: [.iOS(.v26)]|
+    assert package =~ ~s|platforms: [.iOS(.v26), .macOS(.v26)]|
     assert package =~ ~s|.library(name: "Kit", targets: ["Kit"])|
     refute package =~ "resources"
   end
@@ -50,6 +50,23 @@ defmodule Prism.Generator.SwiftTest do
         {path, body, _} <- Swift.files(design.__schema__()),
         line <- String.split(body, "\n") do
       assert String.length(line) <= 100, "#{path} has a line of #{String.length(line)}: #{line}"
+    end
+  end
+
+  test "the looks build for iOS and macOS: UIKit and Dynamic Type on iOS, AppKit on macOS" do
+    look = body(ExampleComponents.__schema__(), "Sources/Kit/Look.swift")
+    assert look =~ "#if os(iOS)\nimport UIKit\n\ntypealias KitPlatformFont = UIFont\n#else\n"
+    assert look =~ "import AppKit\n\ntypealias KitPlatformFont = NSFont\n#endif\n"
+    assert look =~ "public func uiFont(compatibleWith traits: UITraitCollection? = nil) -> UIFont"
+    assert look =~ "public func nsFont() -> NSFont"
+
+    for design <- [ExampleComponents, ExampleDesign],
+        {path, body, _} <- Swift.files(design.__schema__()),
+        path != "Package.swift" and not String.ends_with?(path, "/Look.swift") and
+          not String.ends_with?(path, "/Fonts.swift") do
+      code = Regex.replace(~r|^\s*//.*\n|m, body, "")
+      refute code =~ ~r/\bUI[A-Z]|\bNS[A-Z]/, "#{path} names UIKit or AppKit outside Look.swift"
+      refute code =~ "#if os", "#{path} has a platform branch outside Look.swift"
     end
   end
 
@@ -347,10 +364,40 @@ defmodule Prism.Generator.SwiftTest do
       text_area = body(ExampleComponents.__schema__(), "Sources/Kit/TextArea.swift")
       assert text_area =~ ".frame(minHeight: line(looks.root))"
       # A UITextView's 8pt inset above and below its text is in the minimum.
-      assert text_area =~ "$0.uiFont(compatibleWith: traits).lineHeight).rounded(.up) + 16"
+      assert text_area =~ "$0.scaled(dynamicTypeSize).fontLineHeight.rounded(.up) + 16"
 
       text_field = body(ExampleComponents.__schema__(), "Sources/Kit/TextField.swift")
       refute text_field =~ "minHeight: line("
+    end
+
+    test "a text field and a select draw Prism's box, not macOS's bordered controls" do
+      # macOS's default styles draw a bordered text field inside the box and a grey
+      # pull-down button; the plain ones draw the content as it is, as iOS does.
+      text_field = body(ExampleComponents.__schema__(), "Sources/Kit/TextField.swift")
+      # With a prefix and without one.
+      assert length(Regex.scan(~r/content\n +\.textFieldStyle\(\.plain\)\n/, text_field)) == 2
+
+      # A design whose text field has no prefix part.
+      {_, plain, _} =
+        "component :text_field do\n  style radius: 4\nend"
+        |> files()
+        |> List.keyfind("Sources/Only/TextField.swift", 0)
+
+      assert plain =~ ~r/content\n +\.textFieldStyle\(\.plain\)\n +\.onlyText\(looks\.root\)\n/
+
+      select = body(ExampleComponents.__schema__(), "Sources/Kit/Select.swift")
+
+      assert select =~
+               ".menuIndicator(.hidden)\n        .kitPlainMenu()\n        .kitLook(looks.root)\n"
+
+      refute select =~ "#if os"
+
+      # On macOS only, in Look.swift: on iOS a plain button moves the icon.
+      look = body(ExampleComponents.__schema__(), "Sources/Kit/Look.swift")
+
+      assert look =~
+               "    func kitPlainMenu() -> some View {\n#if os(macOS)\n" <>
+                 "        menuStyle(.button).buttonStyle(.plain)\n#else\n        self\n#endif\n    }\n"
     end
 
     test "a part that is a spinner is drawn with the variants the part picks" do

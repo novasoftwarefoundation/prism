@@ -48,7 +48,8 @@ export function verifiedRecord(artifact, run, jobs, record, expected, repository
     JSON.stringify(record.environment) === JSON.stringify(expected.environment) &&
     JSON.stringify(record.inputs) === JSON.stringify(expected.inputs) &&
     swift?.conclusion === 'success' &&
-    ['Build the packages', "Render Prism's components", 'Record successful Swift validation']
+    ['Build the packages', "Render Prism's components", "Render Prism's components on macOS",
+      'Record successful Swift validation']
       .every(name => swift.steps?.some(step => step.name === name && step.conclusion === 'success'));
 }
 

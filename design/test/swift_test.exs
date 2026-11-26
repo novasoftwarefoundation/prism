@@ -2,7 +2,7 @@ defmodule Prism.Design.SwiftTest do
   use ExUnit.Case, async: true
 
   # The generated Swift package in targets/swift; CI builds it with xcodebuild for the
-  # iOS Simulator.
+  # iOS Simulator and for macOS.
 
   @dir "../targets/swift"
   @sources Path.join(@dir, "Sources/Prism")
@@ -29,10 +29,10 @@ defmodule Prism.Design.SwiftTest do
     end
   end
 
-  test "one library, Prism, for iOS 26; no fonts while both families are the system font" do
+  test "one library, Prism, for iOS 26 and macOS 26; no fonts while both families are the system font" do
     package = File.read!(Path.join(@dir, "Package.swift"))
     assert package =~ ~s|.library(name: "Prism", targets: ["Prism"])|
-    assert package =~ ~s|platforms: [.iOS(.v26)]|
+    assert package =~ ~s|platforms: [.iOS(.v26), .macOS(.v26)]|
     refute package =~ "resources"
     refute File.exists?(Path.join(@sources, "Fonts"))
 

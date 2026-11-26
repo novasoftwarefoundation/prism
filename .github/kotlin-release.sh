@@ -18,14 +18,14 @@
 # version, each matches its checksums, and its POM has every field Maven Central requires.
 #
 # --digest prints the bundle's sha256: of each file's path and sha256, in order. The job that
-# builds the bundle gives it as its output, so the job that signs can tell that the bundle it
-# got is the one that job built, not one another job of the run put in its place.
+# builds the bundle gives it as its output, so the release job can tell that the bundle it got
+# is the one that job built, not one another job of the run put in its place; the release job
+# hands that digest on, in release.json, with the bundle.
 #
 # vX.Y.Z releases a bundle: it checks that its digest is MAVEN_BUNDLE_SHA256, the building
 # job's, and checks it as --check does, before it imports the key; then it signs every file,
-# and uploads it
-# through the Central Publisher Portal, which publishes it once it validates, then waits until
-# it has. It runs no Gradle, only gpg, openssl, zip and curl. Run it from the repository
+# and uploads it through the Central Publisher Portal, which publishes it once it validates,
+# then waits until it has, printing Central's state as it goes. It runs no Gradle, only gpg, openssl, zip and curl. Run it from the repository
 # root, with Prism's tag vX.Y.Z checked out and checked as README → Publish says. It reads four
 # secrets from the environment, and fails before anything else when one is missing:
 #
@@ -148,7 +148,7 @@ grep -q "version: \"$version\"" design/mix.exs || fail "design/mix.exs is not at
 
 # The bundle the job without secrets built, and no other: its digest is that job's output.
 [ -n "${MAVEN_BUNDLE_SHA256-}" ] ||
-  fail "MAVEN_BUNDLE_SHA256 is not set: the release gives it from maven-bundle's output"
+  fail "MAVEN_BUNDLE_SHA256 is not set: publish-maven-central.yml gives it from the Release run's release.json"
 actual=$(digest "$bundle")
 [ "$actual" = "$MAVEN_BUNDLE_SHA256" ] ||
   fail "The bundle's digest is $actual, not maven-bundle's $MAVEN_BUNDLE_SHA256: not signing it"
@@ -191,12 +191,24 @@ deployment=$(curl -sS --fail-with-body -X POST -H "Authorization: Bearer $token"
   fail "The upload failed: $deployment"
 echo "Uploaded $group:$artifact:$version as deployment $deployment; waiting for Central to publish it."
 
-# Central validates the bundle, then publishes it; that takes minutes, sometimes longer.
+# Central validates the bundle, then publishes it; that takes minutes, sometimes longer. Its
+# state (PENDING, VALIDATING, VALIDATED, PUBLISHING) is printed with the minutes since the
+# upload when it changes, and every 5 minutes while it stays the same.
 tries=0
+started=$(date +%s)
+last= said=$started
 while :; do
   status=$(curl -sS --fail-with-body -X POST -H "Authorization: Bearer $token" \
     "$central/status?id=$deployment") || fail "The status request failed: $status"
   state=$(printf '%s' "$status" | sed -n 's/.*"deploymentState" *: *"\([A-Z]*\)".*/\1/p')
+  now=$(date +%s)
+  if [ "$state" != "$last" ]; then
+    echo "Deployment $deployment is ${state:-in no state Central named} after $(((now - started) / 60)) min."
+    last=$state said=$now
+  elif [ $((now - said)) -ge 300 ]; then
+    echo "Deployment $deployment is still $state after $(((now - started) / 60)) min."
+    said=$now
+  fi
   case $state in
     PUBLISHED)
       echo "Released $group:$artifact:$version from Prism $head."

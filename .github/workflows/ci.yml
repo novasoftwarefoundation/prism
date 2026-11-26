@@ -69,6 +69,9 @@ jobs:
       # The 0.1.7 golden test, the version check, the font roles, the typography, and
       # Prism's components rendered through Prism.Generator.Phoenix.
       - run: mix test --warnings-as-errors
+      # The compare's page shows only the images its run made (xcodebuild faked; the compare
+      # itself runs after a release, not here).
+      - run: sh test/compare/compare-test.sh
 
   react:
     name: React components (React ${{ matrix.react }})
@@ -179,8 +182,8 @@ jobs:
     permissions:
       contents: read
       actions: read
-    # SwiftUI builds only on macOS. Its Xcode has Swift 6.2 or later and the iOS 26 SDK,
-    # which the packages' tools version and platform need.
+    # SwiftUI builds only on macOS. Its Xcode has Swift 6.2 or later and the iOS 26 and
+    # macOS 26 SDKs, which the packages' tools version and platforms need.
     runs-on: macos-26
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -214,17 +217,21 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: node .github/swift-validation.mjs plan
       # Prism's package, and the generator's fixtures: the example design with a
-      # component of every kind, and the one with a token of every kind. A warning fails
-      # the build, as the generator's own do.
+      # component of every kind, and the one with a token of every kind, for the iOS
+      # Simulator and for macOS. A warning fails the build, as the generator's own do.
+      # `variant=macos` is native macOS only: without it the destination also matches Mac
+      # Catalyst, which builds the UIKit code.
       - name: Build the packages
         if: steps.validation.outputs.reuse != 'true'
         run: |
           for package in targets/swift:Prism generator/test/fixtures/swift/components:Kit \
                          generator/test/fixtures/swift/design:Acme; do
-            (cd "${package%%:*}" && xcodebuild build -quiet -scheme "${package##*:}" \
-              -destination 'generic/platform=iOS Simulator' \
-              -derivedDataPath "$RUNNER_TEMP/${package##*:}" \
-              SWIFT_TREAT_WARNINGS_AS_ERRORS=YES)
+            for destination in 'generic/platform=iOS Simulator' 'generic/platform=macOS,variant=macos'; do
+              (cd "${package%%:*}" && xcodebuild build -quiet -scheme "${package##*:}" \
+                -destination "$destination" \
+                -derivedDataPath "$RUNNER_TEMP/${package##*:}" \
+                SWIFT_TREAT_WARNINGS_AS_ERRORS=YES)
+            done
           done
       # Every component rendered on a simulator at the default and the largest text
       # size: a box that holds text grows with it and cuts none of it off.
@@ -241,6 +248,22 @@ jobs:
           xcodebuild test -scheme PrismChecks-Package -destination "id=$SIMULATOR" \
             -derivedDataPath "$RUNNER_TEMP/PrismChecks" \
             -resultBundlePath "$RUNNER_TEMP/PrismChecks.xcresult"
+      # The components on macOS, in light and dark: each holds its text and draws, and the
+      # text field and the select are Prism's box, not AppKit's controls. `swift test`
+      # builds for this Mac only. The drawings are kept for review.
+      - name: Render Prism's components on macOS
+        if: steps.validation.outputs.reuse != 'true'
+        working-directory: design/test/swiftui
+        run: |
+          mkdir -p "$RUNNER_TEMP/macos-snapshots"
+          PRISM_SNAPSHOTS="$RUNNER_TEMP/macos-snapshots" swift test
+      - name: Keep the macOS drawings
+        if: steps.validation.outputs.reuse != 'true'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: macos-snapshots-attempt-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/macos-snapshots/
+          if-no-files-found: error
       - name: Record successful Swift validation
         if: steps.validation.outputs.reuse != 'true'
         run: node .github/swift-validation.mjs record
@@ -284,11 +307,14 @@ jobs:
       # app gets the published library, not its build.
       # The basic cache provider, the action's own (MIT): the default, "enhanced", loads a
       # closed-source library under Gradle's terms of use.
+      # develop and main write the cache, every other run only reads it. A release's tag run
+      # can read only its own ref's cache and main's, the default branch's: without main's,
+      # it downloads everything from Maven Central again and gets rate-limited (HTTP 429).
       - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
         with:
           gradle-version: ${{ env.GRADLE }}
           cache-provider: basic
-          cache-read-only: ${{ github.ref != 'refs/heads/develop' }}
+          cache-read-only: ${{ github.ref != 'refs/heads/develop' && github.ref != 'refs/heads/main' }}
       - name: Install the Android SDK packages
         run: |
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null
@@ -338,7 +364,7 @@ jobs:
       - name: Release validation tests
         run: |
           npm ci --prefix .github
-          node --test .github/release-version.test.mjs .github/release-publish.test.mjs .github/release-workflow.test.mjs .github/swift-validation.test.mjs .github/kotlin-release.test.mjs
+          node --test .github/release-version.test.mjs .github/release-publish.test.mjs .github/release-run.test.mjs .github/release-workflow.test.mjs .github/swift-validation.test.mjs .github/kotlin-release.test.mjs
       - name: The package ships exactly the reviewed files
         working-directory: targets/web
         run: |

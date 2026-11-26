@@ -1,10 +1,34 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { releaseVersion } from './release-version.mjs';
 
+// Publishes the packages release-prepare.mjs made for the tag RELEASE_TAG, from the folder
+// NPM_PACKAGES that holds them and their manifest, prism-release.json. RELEASE_JSON is the
+// release job's release.json, from the GitHub release: the folder must hold exactly the files
+// it names, each with its sha256, for RELEASE_TAG at RELEASE_COMMIT, before the manifest is
+// read. Values inside the folder can't vouch for the folder.
+const dir = process.env.NPM_PACKAGES;
 const run = (args, options = {}) => execFileSync('npm', args, { encoding: 'utf8', ...options });
-const { distTag, packages } = JSON.parse(readFileSync(join(process.env.RUNNER_TEMP, 'prism-release.json'), 'utf8'));
+const sha = (algorithm, file) => createHash(algorithm).update(readFileSync(join(dir, file))).digest('hex');
+
+const anchor = JSON.parse(readFileSync(process.env.RELEASE_JSON, 'utf8'));
+assert.equal(anchor.tag, process.env.RELEASE_TAG, `release.json is not ${process.env.RELEASE_TAG}'s`);
+assert.equal(anchor.commit, process.env.RELEASE_COMMIT, `release.json is not of ${process.env.RELEASE_COMMIT}`);
+assert.deepEqual(readdirSync(dir).toSorted(), Object.keys(anchor.npm ?? {}).toSorted(), 'The packages are not the files release.json names');
+for (const [file, sha256] of Object.entries(anchor.npm)) {
+  assert.equal(sha('sha256', file), sha256, `${file} is not the file the release job checked`);
+}
+
+const { version, distTag, packages } = JSON.parse(readFileSync(join(dir, 'prism-release.json'), 'utf8'));
+assert.equal(version, releaseVersion(process.env.RELEASE_TAG).version, `The packages are not ${process.env.RELEASE_TAG}'s`);
+
+// Every tarball is the one the manifest names, before anything is published.
+for (const pack of packages) {
+  assert.equal(sha('sha1', pack.tarball), pack.shasum, `${pack.tarball} is not the prepared package`);
+}
 
 function published(pack) {
   try {
@@ -21,7 +45,7 @@ function published(pack) {
 for (const pack of packages) {
   let remote = published(pack);
   if (!remote) {
-    run(['publish', pack.tarball, '--access', 'public', '--tag', distTag,
+    run(['publish', join(dir, pack.tarball), '--access', 'public', '--tag', distTag,
       '--registry=https://registry.npmjs.org/'], { stdio: 'inherit' });
     // npm can accept HTTP 202 before the version is visible. Do not submit it again.
     for (let attempt = 0; attempt < 60; attempt++) {

@@ -3,10 +3,13 @@ package org.novasoftwarefoundation.prism
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -30,8 +33,8 @@ public class PrismMessageBarLooks(
         var root = PrismLook()
         root += PrismLook(
             radius = Prism.Radii.default,
-            padding = PrismInsets(top = 0.dp, start = 16.dp, bottom = 0.dp, end = 16.dp),
-            height = 40.dp,
+            padding = PrismInsets(top = 12.dp, start = 16.dp, bottom = 12.dp, end = 16.dp),
+            minHeight = 40.dp,
             typography = PrismTypography(
                 family = Prism.Families.text,
                 emphasis = PrismEmphasis.Subheading,
@@ -69,7 +72,7 @@ public class PrismMessageBarLooks(
 }
 
 /**
- * A message bar: a message across the width it is given.
+ * A message bar: a message across the width it is given, each line centred.
  *
  * `PrismMessageBar(tone = PrismMessageBarTone.Danger) { Text("…") }`
  */
@@ -80,7 +83,12 @@ public fun PrismMessageBar(
     content: @Composable () -> Unit,
 ) {
     val looks = PrismMessageBarLooks(tone = tone)
-    Box(modifier.fillMaxWidth().prismBox(looks.root), contentAlignment = Alignment.CenterStart) {
-        PrismText(looks.root) { content() }
+    Box(modifier.fillMaxWidth().prismBox(looks.root), contentAlignment = Alignment.Center) {
+        PrismText(looks.root) {
+            CompositionLocalProvider(
+                LocalTextStyle provides LocalTextStyle.current.copy(textAlign = TextAlign.Center),
+                content = content,
+            )
+        }
     }
 }

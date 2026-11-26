@@ -555,7 +555,9 @@ defmodule Prism.Generator.Web.ComponentsTest do
     refute css =~ "__input"
   end
 
-  # The preview clips the app's image, which covers it; the button is the app's.
+  # The preview clips the app's image, which covers it; the button is the app's. Where the
+  # row has no room for both, the button goes below the preview, not past the screen's edge
+  # (Flux 10549420830: at 200% zoom on a phone).
   test "an image picker: its preview and the app's image in it" do
     design =
       compile("""
@@ -578,7 +580,7 @@ defmodule Prism.Generator.Web.ComponentsTest do
     css = css(design)
 
     assert css =~
-             ".only-image-picker {\n  display: flex;\n  flex-direction: row;\n  align-items: center;\n  gap: 16px;\n}\n"
+             ".only-image-picker {\n  display: flex;\n  flex-direction: row;\n  flex-wrap: wrap;\n  align-items: center;\n  gap: 16px;\n}\n"
 
     assert css =~
              ".only-image-picker__preview {\n  flex-shrink: 0;\n  overflow: hidden;\n  width: 80px;\n  height: 60px;\n}\n"
@@ -590,6 +592,54 @@ defmodule Prism.Generator.Web.ComponentsTest do
              ".only-image-picker--round .only-image-picker__preview {\n  height: 80px;\n  border-radius: 50%;\n}\n"
 
     refute css =~ "only-image-picker__button"
+  end
+
+  # The select's field is a `<button>`, which centres its text; its label starts at the
+  # field's start, as on iOS and Android (Flux 10549420830).
+  test "a select's field starts its label at its start" do
+    design =
+      compile("""
+        component :select do
+          part :field, height: 40, padding: [left: 8, right: 32]
+        end
+      """)
+
+    assert css(design) =~
+             ".only-select__field {\n  display: block;\n  width: 100%;\n  height: 40px;\n  padding-left: 8px;\n  padding-right: 32px;\n  outline: none;\n  cursor: pointer;\n  text-align: start;\n  white-space: pre-wrap;\n}\n"
+  end
+
+  # A message bar centres its message, each of its lines too when it wraps, as on iOS and
+  # Android (Flux 10549420830).
+  test "a message bar centres each line of its message" do
+    design =
+      compile("""
+        component :message_bar do
+          style min_height: 40, padding: [y: 12, x: 16]
+        end
+      """)
+
+    assert css(design) =~
+             ".only-message-bar {\n  box-sizing: border-box;\n  display: flex;\n  justify-content: center;\n  align-items: center;\n  text-align: center;\n  min-height: 40px;\n  padding: 12px 16px;\n}\n"
+  end
+
+  # A message bar's least height and a step indicator's size include their padding, as on
+  # iOS and Android, also in an app without a border-box reset: a one-line bar of 40 with
+  # 12 above and below its 16 high line stays 40, not 64 (Flux 10549420830).
+  test "a message bar and a step indicator include their padding in their size" do
+    design =
+      compile("""
+        component :message_bar do
+          style min_height: 40, padding: [y: 12, x: 16]
+        end
+        component :step_indicator do
+          style size: 24, padding: [y: 4, x: 4]
+        end
+      """)
+
+    css = css(design)
+
+    assert css =~ ~r/\.only-message-bar \{\n  box-sizing: border-box;\n/
+    assert css =~ ~r/\.only-step-indicator \{\n  box-sizing: border-box;\n/
   end
 
   # A field holds its control, so its focus is its control's: `:focus-within`. Its

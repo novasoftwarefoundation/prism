@@ -12,7 +12,7 @@ Prism's look is written once, as a design in Elixir, and generated into code for
 
 | Folder | What |
 |---|---|
-| `design/` | Prism's design, a Mix project (`:prism_design`): `lib/tokens.ex` (`Prism.Design.Tokens`), `lib/components.ex` (`Prism.Design.Components`, which takes the tokens and is the whole design), `config/config.exs` (the design module and the folder of each target), and its checks: the 0.1.7 golden test, the version check, the font roles, the typography, the components. |
+| `design/` | Prism's design, a Mix project (`:prism_design`): `lib/tokens.ex` (`Prism.Design.Tokens`), `lib/components.ex` (`Prism.Design.Components`, which takes the tokens and is the whole design), `config/config.exs` (the design module and the folder of each target), and its checks: the 0.1.7 golden test, the version check, the font roles, the typography, the components; and [the compare](#the-compare) (`test/compare/`). |
 | `generator/` | The generic part, a Mix project of its own (`:prism_generator`): the design format (`lib/schema.ex`, with components in `lib/schema/components.ex`), the header of generated files (`lib/header.ex`), the web target (`lib/web.ex`, its templates in `lib/web/`, the component mechanics in `lib/web/components.ex`, the class names in `lib/web/classes.ex`, and the components' markup in `lib/web/elements.ex`), the Phoenix components (`lib/phoenix.ex`, `Prism.Generator.Phoenix`), the React target (`lib/react.ex`, `Prism.Generator.React`), the Swift target (`lib/swift.ex`, `lib/swift/`) and the Kotlin target (`lib/kotlin.ex`, `lib/kotlin/`), which share the look layering (`lib/looks.ex`), the design-tool target (`lib/design_tools.ex`, `Prism.Generator.DesignTools`, with the overview in `lib/design_tools/overview.ex`), and `mix prism.gen` (`lib/mix/tasks/prism.gen.ex`). It knows nothing about Prism's values. |
 | `targets/web/` | The npm package `@novasoftwarefoundation/prism`: `package.json`, the generated `tailwind.preset.js`, `css/base.css` and `css/components.css`, and `fonts/`. |
 | `targets/react/` | The npm package `@novasoftwarefoundation/prism-react`: `package.json`, `tsconfig.json`, the generated components in `src/`, and their tests in `test/`. |
@@ -67,7 +67,7 @@ An Elixir app reads the design itself, so it needs no generated files: a module 
 defp deps do
   [
     {:prism_design,
-     git: "https://github.com/novasoftwarefoundation/prism.git", tag: "v0.6.0", subdir: "design"},
+     git: "https://github.com/novasoftwarefoundation/prism.git", tag: "v0.7.0", subdir: "design"},
     {:phoenix_live_view, "~> 1.1"}
   ]
 end
@@ -157,10 +157,10 @@ The props follow the same rules as the Phoenix components: axes are props typed 
 
 ## Use it in a SwiftUI app
 
-An iOS app (iOS 26 or later) depends on the Swift package `Prism`, from the `prism-swift` repository at Prism's version:
+An iOS app (iOS 26 or later) or a macOS app (macOS 26 or later) depends on the Swift package `Prism`, from the `prism-swift` repository at Prism's version:
 
 ```swift
-.package(url: "https://github.com/novasoftwarefoundation/prism-swift.git", exact: "0.6.0")
+.package(url: "https://github.com/novasoftwarefoundation/prism-swift.git", exact: "0.7.0")
 ```
 
 ```swift
@@ -179,7 +179,7 @@ ProgressView(value: 0.4).progressViewStyle(.prism(.accent, size: .size32))
 PrismTag(tone: .success) { Text("Done") }
 ```
 
-Each component takes SwiftUI's own form ([ADR 0009](docs/adr/0009-swift-target.md)): a `ButtonStyle` for the button, a `ProgressViewStyle` for the spinner, a `ToggleStyle` for the checkbox, a modifier for the text field and the text area, and a view for the others. Axes are enums of the design's values (`.primary`, `.danger`, `.size32`) with the design's defaults; flags and the states the app sets are parameters; pressed, disabled and checked come from SwiftUI. A component's looks are data too (`PrismButtonLooks`), laid over each other as the web's CSS does. A look animates and a move in the same update doesn't, except a button's: put `.geometryGroup()` on a Prism button whose place can change. Type follows Dynamic Type. The package's README ([targets/swift/README.md](targets/swift/README.md)) has the details. The package is generated into `targets/swift/`; CI builds it with `xcodebuild` for the iOS Simulator.
+Each component takes SwiftUI's own form ([ADR 0009](docs/adr/0009-swift-target.md)): a `ButtonStyle` for the button, a `ProgressViewStyle` for the spinner, a `ToggleStyle` for the checkbox, a modifier for the text field and the text area, and a view for the others. Axes are enums of the design's values (`.primary`, `.danger`, `.size32`) with the design's defaults; flags and the states the app sets are parameters; pressed, disabled and checked come from SwiftUI. A component's looks are data too (`PrismButtonLooks`), laid over each other as the web's CSS does. A look animates and a move in the same update doesn't, except a button's: put `.geometryGroup()` on a Prism button whose place can change. Type follows Dynamic Type on iOS; macOS has none, so there type is at the design's sizes. The package's README ([targets/swift/README.md](targets/swift/README.md)) has the details. The package is generated into `targets/swift/`; CI builds it with `xcodebuild` for the iOS Simulator and for macOS, renders the components on a simulator, and renders them on macOS in light and dark (`swift test` in `design/test/swiftui/`, which keeps the drawings as an artifact).
 
 ## Use it in a Compose app
 
@@ -188,7 +188,7 @@ An Android app (Kotlin 2.2 or later, minSdk 23 or later, compileSdk 37.1 with th
 ```kotlin
 // build.gradle.kts; settings.gradle.kts lists mavenCentral()
 dependencies {
-    implementation("org.novasoftwarefoundation:prism-compose:0.6.0")
+    implementation("org.novasoftwarefoundation:prism-compose:0.7.0")
 }
 ```
 
@@ -272,9 +272,27 @@ Each step is checked against the tool's documentation (October 2026), not tried 
 - Its `mix test` needs Node (`nodejs` in `.tool-versions`): a test loads the generated preset in plain Node.
 - **Moving it to its own repository:** move `generator/` out as it is, and change one line in `design/mix.exs` from `path: "../generator"` to a git or Hex dependency.
 
+## The compare
+
+The same screen, a component of every kind (every button variant and tone, disabled and loading, a field with its label and error message, the text field with and without a prefix, the text area, the select, the checkbox, the radio group, the spinners, the tags, the message bars, the step indicators and the image picker), on Android, iOS and the web, at the default text size and at the largest. One command makes it from the checkout:
+
+```sh
+design/test/compare/compare.sh                 # all three, into design/test/compare/out
+design/test/compare/compare.sh --only web /tmp/compare
+open design/test/compare/out/index.html        # the six images side by side
+```
+
+| Image | Target | Size |
+|---|---|---|
+| `compare-android-100.png`, `compare-android-200.png` | Compose on the JVM (Robolectric with Android's own graphics), `design/test/compose`'s `CompareScreenTest` | font size 100% and 200% |
+| `compare-ios-default.png`, `compare-ios-ax5.png` | SwiftUI on the iOS Simulator, `design/test/swiftui`'s `CompareScreenTests` | Dynamic Type Large and AX5 |
+| `compare-web-100.png`, `compare-web-200.png` | The React components with the web package's CSS in Chrome, `design/test/compare/web.mjs` | zoom 100% and 200% |
+
+Each is a 393-wide screen at 3 pixels a point, dp or CSS pixel; on the web a dashed line marks the screen's edge, so what runs past it shows. It needs what CI's jobs for each target need: for Android, Gradle 9.9.2 (`gradle` on the `PATH`), JDK 17 (`JAVA_HOME`) and the Android SDK with the 37.1 platform (`ANDROID_HOME`); for iOS, Xcode and the simulator `IOS_SIMULATOR` (default `iPhone 17`); for the web, Node and Google Chrome (`CHROME`, or found). The page shows only the images its run made: `--only web` after a full run shows Android and iOS as not made, rather than an earlier commit's images (`design/test/compare/compare-test.sh`, in CI). The two tests make images and check nothing: they are skipped unless `PRISM_COMPARE` names the folder, so CI's checks compile them but don't run them. Each release gets the same images, so the last release's are there to compare with. The workflow Compare (`.github/workflows/compare.yml`) starts when Release succeeds for a version tag, as the publish workflows do, and checks that Release run with `.github/release-run.mjs`. Then `compare-android`, `compare-ios` and `compare-web` make the images at the tag's commit, one target each, with `compare.sh --only <target>`. They run in jobs that can only read and hold no secret, and each gives its artifact's id and the images' digest. `attach`, the only job that can write, builds nothing: it downloads each artifact by its id, stops unless its digest is that job's, and attaches the six `compare-*.png` files to the GitHub release. Release and the publish workflows never wait on it, so a failed compare leaves the release and its packages as they are. Use **Re-run failed jobs** on the Compare run, or start it by hand with the released version (`gh workflow run compare.yml -f version=X.Y.Z`).
+
 ## Swift validation in CI
 
-Swift builds and simulator tests run when their tested inputs or environment have no matching successful validation record. CI always runs the generator tests and checks generated files first. Thus a design/generator change that changes Swift must update the committed package or fixtures; stale output cannot use a prior Swift pass. A design change with identical Swift output needs no second simulator run.
+Swift builds, simulator tests and the macOS render run when their tested inputs or environment have no matching successful validation record. CI always runs the generator tests and checks generated files first. Thus a design/generator change that changes Swift must update the committed package or fixtures; stale output cannot use a prior Swift pass. A design change with identical Swift output needs no second simulator run.
 
 The fingerprint covers all tracked files in `targets/swift/` (except its README, license and gitignore), `generator/test/fixtures/swift/`, and `design/test/swiftui/`, plus the tool versions, CI/release workflows and validation scripts/tests. Added/deleted files count too. Runner image/OS/architecture, exact Xcode build, Node version, simulator runtime build and selected iPhone type also belong to the fingerprint. Version metadata, web/React-only changes and documentation outside those inputs leave it unchanged.
 
@@ -295,38 +313,49 @@ git push origin vX.Y.Z
 
 Before tagging, bump the version in `design/mix.exs`, `targets/web/package.json`, and both the version and Prism peer dependency in `targets/react/package.json`. Update React's lockfiles with `cd targets/react && npm install --package-lock-only && ../../.github/react18.sh --update`, then regenerate and commit the design output. Follow the normal `spec` → `develop` → `main` review and merge flow before tagging.
 
-`.github/workflows/release.yml` runs the full CI suite at the tag. It requires the tagged commit to be on `main`, checks all versions, verifies generated output and both npm package file lists, then:
+`.github/workflows/release.yml` (Release) runs the full CI suite at the tag and builds every package, in jobs that can only read and hold no secret. It requires the tagged commit to be on `main`, checks all versions, verifies generated output and both npm package file lists, and publishes nothing but the GitHub release:
 
-1. Publishes `targets/web/` and `targets/react/`, in that order. It waits for npm's processing to finish and verifies package hashes. npm trusted publishing provides authentication.
-2. Mirrors the tag's tracked `targets/swift/` files into `prism-swift` using `.github/swift-release.sh`, committing and pushing the branch and tag atomically.
-3. Creates the GitHub release and attaches `tokens.json`, `tokens.css`, `overview.svg` and the Webflow Designer Extension's bundle, `prism-tokens-webflow.zip`. A job of its own, which can only read, builds that zip before step 1 and gives the artifact's id and the zip's sha256 as its outputs; the publishing job downloads that artifact by its id, stops unless the zip's sha256 is that job's, and checks its file list, so Webflow's CLI never runs where npm and the Swift deploy key can be used, and no other job of the run can put another zip in its place.
-4. Releases the Kotlin library to Maven Central in two jobs that never meet. `maven-bundle`, with read access and no secret, builds `targets/kotlin/` at the tag's version with Gradle into the bundle (`.github/kotlin-release.sh --bundle`), checks it, and passes it on as an artifact, with the artifact's id and the bundle's digest as its outputs. `maven-central`, after the steps above and that job, runs no build: it downloads that artifact by its id, and `.github/kotlin-release.sh vX.Y.Z <bundle>` stops unless the bundle's digest is `maven-bundle`'s, checks the bundle, signs every file with gpg, uploads it through the Central Publisher Portal (published automatically once it validates), and waits until Central has published it, which takes minutes. A failure there leaves the other releases as they are. It reads the repository secrets `MAVEN_CENTRAL_USERNAME`, `MAVEN_CENTRAL_PASSWORD`, `MAVEN_SIGNING_KEY` and `MAVEN_SIGNING_KEY_PASSWORD`, and fails first, with the secret's name, when one is missing.
+1. `npm-packages` packs `targets/web/` and `targets/react/` (`.github/release-prepare.mjs`). `webflow` builds the Webflow Designer Extension's bundle, `prism-tokens-webflow.zip`. `maven-bundle` builds `targets/kotlin/` at the tag's version with Gradle into the bundle Maven Central requires (`.github/kotlin-release.sh --bundle`), and checks it. Each passes its files on as an artifact, with the artifact's id and their digest as its outputs.
+2. `release`, the only job that can write, builds nothing. It downloads each of those artifacts by its id and stops unless its digest is that job's, so no other job of the run can put other files in their place, and checks the zip's file list and the bundle. It creates the GitHub release and attaches `tokens.json`, `tokens.css`, `overview.svg`, `prism-tokens-webflow.zip`, the Kotlin bundle, `prism-compose-X.Y.Z-bundle.zip`, and `release.json`: the tag, its commit, the bundle's digest and each npm file's sha256. Then it hands the npm packages and the Kotlin bundle on to the publish workflows as one artifact, `prism-release`, kept 90 days. The publish workflows check that artifact against `release.json` on the GitHub release, never against anything inside the artifact: only this job can write `release.json` and the other files on the release, while any job of the run, third-party code included, can upload an artifact. The one other job that can write a release, `attach` in Compare ([The compare](#the-compare)), uploads only the six `compare-*.png` files. `release-workflow.test.mjs` pins that job: its permissions (`contents: write` only), its runner (`ubuntu-latest`), its needs, and its five steps, each with exactly its keys and environment. The three downloads are pinned at one `actions/download-artifact` commit, and the digest check's and the upload's commands are pinned word for word. Only the upload step has the token. The test fails on any change to these, and on any secret anywhere in `compare.yml`.
+
+Each target is published by a workflow of its own, which starts when Release succeeds for a version tag (`workflow_run`), so a failed target leaves the others as they are. Before anything else, `.github/release-run.mjs` finds the Release run and checks it: a run of `release.yml` in this repository, started by the tag's push, a success, at the commit the tag points at. Then the workflow checks out that commit and publishes what that run built, never a build of its own:
+
+- **Publish npm** (`publish-npm.yml`) publishes the packages in `prism-release`, web then React, with npm trusted publishing (`id-token: write`, no token). `.github/release-publish.mjs` stops unless the folder holds exactly the files `release.json` names, each with its sha256, for the tag and commit, then unless each package's sha1 is its manifest's and its version the tag's, waits for npm's processing to finish and verifies the hashes npm has.
+- **Publish Swift** (`publish-swift.yml`) mirrors the tag's tracked `targets/swift/` files into `prism-swift` with `.github/swift-release.sh`, committing and pushing the branch and tag atomically, with the deploy key `PRISM_SWIFT_DEPLOY_KEY`. The package is the tag's files, which Release checked.
+- **Publish Maven Central** (`publish-maven-central.yml`) holds the four Maven secrets and runs no build (no Gradle, no JDK, no Android SDK). It takes the bundle from `prism-release` and its digest from `release.json` on the GitHub release, after it checked that file's tag and commit, and `.github/kotlin-release.sh vX.Y.Z <bundle>` stops unless the bundle's digest is that one, checks the bundle, signs every file with gpg, uploads it through the Central Publisher Portal (published automatically once it validates), and waits until Central has published it, which takes minutes. While it waits it prints the deployment's state (`PENDING`, `VALIDATING`, `VALIDATED`, `PUBLISHING`) and the minutes since the upload whenever the state changes, and every 5 minutes while it stays the same. It reads the repository secrets `MAVEN_CENTRAL_USERNAME`, `MAVEN_CENTRAL_PASSWORD`, `MAVEN_SIGNING_KEY` and `MAVEN_SIGNING_KEY_PASSWORD`, and fails first, with the secret's name, when one is missing.
+
+The publish workflows don't start on `release: published`: a release the workflow token creates starts no other workflow. Release and each publish workflow have a concurrency group of their own that queues every run (`queue: max`), so a later run never cancels one that is waiting.
 
 Stable tags use `vX.Y.Z` and npm's `latest` dist-tag. Release candidates use `vX.Y.Z-rc.N`, npm's `next` dist-tag and a GitHub prerelease. Candidates do not move `latest`. On Maven Central, which has no dist-tags, a candidate is the version `X.Y.Z-rc.N`, which Gradle and Maven order before `X.Y.Z`; like every version there, it stays.
 
 ### One-time release setup
 
-- On each npm package (`@novasoftwarefoundation/prism` and `@novasoftwarefoundation/prism-react`), configure GitHub Actions trusted publishing: owner `novasoftwarefoundation`, repository `prism`, workflow filename `release.yml`, no environment restriction. Enable publishing for that trusted publisher. The job uses `id-token: write`; no npm token secret is needed. The pinned Node version includes a compatible npm CLI (11.5.1 or later).
+- On each npm package (`@novasoftwarefoundation/prism` and `@novasoftwarefoundation/prism-react`), configure GitHub Actions trusted publishing: owner `novasoftwarefoundation`, repository `prism`, workflow filename `publish-npm.yml`, no environment restriction. Enable publishing for that trusted publisher. Moving from the single `release.yml` workflow: add `publish-npm.yml` as a second trusted publisher beside the existing `release.yml` one (npm allows up to 10), so neither workflow is refused while the change reaches `main`; remove the `release.yml` entry once the first release from the new workflows has published to npm, so a `release.yml` token can no longer publish. Publish npm's job uses `id-token: write`; no npm token secret is needed. The pinned Node version includes a compatible npm CLI (11.5.1 or later).
 - Create a write-enabled deploy key on `novasoftwarefoundation/prism-swift` only. Store its private half in the `novasoftwarefoundation/prism` Actions secret `PRISM_SWIFT_DEPLOY_KEY`. The workflow pins the SSH host keys from GitHub's HTTPS metadata API and removes the temporary private key when the step ends.
-- GitHub's workflow token creates the Prism release/assets with `contents: write`.
+- GitHub's workflow token creates the Prism release/assets with `contents: write`, in Release's `release` job only. The publish workflows read the Release run and its artifact with `actions: read`.
 - Maven Central: the namespace `org.novasoftwarefoundation` is verified in the [Central Publisher Portal](https://central.sonatype.com/) with a DNS TXT record on `novasoftwarefoundation.org`. Four Actions secrets on `novasoftwarefoundation/prism` hold the credentials: `MAVEN_CENTRAL_USERNAME` and `MAVEN_CENTRAL_PASSWORD`, the two parts of a Portal user token (it expires: generate a new one before it does), and `MAVEN_SIGNING_KEY`, the ASCII-armored secret key that signs the files, with its passphrase in `MAVEN_SIGNING_KEY_PASSWORD`. The key is RSA 4096, signing only, fingerprint `24270AF8F9E30AD3EDF7A0B0F9156907F9CCAC8D`, published on `keyserver.ubuntu.com`, where Central and apps verify the signatures.
 
 ### Failed or partial releases
 
-Check the failed step before rerunning the workflow. Published npm versions are reused only when their hashes match the prepared packages. An existing Swift tag must contain exactly the expected tracked files and belong to its main branch. Existing GitHub releases receive the tag's design assets again. A version Maven Central already has is not uploaded again; a deployment Central refused (`FAILED`) is shown in the Portal with its reasons. Nothing moves or deletes a published version tag. If npm accepted an upload but is still processing it, wait for processing to finish before rerunning; do not submit another upload manually. Fix incorrect published content in a new patch version.
+Check the failed step first. Each target is published apart from the others, so publish only the one that failed, in one of two ways:
+
+- **Re-run the failed publish run** (Actions → Publish npm, Publish Swift or Publish Maven Central → the run → Re-run jobs). It publishes from the same Release run.
+- **Start the publish workflow by hand** (Actions → the workflow → Run workflow, or `gh workflow run publish-npm.yml -f version=X.Y.Z`; `publish-swift.yml` and `publish-maven-central.yml` alike) with the released version, `X.Y.Z` or `X.Y.Z-rc.N`. It finds the newest successful Release run of the tag `vX.Y.Z` at the tag's commit and publishes what that run built. It fails when there is none, and when that run's `prism-release` artifact is gone (after 90 days): release a patch version then.
+
+When Release itself failed, use **Re-run failed jobs** on it: once it succeeds, the publish workflows start again. Never use "Re-run all jobs" on a Release run, and never re-run a Release that succeeded: a run keeps its artifacts across attempts, and every artifact name a repeated job uploads (`prism-npm-packages`, `prism-tokens-webflow`, `prism-compose-bundle`, `prism-release`) is already taken, so that attempt fails, and a failed run is no longer found to publish from by hand. To publish one target again after a successful Release, re-run that publish run or start that publish workflow by hand with the version, as above. Each publish is safe to run again. Published npm versions are reused only when their hashes match the prepared packages. An existing Swift tag must contain exactly the expected tracked files and belong to its main branch. A version Maven Central already has is not uploaded again; a deployment Central refused (`FAILED`) is shown in the Portal with its reasons. Existing GitHub releases receive the tag's assets again. Nothing moves or deletes a published version tag. If npm accepted an upload but is still processing it, wait for processing to finish before rerunning; do not submit another upload manually. Fix incorrect published content in a new patch version.
 
 The local release checks can be run without publishing:
 
 ```sh
 npm ci --prefix .github   # the YAML parser of the workflow guard
-node --test .github/release-version.test.mjs .github/release-publish.test.mjs .github/release-workflow.test.mjs .github/kotlin-release.test.mjs
+node --test .github/release-version.test.mjs .github/release-publish.test.mjs .github/release-run.test.mjs .github/release-workflow.test.mjs .github/kotlin-release.test.mjs
 # The Maven Central bundle, unsigned and not uploaded (Gradle, JDK 17 and the Android SDK),
 # into an empty folder, then its check and its digest:
 .github/kotlin-release.sh --bundle X.Y.Z /path/to/bundle
 .github/kotlin-release.sh --check X.Y.Z /path/to/bundle
 .github/kotlin-release.sh --digest /path/to/bundle
 # After npm ci in targets/react; choose an existing directory outside the checkout:
-RELEASE_TAG=vX.Y.Z RUNNER_TEMP=/path/to/temp node .github/release-prepare.mjs
+RELEASE_TAG=vX.Y.Z NPM_PACKAGES=/path/to/packages node .github/release-prepare.mjs
 ```
 
 ## License

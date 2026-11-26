@@ -6,6 +6,7 @@ import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -133,7 +134,7 @@ public fun KitTextArea(
             KitText(root) {
                 Row(Modifier.kitBox(root.withoutPadding).height(IntrinsicSize.Min)) {
                     Box(
-                        Modifier.weight(1f).padding(root.padding.paddingValues()),
+                        Modifier.weight(1f).fillMaxHeight().padding(root.padding.paddingValues()),
                         contentAlignment = Alignment.TopStart,
                     ) {
                         if (placeholder != null && state.text.isEmpty()) {

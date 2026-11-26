@@ -538,6 +538,8 @@ defmodule Prism.Generator.Web.Components do
           declarations(path),
           "outline: none",
           "cursor: pointer",
+          # A button centres its text; the field's starts at its start, as on iOS and Android.
+          "text-align: start",
           "white-space: pre-wrap"
         ]
       end),
@@ -675,9 +677,14 @@ defmodule Prism.Generator.Web.Components do
 
     [
       rule(n, ".#{class(n)}", [
+        # Its height includes its padding, as on iOS and Android: the same size without a
+        # reset.
+        "box-sizing: border-box",
         "display: flex",
         "justify-content: center",
         "align-items: center",
+        # Each line centred, also when the message wraps, as on iOS and Android.
+        "text-align: center",
         declarations(n)
       ]),
       own(n, c, pseudo(c)),
@@ -691,6 +698,9 @@ defmodule Prism.Generator.Web.Components do
 
     [
       rule(n, ".#{class(n)}", [
+        # Its size includes its padding, as on iOS and Android: the same size without a
+        # reset.
+        "box-sizing: border-box",
         "display: flex",
         "align-items: center",
         "justify-content: center",
@@ -706,6 +716,8 @@ defmodule Prism.Generator.Web.Components do
 
   # A preview of an image and the app's button beside it; the app's image covers the
   # preview, which clips it to its shape.
+  # Where the row has no room for both (a narrow screen at 200% zoom), the button goes
+  # below the preview instead of past the screen's edge.
   defp blocks(%{name: :image_picker} = c) do
     n = [c.name]
 
@@ -713,6 +725,7 @@ defmodule Prism.Generator.Web.Components do
       rule(n, ".#{class(n)}", [
         "display: flex",
         "flex-direction: row",
+        "flex-wrap: wrap",
         "align-items: center",
         declarations(n)
       ]),

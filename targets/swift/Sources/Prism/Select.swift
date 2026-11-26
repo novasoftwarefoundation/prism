@@ -77,6 +77,7 @@ public struct PrismSelect<Label: View, Content: View>: View {
     var content: Content
     var label: Label
     @Environment(\.isEnabled) private var isEnabled
+    @State private var iconWidth: CGFloat = 0
 
     public init(
         _ variant: PrismSelectVariant? = nil,
@@ -105,16 +106,35 @@ public struct PrismSelect<Label: View, Content: View>: View {
                 .lineLimit(nil)
                 .multilineTextAlignment(.leading)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .prismLook(looks.field)
+                .prismLook(fieldLook(looks))
                 .overlay(alignment: looks.icon.inset.alignment) {
                     if let icon {
                         icon.prismLook(looks.icon)
                             .foregroundStyle(looks.root.foreground ?? Color.primary)
+                            .onGeometryChange(for: CGFloat.self, of: { $0.size.width }) {
+                                iconWidth = $0
+                            }
                             .padding(looks.icon.inset.edgeInsets())
                     }
                 }
         }
         .menuIndicator(.hidden)
+        .prismPlainMenu()
         .prismLook(looks.root)
+    }
+
+    /// The field's look: its padding on the icon's side holds the icon, which grows
+    /// with Dynamic Type, with the icon's inset on either side of it.
+    private func fieldLook(_ looks: PrismSelectLooks) -> PrismLook {
+        var field = looks.field
+        guard icon != nil else { return field }
+        let inset = looks.icon.inset
+        let room = iconWidth + 2 * (inset.trailing ?? inset.leading ?? 0)
+        if inset.alignment.horizontal == .trailing {
+            field.padding.trailing = max(field.padding.trailing ?? 0, room)
+        } else {
+            field.padding.leading = max(field.padding.leading ?? 0, room)
+        }
+        return field
     }
 }

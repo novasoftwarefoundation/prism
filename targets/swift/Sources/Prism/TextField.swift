@@ -82,6 +82,7 @@ public struct PrismTextFieldModifier: ViewModifier {
                     .frame(maxHeight: .infinity)
                     .prismBox(looks.prefix)
                 content
+                    .textFieldStyle(.plain)
                     .padding(looks.root.padding.edgeInsets())
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -92,6 +93,7 @@ public struct PrismTextFieldModifier: ViewModifier {
             .geometryGroup()
         } else {
             content
+                .textFieldStyle(.plain)
                 .prismText(looks.root)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .prismBox(looks.root)

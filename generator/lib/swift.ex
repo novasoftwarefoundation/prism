@@ -1,6 +1,6 @@
 defmodule Prism.Generator.Swift do
   @moduledoc """
-  Generates a Swift package from a design: SwiftUI code for iOS with the
+  Generates a Swift package from a design: SwiftUI code for iOS and macOS with the
   design's tokens and one SwiftUI form per component. The design's `swift`
   declaration names the package (`module:`), which is also the prefix of its
   types: `swift module: "Acme"` gives `Acme.Colors.accent` and
@@ -8,7 +8,7 @@ defmodule Prism.Generator.Swift do
 
   The files, under the target's folder:
 
-  - `Package.swift`: one library of the module's name, for iOS 26, Swift tools
+  - `Package.swift`: one library of the module's name, for iOS 26 and macOS 26, Swift tools
     6.2;
   - `Sources/<module>/Tokens.swift`: the tokens in an enum of the module's
     name: `Colors` (`Color`), `Shadows` and `TextShadows`, `Spacing`,
@@ -48,6 +48,8 @@ defmodule Prism.Generator.Swift do
   34). So 18 and 20 pt scale as body, 14 as footnote, 24 as title 2. A look
   with a typography scales its size and heights the same way, and its height
   is the least it takes: a box grows with its text instead of cutting it off.
+  macOS has no Dynamic Type: there a typography is its own size and line
+  height, from AppKit's font (`nsFont()`) where iOS has UIKit's (`uiFont()`).
 
   ## Deprecated tokens
 
@@ -142,7 +144,7 @@ defmodule Prism.Generator.Swift do
 
     let package = Package(
         name: "#{ctx.m}",
-        platforms: [.iOS(.v26)],
+        platforms: [.iOS(.v26), .macOS(.v26)],
         products: [
             .library(name: "#{ctx.m}", targets: ["#{ctx.m}"])
         ],

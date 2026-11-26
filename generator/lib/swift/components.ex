@@ -61,7 +61,9 @@ defmodule Prism.Generator.Swift.Components do
   and turns, or with a progress value its track and an arc from the top; a
   checkbox draws its check mark; a select's list is the system's menu, so the
   listbox and option looks are only in its looks, for an app's own list, and
-  its icon takes the text color around it, not the menu's tint; a spinner
+  its icon takes the text color around it, not the menu's tint, and has room
+  in the field's padding on its side as it grows with Dynamic Type (at least
+  its width with its inset on either side); a spinner
   keeps the `ProgressView`'s label and value for VoiceOver; a
   text field's placeholder color is in its modifier's `prompt(_:)`, since a
   modifier can't reach a `TextField`'s prompt; a step indicator has tabular
@@ -782,13 +784,14 @@ defmodule Prism.Generator.Swift.Components do
     on = if k == :text_field, do: "TextField", else: "TextEditor"
     # A TextEditor takes no height of its own; the app gives it one, and it is at least
     # one line of its text, which scales with Dynamic Type, with the text view's inset
-    # above and below it, so the line is never cut off.
+    # above and below it, so the line is never cut off. A TextField has the plain style,
+    # since macOS's default draws a bordered field inside the box.
     {hidden, line, size} =
       if k == :text_area,
         do:
           {"\n            .scrollContentBackground(.hidden)\n            .frame(minHeight: line(looks.root))",
            "", "    @Environment(\\.dynamicTypeSize) private var dynamicTypeSize\n"},
-        else: {"", "", ""}
+        else: {"\n            .textFieldStyle(.plain)", "", ""}
 
     least =
       if k == :text_area,
@@ -796,10 +799,9 @@ defmodule Prism.Generator.Swift.Components do
 
             /// One line of the look's text, as Dynamic Type scales it, in the text view's
             /// inset: `UITextView` draws its text 8pt below its top and needs 8pt below it.
+            /// macOS keeps the same 16pt.
             private func line(_ look: #{m}Look) -> CGFloat? {
-                let traits = UITraitCollection(
-                    preferredContentSizeCategory: UIContentSizeCategory(dynamicTypeSize))
-                return look.font.map { ($0.uiFont(compatibleWith: traits).lineHeight).rounded(.up) + 16 }
+                look.font.map { $0.scaled(dynamicTypeSize).fontLineHeight.rounded(.up) + 16 }
             }
         """,
         else: ""
@@ -823,6 +825,7 @@ defmodule Prism.Generator.Swift.Components do
                             .frame(maxHeight: .infinity)
                             .#{ctx.lower}Box(looks.prefix)
                         content
+                            .textFieldStyle(.plain)
                             .padding(looks.root.padding.edgeInsets())
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
@@ -833,6 +836,7 @@ defmodule Prism.Generator.Swift.Components do
                     .geometryGroup()
                 } else {
                     content
+                        .textFieldStyle(.plain)
                         .#{ctx.lower}Text(looks.root)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .#{ctx.lower}Box(looks.root)
@@ -1086,11 +1090,42 @@ defmodule Prism.Generator.Swift.Components do
                             if let icon {
                                 icon.#{ctx.lower}Look(looks.icon)
                                     .foregroundStyle(looks.root.foreground ?? Color.primary)
+                                    .onGeometryChange(for: CGFloat.self, of: { $0.size.width }) {
+                                        iconWidth = $0
+                                    }
                                     .padding(looks.icon.inset.edgeInsets())
                             }
                         }
         """,
         else: ""
+
+    # The icon sits in the field's padding on its side, and grows with Dynamic Type: the
+    # padding there is at least the icon's width with its inset on either side of it.
+    {field_look, room} =
+      if icon?,
+        do:
+          {"fieldLook(looks)",
+           """
+
+
+               /// The field's look: its padding on the icon's side holds the icon, which grows
+               /// with Dynamic Type, with the icon's inset on either side of it.
+               private func fieldLook(_ looks: #{m}SelectLooks) -> #{m}Look {
+                   var field = #{field}
+                   guard icon != nil else { return field }
+                   let inset = looks.icon.inset
+                   let room = iconWidth + 2 * (inset.trailing ?? inset.leading ?? 0)
+                   if inset.alignment.horizontal == .trailing {
+                       field.padding.trailing = max(field.padding.trailing ?? 0, room)
+                   } else {
+                       field.padding.leading = max(field.padding.leading ?? 0, room)
+                   }
+                   return field
+               }
+           """},
+        else: {field, ""}
+
+    width = if icon?, do: "    @State private var iconWidth: CGFloat = 0\n", else: ""
 
     """
     /// #{String.capitalize(article(c.name))}: a `Menu` whose label has the field's look; its
@@ -1099,7 +1134,7 @@ defmodule Prism.Generator.Swift.Components do
     public struct #{m}Select<Label: View, Content: View>: View {
     #{stored(args ++ slot)}    var content: Content
         var label: Label
-    #{env(c, spec)}
+    #{env(c, spec)}#{width}
         public init(
     #{wrap(params(args ++ slot, ["@ViewBuilder content: () -> Content", "@ViewBuilder label: () -> Label"]), "        ", ",")}
         ) {
@@ -1116,11 +1151,12 @@ defmodule Prism.Generator.Swift.Components do
                     .lineLimit(nil)
                     .multilineTextAlignment(.leading)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .#{ctx.lower}Look(#{field})
+                    .#{ctx.lower}Look(#{field_look})
     #{icon}        }
             .menuIndicator(.hidden)
+            .#{ctx.lower}PlainMenu()
             .#{ctx.lower}Look(looks.root)
-        }
+        }#{room}
     }
     """
   end
