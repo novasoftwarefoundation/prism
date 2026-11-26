@@ -73,7 +73,9 @@ jobs:
   # design-tools files, the Webflow zip, the Kotlin bundle and release.json (the tag, its
   # commit, the bundle's digest and each npm file's sha256) to the release, and uploads the npm
   # packages and the Kotlin bundle as one artifact, prism-release. The publish workflows check
-  # that artifact against release.json on the release, which only this job can write, never
+  # that artifact against release.json on the release, which only this job can write (the
+  # one other job that can write a release, compare.yml's attach, uploads only compare-*.png,
+  # as release-workflow.test.mjs holds it to), never
   # against values inside the artifact, which any job of the run can upload. A run has one
   # artifact of a name: when another job took prism-release first, this upload fails, and the
   # run with it. The artifact keeps its name across attempts, so a repeated job's upload fails

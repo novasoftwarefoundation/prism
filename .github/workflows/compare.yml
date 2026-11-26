@@ -1,0 +1,226 @@
+# The compare's images on the GitHub release (README → The compare): the same screen on
+# Android, iOS and the web, at the default text size and at the largest, made from the tag's
+# commit with design/test/compare/compare.sh, one target a job. It starts when Release
+# succeeds for a version tag, and by hand with a released version, to make them again. Release
+# and the publish workflows never wait on it: a failed compare leaves the release and its
+# packages as they are, and is re-run on its own.
+#
+# Each compare job can only read and holds no secret; it gives its artifact's id and the
+# images' digest. The attach job, the only one that can write, builds nothing: it downloads
+# each artifact by that id, stops unless its digest is that job's, and attaches the images to
+# the release (ADR 0014/0015).
+name: Compare
+
+on:
+  workflow_run:
+    workflows: [Release]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: The released version to make the compare of, X.Y.Z or X.Y.Z-rc.N
+        required: true
+        type: string
+
+permissions: {}
+
+concurrency:
+  group: prism-compare
+  cancel-in-progress: false
+  queue: max
+
+jobs:
+  # The tag and its commit, from the Release run .github/release-run.mjs checked.
+  tag:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      startsWith(github.event.workflow_run.head_branch, 'v'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      tag: ${{ steps.release.outputs.tag }}
+      commit: ${{ steps.release.outputs.commit }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: .github
+      - name: The Release run of the tag
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_RUN: ${{ toJSON(github.event.workflow_run) }}
+          VERSION: ${{ inputs.version }}
+        run: node .github/release-run.mjs
+
+  compare-android:
+    needs: tag
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    outputs:
+      artifact-id: ${{ steps.upload.outputs.artifact-id }}
+      sha256: ${{ steps.digest.outputs.sha256 }}
+    env:
+      GRADLE: "9.9.2"
+      ANDROID_PLATFORM: platforms;android-37.1
+      ANDROID_BUILD_TOOLS: build-tools;36.0.0
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.tag.outputs.commit }}
+          persist-credentials: false
+      - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
+        with:
+          distribution: temurin
+          java-version: "17"
+      # main's cache, read only, as release.yml's maven-bundle.
+      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
+        with:
+          gradle-version: ${{ env.GRADLE }}
+          cache-provider: basic
+          cache-read-only: true
+      - name: Install the Android SDK packages
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "$ANDROID_PLATFORM" "$ANDROID_BUILD_TOOLS" >/dev/null
+      - name: The compare on Android
+        run: design/test/compare/compare.sh --only android "$RUNNER_TEMP/compare"
+      - name: The images' digest
+        id: digest
+        run: |
+          cd "$RUNNER_TEMP/compare"
+          echo "sha256=$(LC_ALL=C openssl dgst -sha256 compare-*.png | openssl dgst -sha256 | sed 's/.*= //')" >> "$GITHUB_OUTPUT"
+      - id: upload
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: prism-compare-android
+          path: ${{ runner.temp }}/compare/compare-*.png
+          if-no-files-found: error
+          retention-days: 30
+
+  compare-ios:
+    needs: tag
+    runs-on: macos-26
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    outputs:
+      artifact-id: ${{ steps.upload.outputs.artifact-id }}
+      sha256: ${{ steps.digest.outputs.sha256 }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.tag.outputs.commit }}
+          persist-credentials: false
+      # CI's Xcode (ci.yml's swift job).
+      - name: Select Xcode
+        env:
+          XCODE: "26.6"
+        run: |
+          app="/Applications/Xcode_$XCODE.app"
+          [ -d "$app" ] || {
+            echo "::error::Xcode $XCODE is not on this image; it has: $(ls -d /Applications/Xcode_*.app | xargs)"
+            exit 1
+          }
+          sudo xcode-select -s "$app"
+      - name: The compare on iOS
+        run: design/test/compare/compare.sh --only ios "$RUNNER_TEMP/compare"
+      - name: The images' digest
+        id: digest
+        run: |
+          cd "$RUNNER_TEMP/compare"
+          echo "sha256=$(LC_ALL=C openssl dgst -sha256 compare-*.png | openssl dgst -sha256 | sed 's/.*= //')" >> "$GITHUB_OUTPUT"
+      - id: upload
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: prism-compare-ios
+          path: ${{ runner.temp }}/compare/compare-*.png
+          if-no-files-found: error
+          retention-days: 30
+
+  compare-web:
+    needs: tag
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    outputs:
+      artifact-id: ${{ steps.upload.outputs.artifact-id }}
+      sha256: ${{ steps.digest.outputs.sha256 }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.tag.outputs.commit }}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .tool-versions
+      # The image's Google Chrome.
+      - name: The compare on the web
+        run: design/test/compare/compare.sh --only web "$RUNNER_TEMP/compare"
+      - name: The images' digest
+        id: digest
+        run: |
+          cd "$RUNNER_TEMP/compare"
+          echo "sha256=$(LC_ALL=C openssl dgst -sha256 compare-*.png | openssl dgst -sha256 | sed 's/.*= //')" >> "$GITHUB_OUTPUT"
+      - id: upload
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: prism-compare-web
+          path: ${{ runner.temp }}/compare/compare-*.png
+          if-no-files-found: error
+          retention-days: 30
+
+  # The images on the release, which Release created. It builds nothing and checks out nothing:
+  # it takes each compare job's artifact by the id that job gave, and attaches the images only
+  # when each digest is that job's.
+  attach:
+    needs: [tag, compare-android, compare-ios, compare-web]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          artifact-ids: ${{ needs.compare-android.outputs.artifact-id }}
+          merge-multiple: true
+          path: ${{ runner.temp }}/compare/android
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          artifact-ids: ${{ needs.compare-ios.outputs.artifact-id }}
+          merge-multiple: true
+          path: ${{ runner.temp }}/compare/ios
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          artifact-ids: ${{ needs.compare-web.outputs.artifact-id }}
+          merge-multiple: true
+          path: ${{ runner.temp }}/compare/web
+      # The images each compare job made, and no others: the sha256 of each image's name and
+      # sha256, as that job took it.
+      - name: The compare images are the ones the compare jobs made
+        env:
+          ANDROID_SHA256: ${{ needs.compare-android.outputs.sha256 }}
+          IOS_SHA256: ${{ needs.compare-ios.outputs.sha256 }}
+          WEB_SHA256: ${{ needs.compare-web.outputs.sha256 }}
+        run: |
+          for target in android ios web; do
+            expected=$(printenv "$(echo "$target" | tr a-z A-Z)_SHA256" || true)
+            actual=$(cd "$RUNNER_TEMP/compare/$target" && LC_ALL=C openssl dgst -sha256 compare-*.png | openssl dgst -sha256 | sed 's/.*= //')
+            if [ -z "$expected" ] || [ "$actual" != "$expected" ]; then
+              echo "::error::The $target compare images' digest is $actual, not the compare-$target job's ${expected:-(none)}"
+              exit 1
+            fi
+          done
+      - name: Attach the images to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.tag.outputs.tag }}
+        run: gh release upload "$RELEASE_TAG" "$RUNNER_TEMP"/compare/*/compare-*.png --clobber --repo "$GITHUB_REPOSITORY"

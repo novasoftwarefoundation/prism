@@ -3,7 +3,8 @@
 # Publish → Failed or partial releases). It holds the four Maven secrets and runs no build:
 # no Gradle, no JDK, no Android SDK (ADR 0015). It checks out the tag's commit and takes the
 # bundle from that Release run's prism-release artifact, and the bundle's digest from
-# release.json on the GitHub release, which only Release's release job can write, after it
+# release.json on the GitHub release, which only Release's release job can write (Compare's
+# attach job, the only other job that can write a release, uploads only compare-*.png), after it
 # checked the bundle against maven-bundle's digest (release.yml). .github/kotlin-release.sh
 # stops unless the bundle's digest is that one, then checks it,
 # signs it with gpg, uploads it with curl and waits for Central to publish it. It fails first
@@ -67,7 +68,8 @@ jobs:
           github-token: ${{ github.token }}
           path: ${{ runner.temp }}/prism-release
       # The bundle's digest the release job checked, from release.json on the GitHub release,
-      # which only that job can write, never from the artifact; for this tag and commit.
+      # which only that job can write (Compare's attach job uploads only compare-*.png), never
+      # from the artifact; for this tag and commit.
       - name: The release job's hand-over
         id: handover
         env:

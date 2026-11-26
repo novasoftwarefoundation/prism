@@ -18,7 +18,7 @@ const publishers = {
   '.github/workflows/publish-swift.yml': { contents: 'read', actions: 'read' },
   '.github/workflows/publish-maven-central.yml': { contents: 'read', actions: 'read' },
 };
-const workflows = ['.github/workflows/release.yml', '.github/workflows/ci.yml', ...Object.keys(publishers)];
+const workflows = ['.github/workflows/release.yml', '.github/workflows/ci.yml', ...Object.keys(publishers), '.github/workflows/compare.yml'];
 
 // A `permissions` value: a level for every scope (`write-all`, `read-all`) or an
 // object of scopes; undefined without one. Anything else (an expression, a null, an
@@ -437,6 +437,7 @@ const queued = {
   '.github/workflows/publish-npm.yml': 'prism-publish-npm',
   '.github/workflows/publish-swift.yml': 'prism-publish-swift',
   '.github/workflows/publish-maven-central.yml': 'prism-publish-maven-central',
+  '.github/workflows/compare.yml': 'prism-compare',
 };
 const checkQueue = (file, yaml) =>
   assert.deepEqual(parse(yaml).concurrency, { group: queued[file], 'cancel-in-progress': false, queue: 'max' }, file);
@@ -590,6 +591,167 @@ test('the release packs the npm packages in a job that can only read, and the re
   assert.equal(/echo "sha256=\$\((.*)\)" >> "\$GITHUB_OUTPUT"/.exec(digest.run)?.[1],
     /actual=\$\((.*)\)\n/.exec(steps[compare].run)?.[1], 'both jobs take the digest the same way');
 });
+
+// The compare (compare.yml), as the other hand-overs, and apart from the release: it starts
+// after a successful Release run, which never waits on it. Each compare job, which can only
+// read, makes its target's images with compare.sh at the tag's commit and gives the artifact's
+// id and their digest; the attach job, the only one that can write, builds nothing, downloads
+// them by that id and compares each digest before it attaches the images.
+const compareWorkflow = readFileSync('.github/workflows/compare.yml', 'utf8');
+// The attach job's digest check, exactly: any other line could change what the upload step
+// runs ($GITHUB_PATH, $GITHUB_ENV) or read the token by another spelling.
+const compareDigestRun = [
+  "for target in android ios web; do",
+  "  expected=$(printenv \"$(echo \"$target\" | tr a-z A-Z)_SHA256\" || true)",
+  "  actual=$(cd \"$RUNNER_TEMP/compare/$target\" && LC_ALL=C openssl dgst -sha256 compare-*.png | openssl dgst -sha256 | sed 's/.*= //')",
+  "  if [ -z \"$expected\" ] || [ \"$actual\" != \"$expected\" ]; then",
+  "    echo \"::error::The $target compare images' digest is $actual, not the compare-$target job's ${expected:-(none)}\"",
+  "    exit 1",
+  "  fi",
+  "done",
+].join('\n') + '\n';
+const downloadArtifact = 'actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333';
+function checkCompare(yaml) {
+  assert.doesNotMatch(yaml, /\bsecrets\b/i, 'Compare reads no secret');
+  const workflow = parse(yaml);
+  assert.deepEqual(workflow.on.workflow_run, { workflows: ['Release'], types: ['completed'] }, 'it starts after Release');
+  const jobsOf = jobs(yaml);
+  assert.deepEqual(jobsOf.filter(canWrite).map(({ name }) => name), ['attach'], 'only the attach job can write');
+  const tag = jobsOf.find(({ name }) => name === 'tag');
+  assert.ok(tag.steps.some(({ run }) => run === 'node .github/release-run.mjs'), 'the tag job checks the Release run');
+  const attach = jobsOf.find(({ name }) => name === 'attach');
+  for (const { uses, run } of attach.steps) {
+    assert.doesNotMatch(uses ?? '', /^(actions\/checkout|actions\/setup-|erlef\/|gradle\/)/, 'the attach job checks out and sets up nothing');
+    assert.doesNotMatch(run ?? '', /(^|[;&|(]\s*)(npm|npx|mix|gradle|node)\s|compare\.sh/m, 'the attach job runs no build');
+  }
+  // The one other job than Release's release job that can write a release, held to exactly
+  // its permissions, runner, needs and steps: the three downloads by id at the pinned
+  // download-artifact commit, the digest check's command and the upload's command, each step
+  // with exactly its keys (no if, shell or continue-on-error) and environment, and only the
+  // upload has the token. So an edit that changes what it runs fails the check, and with it
+  // one that would write release.json, which the publish workflows trust.
+  assert.equal(workflow.env, undefined, 'the workflow has no environment every job gets');
+  assert.equal(workflow.defaults, undefined, 'the workflow has no defaults every job gets');
+  assert.deepEqual(Object.keys(attach.raw).toSorted(), ['needs', 'permissions', 'runs-on', 'steps', 'timeout-minutes'],
+    'the attach job has no environment, defaults, container or services');
+  assert.deepEqual(attach.raw.permissions, { contents: 'write' }, 'the attach job can write contents and nothing else');
+  assert.equal(attach.raw['runs-on'], 'ubuntu-latest', 'the attach job runs on GitHub\'s runner');
+  assert.deepEqual(attach.needs, ['tag', 'compare-android', 'compare-ios', 'compare-web']);
+  const steps = attach.raw.steps;
+  assert.deepEqual(steps.map((step) => Object.keys(step).toSorted()),
+    [['uses', 'with'], ['uses', 'with'], ['uses', 'with'], ['env', 'name', 'run'], ['env', 'name', 'run']],
+    'the attach job\'s steps: three downloads, the digest check and the upload');
+  for (const [index, target] of ['android', 'ios', 'web'].entries()) {
+    assert.equal(steps[index].uses, downloadArtifact);
+    assert.deepEqual(steps[index].with, {
+      'artifact-ids': `\${{ needs.compare-${target}.outputs.artifact-id }}`,
+      'merge-multiple': true,
+      path: `\${{ runner.temp }}/compare/${target}`,
+    });
+  }
+  const [compare, attaches] = [3, 4];
+  assert.equal(steps[compare].run, compareDigestRun, 'the attach job\'s digest check is exactly that');
+  assert.deepEqual(steps[compare].env, Object.fromEntries(['android', 'ios', 'web'].map((target) =>
+    [`${target.toUpperCase()}_SHA256`, `\${{ needs.compare-${target}.outputs.sha256 }}`])));
+  assert.deepEqual(steps[attaches].env, { GH_TOKEN: '${{ github.token }}', RELEASE_TAG: '${{ needs.tag.outputs.tag }}' },
+    'it attaches them to the checked tag\'s release');
+  assert.equal(steps[attaches].run,
+    'gh release upload "$RELEASE_TAG" "$RUNNER_TEMP"/compare/*/compare-*.png --clobber --repo "$GITHUB_REPOSITORY"',
+    'the attach job uploads only the compare images');
+  for (const step of steps.slice(0, attaches)) {
+    assert.doesNotMatch(JSON.stringify(step), /github\.token|GITHUB_TOKEN|secrets\./i, 'only the upload step has the token');
+  }
+  assert.match(steps[compare].run, /exit 1/);
+  for (const target of ['android', 'ios', 'web']) {
+    const maker = jobsOf.find(({ name }) => name === `compare-${target}`);
+    assert.deepEqual(maker?.permissions, { contents: 'read' }, `compare-${target} can only read`);
+    assert.ok(maker.needs.includes('tag') && attach.needs.includes(`compare-${target}`));
+    const checkout = maker.steps.find(({ uses }) => uses?.startsWith('actions/checkout@'));
+    assert.equal(checkout?.with?.ref, '${{ needs.tag.outputs.commit }}', `compare-${target} makes the tag's commit's images`);
+    assert.ok(maker.steps.some(({ run }) => run === `design/test/compare/compare.sh --only ${target} "$RUNNER_TEMP/compare"`));
+    const upload = maker.steps.find(({ uses }) => uses?.startsWith('actions/upload-artifact@'));
+    assert.equal(maker.outputs['artifact-id'], `\${{ steps.${upload.id}.outputs.artifact-id }}`);
+    const digest = maker.steps.find(({ id }) => `\${{ steps.${id}.outputs.sha256 }}` === maker.outputs.sha256);
+    assert.equal(/echo "sha256=\$\((.*)\)" >> "\$GITHUB_OUTPUT"/.exec(digest?.run ?? '')?.[1],
+      /actual=\$\(cd "\$RUNNER_TEMP\/compare\/\$target" && (.*)\)\n/.exec(steps[compare].run)?.[1],
+      `compare-${target} and the attach job take the digest the same way`);
+    const download = steps.findIndex(({ with: given }) => given?.['artifact-ids'] === `\${{ needs.compare-${target}.outputs.artifact-id }}`);
+    assert.ok(download >= 0 && download < compare, `the attach job downloads compare-${target}'s images by its id first`);
+    assert.equal(steps[compare].env?.[`${target.toUpperCase()}_SHA256`], `\${{ needs.compare-${target}.outputs.sha256 }}`);
+  }
+}
+
+test('the compare makes its images in jobs that can only read, and the attach job takes them as data', () => {
+  checkCompare(compareWorkflow);
+});
+
+test('Release and the publish workflows never wait on the compare', () => {
+  for (const file of ['.github/workflows/release.yml', ...Object.keys(publishers)]) {
+    const yaml = readFileSync(file, 'utf8');
+    assert.ok(![].concat(parse(yaml).on?.workflow_run?.workflows ?? []).includes('Compare'), `${file} starts after Compare`);
+    for (const job of jobs(yaml)) {
+      assert.ok(!job.needs.some((name) => name.startsWith('compare-')), `${file}: ${job.name} needs a compare job`);
+      for (const { run } of job.steps) assert.doesNotMatch(run ?? '', /compare\.(sh|yml)/, `${file}: ${job.name} runs the compare`);
+    }
+  }
+});
+
+for (const [layout, from, to] of [
+  ['the web images\' digest not compared', '          WEB_SHA256: ${{ needs.compare-web.outputs.sha256 }}\n', ''],
+  ['no digest among the iOS job\'s outputs',
+    '      sha256: ${{ steps.digest.outputs.sha256 }}\n    steps:\n      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1\n        with:\n          ref: ${{ needs.tag.outputs.commit }}\n          persist-credentials: false\n      # CI\'s Xcode',
+    '    steps:\n      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1\n        with:\n          ref: ${{ needs.tag.outputs.commit }}\n          persist-credentials: false\n      # CI\'s Xcode'],
+  ['the web images made from the default branch', '          ref: ${{ needs.tag.outputs.commit }}\n          persist-credentials: false\n      - uses: actions/setup-node', '          persist-credentials: false\n      - uses: actions/setup-node'],
+  ['release.json uploaded with the images',
+    '"$RUNNER_TEMP"/compare/*/compare-*.png --clobber', '"$RUNNER_TEMP"/compare/*/compare-*.png "$RUNNER_TEMP"/compare/*/release.json --clobber'],
+  ['another upload after the images',
+    ' --clobber --repo "$GITHUB_REPOSITORY"\n',
+    ' --clobber --repo "$GITHUB_REPOSITORY"\n      - run: gh release upload "$RELEASE_TAG" "$RUNNER_TEMP/compare/web/release.json" --clobber\n        env:\n          GH_TOKEN: ${{ github.token }}\n          RELEASE_TAG: ${{ needs.tag.outputs.tag }}\n'],
+  ['a github-script step that uploads release.json',
+    ' --clobber --repo "$GITHUB_REPOSITORY"\n',
+    ' --clobber --repo "$GITHUB_REPOSITORY"\n      - uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1\n        with:\n          script: |\n            await github.rest.repos.uploadReleaseAsset({owner: context.repo.owner, repo: context.repo.repo, release_id: 1, name: \'release.json\', data: require(\'fs\').readFileSync(process.env.RUNNER_TEMP + \'/compare/web/release.json\')})\n'],
+  ['a curl step that uploads release.json with the token',
+    ' --clobber --repo "$GITHUB_REPOSITORY"\n',
+    ' --clobber --repo "$GITHUB_REPOSITORY"\n      - name: More\n        env:\n          GH_TOKEN: ${{ github.token }}\n        run: |\n          curl -sf -X POST -H "Authorization: Bearer $GH_TOKEN" --data-binary @"$RUNNER_TEMP/compare/web/release.json" "https://uploads.github.com/repos/$GITHUB_REPOSITORY/releases/1/assets?name=release.json"\n'],
+  ['the token given to the digest step',
+    '          WEB_SHA256: ${{ needs.compare-web.outputs.sha256 }}\n',
+    '          WEB_SHA256: ${{ needs.compare-web.outputs.sha256 }}\n          GH_TOKEN: ${{ github.token }}\n'],
+  ['the token in the attach job\'s environment',
+    '    permissions:\n      contents: write\n',
+    '    permissions:\n      contents: write\n    env:\n      GH_TOKEN: ${{ github.token }}\n'],
+  ['the digest check skipped',
+    '      - name: The compare images are the ones the compare jobs made\n',
+    '      - name: The compare images are the ones the compare jobs made\n        if: false\n'],
+  ['a fake gh put first on the PATH by the digest step',
+    '            fi\n          done\n',
+    '            fi\n          done\n          mkdir -p "$RUNNER_TEMP/bin"\n          printf \'#!/bin/sh\\nexec /usr/bin/gh release upload "$RELEASE_TAG" "$RUNNER_TEMP"/compare/web/release.json --clobber --repo "$GITHUB_REPOSITORY"\\n\' > "$RUNNER_TEMP/bin/gh"\n          chmod +x "$RUNNER_TEMP/bin/gh"\n          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"\n'],
+  ['a BASH_ENV set by the digest step',
+    '            fi\n          done\n',
+    '            fi\n          done\n          echo \'gh release upload "$RELEASE_TAG" "$RUNNER_TEMP"/compare/web/release.json --clobber --repo "$GITHUB_REPOSITORY"\' > "$RUNNER_TEMP/x.sh"\n          echo "BASH_ENV=$RUNNER_TEMP/x.sh" >> "$GITHUB_ENV"\n'],
+  ['the token read in the digest step by another spelling',
+    '        run: |\n          for target in android ios web; do\n',
+    '        run: |\n          T="${{ github[\'token\'] }}"; curl -sf -X POST -H "Authorization: Bearer $T" --data-binary @"$RUNNER_TEMP/compare/web/release.json" "https://uploads.github.com/repos/$GITHUB_REPOSITORY/releases/1/assets?name=release.json"\n          for target in android ios web; do\n'],
+  ['the attach job given write-all',
+    '    permissions:\n      contents: write\n',
+    '    permissions: write-all\n'],
+  ['the attach job given id-token too',
+    '    permissions:\n      contents: write\n',
+    '    permissions:\n      contents: write\n      id-token: write\n'],
+  ['the attach job on a self-hosted runner',
+    '    runs-on: ubuntu-latest\n    timeout-minutes: 10\n',
+    '    runs-on: self-hosted\n    timeout-minutes: 10\n'],
+  ['a download at another commit',
+    '      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2\n        with:\n          artifact-ids: ${{ needs.compare-web.outputs.artifact-id }}\n',
+    '      - uses: actions/download-artifact@1111111111111111111111111111111111111111\n        with:\n          artifact-ids: ${{ needs.compare-web.outputs.artifact-id }}\n'],
+  ['a secret given to compare-web',
+    '      - name: The compare on the web\n',
+    '      - name: The compare on the web\n        env:\n          KEY: ${{ secrets.MAVEN_SIGNING_KEY }}\n'],
+  ['a compare job that can write', '  compare-web:\n    needs: tag\n    runs-on: ubuntu-latest\n    timeout-minutes: 15\n    permissions:\n      contents: read\n', '  compare-web:\n    needs: tag\n    runs-on: ubuntu-latest\n    timeout-minutes: 15\n    permissions:\n      contents: write\n'],
+]) {
+  test(`the check refuses a compare with ${layout}`, () => {
+    assert.throws(() => checkCompare(edited(compareWorkflow, from, to)), assert.AssertionError);
+  });
+}
 
 // What Release does: it publishes nothing but the GitHub release. No job of it reads a secret
 // or can get an OIDC token, the release job is the only one that can write, and it builds
