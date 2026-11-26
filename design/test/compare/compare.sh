@@ -6,8 +6,8 @@
 #   design/test/compare/compare.sh [--only android|ios|web] [folder]
 #
 # compare-android-100.png, compare-android-200.png  Compose on the JVM (Robolectric), font size
-#   100% and 200% (design/test/compose, CompareScreenTest). Needs Gradle 9.9.2 (GRADLE, or
-#   gradle on the PATH), JDK 17 (JAVA_HOME) and the Android SDK with the 37.1 platform
+#   100% and 200% (design/test/compose, CompareScreenTest). Needs Gradle 9.9.2 (gradle on
+#   the PATH), JDK 17 (JAVA_HOME) and the Android SDK with the 37.1 platform
 #   (ANDROID_HOME), as CI's kotlin job.
 # compare-ios-default.png, compare-ios-ax5.png  SwiftUI on the iOS Simulator, Dynamic Type
 #   Large and AX5 (design/test/swiftui, CompareScreenTests). Needs Xcode and the simulator
@@ -45,7 +45,7 @@ step() {
 }
 
 android() {
-  step "Android: Compose at 100% and 200%" env PRISM_COMPARE="$out" "${GRADLE:-gradle}" \
+  step "Android: Compose at 100% and 200%" env PRISM_COMPARE="$out" gradle \
     -p "$repo/design/test/compose" --no-daemon testDebugUnitTest --tests '*.CompareScreenTest' --rerun
 }
 
