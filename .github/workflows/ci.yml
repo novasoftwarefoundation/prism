@@ -219,12 +219,14 @@ jobs:
       # Prism's package, and the generator's fixtures: the example design with a
       # component of every kind, and the one with a token of every kind, for the iOS
       # Simulator and for macOS. A warning fails the build, as the generator's own do.
+      # `variant=macos` is native macOS only: without it the destination also matches Mac
+      # Catalyst, which builds the UIKit code.
       - name: Build the packages
         if: steps.validation.outputs.reuse != 'true'
         run: |
           for package in targets/swift:Prism generator/test/fixtures/swift/components:Kit \
                          generator/test/fixtures/swift/design:Acme; do
-            for destination in 'generic/platform=iOS Simulator' 'platform=macOS'; do
+            for destination in 'generic/platform=iOS Simulator' 'generic/platform=macOS,variant=macos'; do
               (cd "${package%%:*}" && xcodebuild build -quiet -scheme "${package##*:}" \
                 -destination "$destination" \
                 -derivedDataPath "$RUNNER_TEMP/${package##*:}" \
@@ -246,8 +248,9 @@ jobs:
           xcodebuild test -scheme PrismChecks-Package -destination "id=$SIMULATOR" \
             -derivedDataPath "$RUNNER_TEMP/PrismChecks" \
             -resultBundlePath "$RUNNER_TEMP/PrismChecks.xcresult"
-      # The components on macOS, in light and dark: each holds its text and draws. The
-      # drawings are kept for review.
+      # The components on macOS, in light and dark: each holds its text and draws, and the
+      # text field and the select are Prism's box, not AppKit's controls. `swift test`
+      # builds for this Mac only. The drawings are kept for review.
       - name: Render Prism's components on macOS
         if: steps.validation.outputs.reuse != 'true'
         working-directory: design/test/swiftui
