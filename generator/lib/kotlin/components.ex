@@ -205,9 +205,9 @@ defmodule Prism.Generator.Kotlin.Components do
     {~r/\bArrangement\b/, "androidx.compose.foundation.layout.Arrangement"},
     {~r/\bBox\(/, "androidx.compose.foundation.layout.Box"},
     {~r/\bColumn\(/, "androidx.compose.foundation.layout.Column"},
-    {~r/\bColumnScope\b/, "androidx.compose.foundation.layout.ColumnScope"},
     {~r/\bIntrinsicSize\b/, "androidx.compose.foundation.layout.IntrinsicSize"},
     {~r/\bRow\(/, "androidx.compose.foundation.layout.Row"},
+    {~r/\bRowScope\b/, "androidx.compose.foundation.layout.RowScope"},
     {~r/\.fillMaxHeight\(/, "androidx.compose.foundation.layout.fillMaxHeight"},
     {~r/\.fillMaxWidth\(/, "androidx.compose.foundation.layout.fillMaxWidth"},
     {~r/\.height\(IntrinsicSize/, "androidx.compose.foundation.layout.height"},
@@ -257,6 +257,7 @@ defmodule Prism.Generator.Kotlin.Components do
     {~r/\brotate\(/, "androidx.compose.ui.graphics.drawscope.rotate"},
     {~r/\btakeOrElse\b/, "androidx.compose.ui.graphics.takeOrElse"},
     {~r/\bRole\b/, "androidx.compose.ui.semantics.Role"},
+    {~r/\bTextAlign\b/, "androidx.compose.ui.text.style.TextAlign"},
     {~r/\.dp\b/, "androidx.compose.ui.unit.dp"},
     {~r/\.sp\b/, "androidx.compose.ui.unit.sp"}
   ]
@@ -842,7 +843,7 @@ defmodule Prism.Generator.Kotlin.Components do
                 #{m}Text(root) {
                     Row(Modifier.#{ctx.lower}Box(root.withoutPadding).height(IntrinsicSize.Min)) {
     #{prefix_box}                    Box(
-                            Modifier.weight(1f).padding(root.padding.paddingValues()),
+                            Modifier.weight(1f).fillMaxHeight().padding(root.padding.paddingValues()),
                             contentAlignment = #{align},
                         ) {
                             if (placeholder != null && state.text.isEmpty()) {
@@ -904,17 +905,18 @@ defmodule Prism.Generator.Kotlin.Components do
 
     """
     /**
-     * #{String.capitalize(article(c.name))}: its radios one below the other, a selectable
-     * group for TalkBack.
+     * #{String.capitalize(article(c.name))}: its radios in a row, as on iOS and the web,
+     * a selectable group for TalkBack.
      *
      * `#{m}RadioGroup { #{m}Radio(checked = yes, onClick = { yes = true }) { Text("Yes") } }`
      */
     @Composable
     public fun #{m}RadioGroup(
-    #{params(["modifier: Modifier = Modifier"], args, enabled_param(c, spec) ++ ["content: @Composable ColumnScope.() -> Unit"])}) {
-    #{val_looks(ctx, c, spec, %{})}    Column(
+    #{params(["modifier: Modifier = Modifier"], args, enabled_param(c, spec) ++ ["content: @Composable RowScope.() -> Unit"])}) {
+    #{val_looks(ctx, c, spec, %{})}    Row(
             modifier.selectableGroup().#{ctx.lower}Box(looks.root),
-            verticalArrangement = Arrangement.spacedBy(looks.root.gap ?: 0.dp),
+            horizontalArrangement = Arrangement.spacedBy(looks.root.gap ?: 0.dp),
+            verticalAlignment = Alignment.CenterVertically,
             content = content,
         )
     }
@@ -1186,10 +1188,15 @@ defmodule Prism.Generator.Kotlin.Components do
           {"its label on its background", "    #{m}LookBox(looks.root, modifier) { #{inner} }\n"}
 
         :message_bar ->
-          {"a message across the width it is given",
+          {"a message across the width it is given, each line centred",
            """
-               Box(modifier.fillMaxWidth().#{ctx.lower}Box(looks.root), contentAlignment = Alignment.CenterStart) {
-                   #{m}Text(looks.root) { content() }
+               Box(modifier.fillMaxWidth().#{ctx.lower}Box(looks.root), contentAlignment = Alignment.Center) {
+                   #{m}Text(looks.root) {
+                       CompositionLocalProvider(
+                           LocalTextStyle provides LocalTextStyle.current.copy(textAlign = TextAlign.Center),
+                           content = content,
+                       )
+                   }
                }
            """}
 

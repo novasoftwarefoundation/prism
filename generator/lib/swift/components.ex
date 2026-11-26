@@ -61,7 +61,9 @@ defmodule Prism.Generator.Swift.Components do
   and turns, or with a progress value its track and an arc from the top; a
   checkbox draws its check mark; a select's list is the system's menu, so the
   listbox and option looks are only in its looks, for an app's own list, and
-  its icon takes the text color around it, not the menu's tint; a spinner
+  its icon takes the text color around it, not the menu's tint, and has room
+  in the field's padding on its side as it grows with Dynamic Type (at least
+  its width with its inset on either side); a spinner
   keeps the `ProgressView`'s label and value for VoiceOver; a
   text field's placeholder color is in its modifier's `prompt(_:)`, since a
   modifier can't reach a `TextField`'s prompt; a step indicator has tabular
@@ -1086,11 +1088,42 @@ defmodule Prism.Generator.Swift.Components do
                             if let icon {
                                 icon.#{ctx.lower}Look(looks.icon)
                                     .foregroundStyle(looks.root.foreground ?? Color.primary)
+                                    .onGeometryChange(for: CGFloat.self, of: { $0.size.width }) {
+                                        iconWidth = $0
+                                    }
                                     .padding(looks.icon.inset.edgeInsets())
                             }
                         }
         """,
         else: ""
+
+    # The icon sits in the field's padding on its side, and grows with Dynamic Type: the
+    # padding there is at least the icon's width with its inset on either side of it.
+    {field_look, room} =
+      if icon?,
+        do:
+          {"fieldLook(looks)",
+           """
+
+
+               /// The field's look: its padding on the icon's side holds the icon, which grows
+               /// with Dynamic Type, with the icon's inset on either side of it.
+               private func fieldLook(_ looks: #{m}SelectLooks) -> #{m}Look {
+                   var field = #{field}
+                   guard icon != nil else { return field }
+                   let inset = looks.icon.inset
+                   let room = iconWidth + 2 * (inset.trailing ?? inset.leading ?? 0)
+                   if inset.alignment.horizontal == .trailing {
+                       field.padding.trailing = max(field.padding.trailing ?? 0, room)
+                   } else {
+                       field.padding.leading = max(field.padding.leading ?? 0, room)
+                   }
+                   return field
+               }
+           """},
+        else: {field, ""}
+
+    width = if icon?, do: "    @State private var iconWidth: CGFloat = 0\n", else: ""
 
     """
     /// #{String.capitalize(article(c.name))}: a `Menu` whose label has the field's look; its
@@ -1099,7 +1132,7 @@ defmodule Prism.Generator.Swift.Components do
     public struct #{m}Select<Label: View, Content: View>: View {
     #{stored(args ++ slot)}    var content: Content
         var label: Label
-    #{env(c, spec)}
+    #{env(c, spec)}#{width}
         public init(
     #{wrap(params(args ++ slot, ["@ViewBuilder content: () -> Content", "@ViewBuilder label: () -> Label"]), "        ", ",")}
         ) {
@@ -1116,11 +1149,11 @@ defmodule Prism.Generator.Swift.Components do
                     .lineLimit(nil)
                     .multilineTextAlignment(.leading)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .#{ctx.lower}Look(#{field})
+                    .#{ctx.lower}Look(#{field_look})
     #{icon}        }
             .menuIndicator(.hidden)
             .#{ctx.lower}Look(looks.root)
-        }
+        }#{room}
     }
     """
   end

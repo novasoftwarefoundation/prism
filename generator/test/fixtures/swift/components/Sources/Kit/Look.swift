@@ -556,8 +556,10 @@ struct KitBoxModifier: ViewModifier {
             .padding(look.padding.edgeInsets(adding: border, on: sides))
             .frame(width: size ?? scaled(look.width), height: size ?? height)
             .frame(minHeight: minHeight, maxHeight: scaled(look.maxHeight))
-            // Its text's height even where less is offered, so none of it is cut off.
-            .fixedSize(horizontal: false, vertical: text && look.height != nil)
+            // Its text's height even where less is offered, so none of it is cut off: a box
+            // with a height or a least height (a message bar's) is never squeezed below it.
+            .fixedSize(
+                horizontal: false, vertical: text && (look.height != nil || look.minHeight != nil))
             .background { KitSurface(look: look, shape: shape, border: border) }
             .overlay {
                 if let color = look.borderColor, border > 0 {

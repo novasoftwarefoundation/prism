@@ -19,7 +19,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredHeightIn
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
@@ -43,16 +42,20 @@ import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.shadow.Shadow
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.TextUnit
+import androidx.compose.ui.unit.constrainHeight
+import androidx.compose.ui.unit.constrainWidth
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.max
 
@@ -366,7 +369,7 @@ public fun Modifier.acmeBox(
     if (!look.margin.isEmpty) modifier = modifier.padding(look.margin.paddingValues())
     val text = look.typography != null
     look.size?.let {
-        modifier = if (text) modifier.sizeIn(minWidth = it, minHeight = it) else modifier.size(it)
+        modifier = if (text) modifier.square(it) else modifier.size(it)
     }
     look.width?.let { modifier = modifier.width(it) }
     val least = look.minHeight
@@ -408,6 +411,18 @@ public fun Modifier.acmeBox(
 }
 
 // A border on some sides only: a line on each, inside the box.
+// A square of `side`, or as large as its content needs where that is more: a box with a
+// size stays square (a step indicator's circle a circle) while it grows with its text, as on
+// iOS, where Dynamic Type scales its size.
+private fun Modifier.square(side: Dp): Modifier = layout { measurable, constraints ->
+    val width = measurable.maxIntrinsicWidth(Constraints.Infinity)
+    val edge = maxOf(side.roundToPx(), width, measurable.minIntrinsicHeight(width))
+    val placeable = measurable.measure(Constraints.fixed(edge, edge))
+    layout(constraints.constrainWidth(edge), constraints.constrainHeight(edge)) {
+        placeable.place(0, 0)
+    }
+}
+
 private fun Modifier.sideBorders(width: Dp, color: Color, sides: AcmeSides): Modifier =
     drawBehind {
         val w = width.toPx()

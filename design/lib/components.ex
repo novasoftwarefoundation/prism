@@ -388,9 +388,11 @@ defmodule Prism.Design.Components do
     end
   end
 
+  # 40 high with one line; with more lines it grows and keeps 12 above and below them,
+  # as on iOS, where Dynamic Type grows it (Flux 10549420830).
   component :message_bar, web: [section: "Message bars", doc: "Base message bar styles"] do
-    style height: 40,
-          padding: [y: 0, x: 16],
+    style min_height: 40,
+          padding: [y: 12, x: 16],
           radius: :default,
           typography: [font: :subhead, text: :tablehead]
 
@@ -417,13 +419,18 @@ defmodule Prism.Design.Components do
     end
   end
 
-  # The numbered circle of one step. 12/12 is no text size.
+  # The numbered circle of one step. 12/12 is no text size. The padding keeps room around
+  # the number where the circle grows with it, at Android's 200% (Flux 10549420830); at
+  # the default size the number fits in the 24 within it.
   component :step_indicator,
     web: [
       section: "Step indicators",
       doc: "Base step indicator - circular badge with number"
     ] do
-    style size: 24, radius: :full, typography: [font: :label, text: {12, 12}]
+    style size: 24,
+          padding: [y: 4, x: 4],
+          radius: :full,
+          typography: [font: :label, text: {12, 12}]
 
     variants :status, default: :incomplete do
       variant :incomplete,
