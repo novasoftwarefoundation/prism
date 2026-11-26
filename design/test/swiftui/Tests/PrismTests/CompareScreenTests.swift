@@ -1,3 +1,4 @@
+#if os(iOS)
 import Foundation
 import Prism
 import SwiftUI
@@ -159,3 +160,4 @@ private struct Flow: Layout {
         return frames
     }
 }
+#endif

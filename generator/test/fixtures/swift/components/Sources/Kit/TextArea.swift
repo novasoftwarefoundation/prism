@@ -86,10 +86,9 @@ public struct KitTextAreaModifier: ViewModifier {
 
     /// One line of the look's text, as Dynamic Type scales it, in the text view's
     /// inset: `UITextView` draws its text 8pt below its top and needs 8pt below it.
+    /// macOS keeps the same 16pt.
     private func line(_ look: KitLook) -> CGFloat? {
-        let traits = UITraitCollection(
-            preferredContentSizeCategory: UIContentSizeCategory(dynamicTypeSize))
-        return look.font.map { ($0.uiFont(compatibleWith: traits).lineHeight).rounded(.up) + 16 }
+        look.font.map { $0.scaled(dynamicTypeSize).fontLineHeight.rounded(.up) + 16 }
     }
 
     /// A prompt in the placeholder's color of `looks`, for the `TextEditor`'s `prompt:`.

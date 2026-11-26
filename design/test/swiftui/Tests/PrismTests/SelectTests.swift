@@ -1,3 +1,4 @@
+#if os(iOS)
 import Prism
 import SwiftUI
 import Testing
@@ -49,3 +50,4 @@ struct SelectTests {
             "at \(size) the label ends at \(frames.label.maxX), past the icon's start \(iconStart)")
     }
 }
+#endif
