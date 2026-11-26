@@ -538,11 +538,10 @@ struct AcmeBorderSides: View {
 /// A look's box. The border is inside the box, as CSS's border box: the padding is
 /// from its inner edge, and the size and height include it.
 ///
-/// A look with a typography scales its size, height and maximum height with Dynamic
-/// Type, as its text scales, and its height is the least it is, also where its parent
-/// offers less: at a larger text size the box grows with its text instead of cutting it
-/// off. Its least height doesn't scale: it is a floor in points, as on Android and the
-/// web, and the box is its text and padding where that is more (a message bar).
+/// A look with a typography scales its size, height and minimum and maximum height
+/// with Dynamic Type, as its text scales, and its height is the least it is, also
+/// where its parent offers less: at a larger text size the box grows with its text
+/// instead of cutting it off.
 struct AcmeBoxModifier: ViewModifier {
     var look: AcmeLook
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
@@ -555,7 +554,7 @@ struct AcmeBoxModifier: ViewModifier {
         // With text, the height is the least: the box grows with its text.
         let text = look.typography != nil
         let height = text ? nil : look.height
-        let minHeight = [text ? scaled(look.height) : nil, look.minHeight]
+        let minHeight = [text ? scaled(look.height) : nil, scaled(look.minHeight)]
             .compactMap { $0 }.max()
         content
             .padding(look.padding.edgeInsets(adding: border, on: sides))
