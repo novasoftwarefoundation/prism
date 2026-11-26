@@ -831,6 +831,7 @@
 
 /* Base message bar styles */
 .prism-message-bar {
+  box-sizing: border-box;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -874,6 +875,7 @@
 
 /* Base step indicator - circular badge with number */
 .prism-step-indicator {
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   justify-content: center;

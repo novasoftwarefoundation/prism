@@ -434,6 +434,7 @@
 }
 
 .kit-message-bar {
+  box-sizing: border-box;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -450,6 +451,7 @@
 }
 
 .kit-step-indicator {
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   justify-content: center;

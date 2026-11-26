@@ -353,7 +353,8 @@ public fun AcmeLook.animated(): AcmeLook {
  * Draws a look's box around the content: its margin, size, opacity, shadow, background,
  * border, outline and padding. The border is inside the box, so the padding and size are
  * CSS's border box. A look with text has its height and size as the least it takes, so it
- * grows with the user's font size instead of cutting its text off.
+ * grows with the user's font size instead of cutting its text off; with a size it stays a
+ * square as it grows, within the size the app's modifier or the parent gives it.
  *
  * With an `indication` (a control's ripple) and its `interactionSource`, the indication is
  * drawn over the background inside the box's shape, as Material clips its own controls'.
@@ -413,14 +414,15 @@ public fun Modifier.acmeBox(
 // A border on some sides only: a line on each, inside the box.
 // A square of `side`, or as large as its content needs where that is more: a box with a
 // size stays square (a step indicator's circle a circle) while it grows with its text, as on
-// iOS, where Dynamic Type scales its size.
+// iOS, where Dynamic Type scales its size. Within the size the app or the parent gives it
+// (`Modifier.size(48.dp)` on an icon button): the box is then that size, its content laid out
+// in all of it.
 private fun Modifier.square(side: Dp): Modifier = layout { measurable, constraints ->
     val width = measurable.maxIntrinsicWidth(Constraints.Infinity)
     val edge = maxOf(side.roundToPx(), width, measurable.minIntrinsicHeight(width))
-    val placeable = measurable.measure(Constraints.fixed(edge, edge))
-    layout(constraints.constrainWidth(edge), constraints.constrainHeight(edge)) {
-        placeable.place(0, 0)
-    }
+    val placeable = measurable.measure(
+        Constraints.fixed(constraints.constrainWidth(edge), constraints.constrainHeight(edge)))
+    layout(placeable.width, placeable.height) { placeable.place(0, 0) }
 }
 
 private fun Modifier.sideBorders(width: Dp, color: Color, sides: AcmeSides): Modifier =

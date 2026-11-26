@@ -619,7 +619,27 @@ defmodule Prism.Generator.Web.ComponentsTest do
       """)
 
     assert css(design) =~
-             ".only-message-bar {\n  display: flex;\n  justify-content: center;\n  align-items: center;\n  text-align: center;\n  min-height: 40px;\n  padding: 12px 16px;\n}\n"
+             ".only-message-bar {\n  box-sizing: border-box;\n  display: flex;\n  justify-content: center;\n  align-items: center;\n  text-align: center;\n  min-height: 40px;\n  padding: 12px 16px;\n}\n"
+  end
+
+  # A message bar's least height and a step indicator's size include their padding, as on
+  # iOS and Android, also in an app without a border-box reset: a one-line bar of 40 with
+  # 12 above and below its 16 high line stays 40, not 64 (Flux 10549420830).
+  test "a message bar and a step indicator include their padding in their size" do
+    design =
+      compile("""
+        component :message_bar do
+          style min_height: 40, padding: [y: 12, x: 16]
+        end
+        component :step_indicator do
+          style size: 24, padding: [y: 4, x: 4]
+        end
+      """)
+
+    css = css(design)
+
+    assert css =~ ~r/\.only-message-bar \{\n  box-sizing: border-box;\n/
+    assert css =~ ~r/\.only-step-indicator \{\n  box-sizing: border-box;\n/
   end
 
   # A field holds its control, so its focus is its control's: `:focus-within`. Its

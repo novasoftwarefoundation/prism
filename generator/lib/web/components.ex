@@ -677,6 +677,9 @@ defmodule Prism.Generator.Web.Components do
 
     [
       rule(n, ".#{class(n)}", [
+        # Its height includes its padding, as on iOS and Android: the same size without a
+        # reset.
+        "box-sizing: border-box",
         "display: flex",
         "justify-content: center",
         "align-items: center",
@@ -695,6 +698,9 @@ defmodule Prism.Generator.Web.Components do
 
     [
       rule(n, ".#{class(n)}", [
+        # Its size includes its padding, as on iOS and Android: the same size without a
+        # reset.
+        "box-sizing: border-box",
         "display: flex",
         "align-items: center",
         "justify-content: center",

@@ -618,7 +618,7 @@
  .prism-tag--accent .prism-tag__label {
    background-color: rgba(66, 114, 239, 0.2);
    color: #4272ef;
-@@ -520,30 +812,30 @@
+@@ -520,30 +812,31 @@
    color: #f28d15;
  }
  
@@ -645,6 +645,7 @@
 -/* Base alert styles */
 +/* Base message bar styles */
  .prism-message-bar {
++  box-sizing: border-box;
    display: flex;
    justify-content: center;
    align-items: center;
@@ -656,7 +657,7 @@
    border-radius: 0.25rem;
    font-family: "Nunito Sans", sans-serif;
    font-weight: 600;
-@@ -551,35 +843,35 @@
+@@ -551,42 +844,44 @@
    line-height: 16px;
  }
  
@@ -696,9 +697,10 @@
 -/* Base number icon - circular badge with number */
 +/* Base step indicator - circular badge with number */
  .prism-step-indicator {
++  box-sizing: border-box;
    display: flex;
    align-items: center;
-@@ -587,6 +879,7 @@
+   justify-content: center;
    flex-shrink: 0;
    width: 24px;
    height: 24px;
@@ -706,7 +708,7 @@
    border-radius: 50%;
    font-family: "Nunito Sans", sans-serif;
    font-weight: 700;
-@@ -595,20 +888,54 @@
+@@ -595,20 +890,54 @@
    font-variant-numeric: tabular-nums;
  }
  

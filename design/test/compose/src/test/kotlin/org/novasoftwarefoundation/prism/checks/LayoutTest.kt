@@ -1,18 +1,22 @@
 package org.novasoftwarefoundation.prism.checks
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.DeviceConfigurationOverride
 import androidx.compose.ui.test.FontScale
 import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpRect
 import androidx.compose.ui.unit.dp
@@ -21,6 +25,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.novasoftwarefoundation.prism.PrismButton
+import org.novasoftwarefoundation.prism.PrismButtonVariant
 import org.novasoftwarefoundation.prism.PrismMessageBar
 import org.novasoftwarefoundation.prism.PrismRadio
 import org.novasoftwarefoundation.prism.PrismRadioGroup
@@ -64,6 +70,13 @@ class LayoutTest(private val scale: Float) {
 
     private fun box(): DpRect = compose.onNodeWithTag("box").getBoundsInRoot()
 
+    private fun layout(text: String): TextLayoutResult {
+        val results = mutableListOf<TextLayoutResult>()
+        val node = compose.onNodeWithText(text, useUnmergedTree = true).fetchSemanticsNode()
+        node.config[SemanticsActions.GetTextLayoutResult].action?.invoke(results)
+        return results.single()
+    }
+
     private fun middle(top: Dp, bottom: Dp): Float = (top.value + bottom.value) / 2
 
     // Its line in the middle of its box, as on iOS and the web; it was 5 dp above it.
@@ -97,6 +110,22 @@ class LayoutTest(private val scale: Float) {
         val (bar, text) = box() to bounds("Saved")
         val off = middle(text.left, text.right) - middle(bar.left, bar.right)
         assertTrue("$at the message is ${-off} dp left of the bar's middle", abs(off) <= 1f)
+    }
+
+    // Each line centred, the last and shorter one too, as on iOS and the web; centring the
+    // block alone left-aligns its lines.
+    @Test
+    fun aMessageBarCentresEachLine() {
+        show { PrismMessageBar { Text(MESSAGE) } }
+        val (bar, text) = box() to bounds(MESSAGE)
+        val layout = layout(MESSAGE)
+        val last = layout.lineCount - 1
+        assertTrue("$at the message is on ${layout.lineCount} line", last >= 1)
+        val density = compose.density.density
+        val line = text.left.value +
+            (layout.getLineLeft(last) + layout.getLineRight(last)) / 2 / density
+        val off = line - middle(bar.left, bar.right)
+        assertTrue("$at its last line is ${-off} dp left of the bar's middle", abs(off) <= 1f)
     }
 
     // A message of more lines keeps 12 above and below them, where it had none at 200%.
@@ -135,5 +164,30 @@ class LayoutTest(private val scale: Float) {
         val room = height - (number.bottom - number.top)
         assertTrue("$at the circle is only $room taller than its number", room >= 7.5.dp)
         assertTrue("$at the circle is $width wide and $height high", abs(width.value - height.value) <= 1f)
+    }
+
+    // A size the app gives it is the box's, with its content in the middle of it: an icon
+    // button at Android's 48 dp touch target, a step indicator made larger.
+    @Test
+    fun aSizeTheAppGivesIsTheBoxs() {
+        show {
+            Column {
+                PrismButton(
+                    onClick = {},
+                    variant = PrismButtonVariant.Icon,
+                    modifier = Modifier.testTag("button").size(48.dp),
+                ) { Text("+") }
+                PrismStepIndicator(Modifier.testTag("circle").size(32.dp)) { Text("3") }
+            }
+        }
+        for ((tag, text, side) in listOf(Triple("button", "+", 48), Triple("circle", "3", 32))) {
+            val (outer, inner) = compose.onNodeWithTag(tag).getBoundsInRoot() to bounds(text)
+            val size = outer.right - outer.left
+            assertTrue("$at the $tag is $size wide, not $side", abs(size.value - side) <= 0.5f)
+            val across = middle(inner.left, inner.right) - middle(outer.left, outer.right)
+            val down = middle(inner.top, inner.bottom) - middle(outer.top, outer.bottom)
+            assertTrue("$at the $tag's text is $across dp across from its middle", abs(across) <= 1f)
+            assertTrue("$at the $tag's text is $down dp down from its middle", abs(down) <= 1f)
+        }
     }
 }
