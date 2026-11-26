@@ -121,6 +121,71 @@ struct MacOSTests {
         }
     }
 
+    /// The text field and the select are Prism's box, not AppKit's bordered text field
+    /// inside it or its grey pull-down button: across the middle of the box, from its
+    /// leading border to its middle and from its top border to its bottom one, there is
+    /// only the field's background. Empty, so no text is in the way. Drawn through AppKit,
+    /// since ImageRenderer leaves AppKit's controls out.
+    @Test(arguments: ["text field", "text field with prefix", "select"], [ColorScheme.light, .dark])
+    @MainActor func anInputIsPrismsBox(_ name: String, _ scheme: ColorScheme) throws {
+        let (look, view): (PrismLook, AnyView) =
+            switch name {
+            case "text field":
+                (PrismTextFieldLooks().root,
+                 AnyView(TextField("", text: .constant("")).prismTextField()))
+            case "text field with prefix":
+                (PrismTextFieldLooks().root,
+                 AnyView(TextField("", text: .constant("")).prismTextField { Text("€") }))
+            default:
+                (PrismSelectLooks().field,
+                 AnyView(PrismSelect(icon: Image(systemName: "chevron.down")) {
+                     Button("Netherlands") {}
+                 } label: {
+                     Text(verbatim: "")
+                 }))
+            }
+        let width: CGFloat = 240
+        let host = NSHostingView(rootView: view.frame(width: width))
+        host.appearance = NSAppearance(named: scheme == .dark ? .darkAqua : .aqua)
+        host.frame = NSRect(origin: .zero, size: host.fittingSize)
+        let window = NSWindow(
+            contentRect: host.frame, styleMask: .borderless, backing: .buffered, defer: false)
+        window.contentView = host
+        host.layoutSubtreeIfNeeded()
+        let bitmap = try #require(host.bitmapImageRepForCachingDisplay(in: host.bounds))
+        host.cacheDisplay(in: host.bounds, to: bitmap)
+
+        if let folder = ProcessInfo.processInfo.environment["PRISM_SNAPSHOTS"] {
+            let file = "\(name.replacingOccurrences(of: " ", with: "-"))-box-\(scheme).png"
+            let png = try #require(bitmap.representation(using: .png, properties: [:]))
+            try png.write(to: URL(fileURLWithPath: folder).appendingPathComponent(file))
+        }
+
+        let background = try #require(
+            look.background.flatMap { NSColor($0).usingColorSpace(.sRGB) })
+        let scale = CGFloat(bitmap.pixelsWide) / host.bounds.width
+        let inside = Int(((look.borderWidth ?? 0) + 1) * scale)
+        let (w, h) = (bitmap.pixelsWide, bitmap.pixelsHigh)
+        #expect(w == Int(width * scale), "\(name): \(w) pixels wide")
+        // A prefix has a background of its own at the leading side, a select's icon is at
+        // the trailing side; the column is between them.
+        let row =
+            switch name {
+            case "text field with prefix": (w / 2)..<(w - inside)
+            case "select": inside..<(w / 2)
+            default: inside..<(w - inside)
+            }
+        let points = row.map { ($0, h / 2) } + (inside..<(h - inside)).map { (w * 3 / 4, $0) }
+        let other = points.first { x, y in
+            guard let c = bitmap.colorAt(x: x, y: y)?.usingColorSpace(.sRGB) else { return true }
+            return abs(c.redComponent - background.redComponent) > 0.02
+                || abs(c.greenComponent - background.greenComponent) > 0.02
+                || abs(c.blueComponent - background.blueComponent) > 0.02
+        }
+        #expect(
+            other == nil, "\(name) in \(scheme): not its background at \(String(describing: other))")
+    }
+
     /// A typography's font is SF Pro at the token's size (no Dynamic Type) and at the
     /// weight its emphasis has in the family, as on iOS.
     @Test(arguments: [

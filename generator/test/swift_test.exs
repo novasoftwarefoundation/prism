@@ -369,6 +369,28 @@ defmodule Prism.Generator.SwiftTest do
       refute text_field =~ "minHeight: line("
     end
 
+    test "a text field and a select draw Prism's box, not macOS's bordered controls" do
+      # macOS's default styles draw a bordered text field inside the box and a grey
+      # pull-down button; the plain ones draw the content as it is, as iOS does.
+      text_field = body(ExampleComponents.__schema__(), "Sources/Kit/TextField.swift")
+      # With a prefix and without one.
+      assert length(Regex.scan(~r/content\n +\.textFieldStyle\(\.plain\)\n/, text_field)) == 2
+
+      # A design whose text field has no prefix part.
+      {_, plain, _} =
+        "component :text_field do\n  style radius: 4\nend"
+        |> files()
+        |> List.keyfind("Sources/Only/TextField.swift", 0)
+
+      assert plain =~ ~r/content\n +\.textFieldStyle\(\.plain\)\n +\.onlyText\(looks\.root\)\n/
+
+      select = body(ExampleComponents.__schema__(), "Sources/Kit/Select.swift")
+
+      # On macOS only: on iOS a plain button moves the icon.
+      assert select =~
+               ~r/\.menuIndicator\(\.hidden\)\n +#if os\(macOS\)\n(?: +\/\/.*\n)* +\.menuStyle\(\.button\)\n +\.buttonStyle\(\.plain\)\n +#endif\n +\.kitLook\(looks\.root\)\n/
+    end
+
     test "a part that is a spinner is drawn with the variants the part picks" do
       button = body(ExampleComponents.__schema__(), "Sources/Kit/Button.swift")
       assert button =~ "KitSpinnerStyle(nil, size: .size16, look: looks.spinner)"
