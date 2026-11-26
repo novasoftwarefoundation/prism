@@ -21,7 +21,7 @@ dependencyResolutionManagement {
 
 // build.gradle.kts
 dependencies {
-    implementation("org.novasoftwarefoundation:prism-compose:0.6.0")
+    implementation("org.novasoftwarefoundation:prism-compose:0.7.0")
 }
 ```
 

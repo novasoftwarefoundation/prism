@@ -67,7 +67,7 @@ An Elixir app reads the design itself, so it needs no generated files: a module 
 defp deps do
   [
     {:prism_design,
-     git: "https://github.com/novasoftwarefoundation/prism.git", tag: "v0.6.0", subdir: "design"},
+     git: "https://github.com/novasoftwarefoundation/prism.git", tag: "v0.7.0", subdir: "design"},
     {:phoenix_live_view, "~> 1.1"}
   ]
 end
@@ -160,7 +160,7 @@ The props follow the same rules as the Phoenix components: axes are props typed 
 An iOS app (iOS 26 or later) or a macOS app (macOS 26 or later) depends on the Swift package `Prism`, from the `prism-swift` repository at Prism's version:
 
 ```swift
-.package(url: "https://github.com/novasoftwarefoundation/prism-swift.git", exact: "0.6.0")
+.package(url: "https://github.com/novasoftwarefoundation/prism-swift.git", exact: "0.7.0")
 ```
 
 ```swift
@@ -188,7 +188,7 @@ An Android app (Kotlin 2.2 or later, minSdk 23 or later, compileSdk 37.1 with th
 ```kotlin
 // build.gradle.kts; settings.gradle.kts lists mavenCentral()
 dependencies {
-    implementation("org.novasoftwarefoundation:prism-compose:0.6.0")
+    implementation("org.novasoftwarefoundation:prism-compose:0.7.0")
 }
 ```
 
