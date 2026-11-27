@@ -67,7 +67,7 @@ An Elixir app reads the design itself, so it needs no generated files: a module 
 defp deps do
   [
     {:prism_design,
-     git: "https://github.com/novasoftwarefoundation/prism.git", tag: "v0.7.0", subdir: "design"},
+     git: "https://github.com/novasoftwarefoundation/prism.git", tag: "v0.8.0", subdir: "design"},
     {:phoenix_live_view, "~> 1.1"}
   ]
 end
@@ -160,7 +160,7 @@ The props follow the same rules as the Phoenix components: axes are props typed 
 An iOS app (iOS 26 or later) or a macOS app (macOS 26 or later) depends on the Swift package `Prism`, from the `prism-swift` repository at Prism's version:
 
 ```swift
-.package(url: "https://github.com/novasoftwarefoundation/prism-swift.git", exact: "0.7.0")
+.package(url: "https://github.com/novasoftwarefoundation/prism-swift.git", exact: "0.8.0")
 ```
 
 ```swift
@@ -188,7 +188,7 @@ An Android app (Kotlin 2.2 or later, minSdk 23 or later, compileSdk 37.1 with th
 ```kotlin
 // build.gradle.kts; settings.gradle.kts lists mavenCentral()
 dependencies {
-    implementation("org.novasoftwarefoundation:prism-compose:0.7.0")
+    implementation("org.novasoftwarefoundation:prism-compose:0.8.0")
 }
 ```
 
@@ -225,7 +225,7 @@ Each component is a composable in Compose's own form ([ADR 0015](docs/adr/0015-k
 
 | File | What |
 |---|---|
-| `tokens.json` | Every token in the [W3C Design Tokens (DTCG) format 2025.10](https://www.designtokens.org/tr/2025.10/format/), with no tool-specific fields: colors, font families and weights, font sizes and line heights, typography, spacing, heights, radii, shadows and text shadows, each with its DTCG `$type`. A family is the web font (`Nunito`, `Nunito Sans`); its fallback and its iOS and Android binding (the system font) are under `$extensions.prism`. The code family of `mono`, `monosmall` and `monomedium` is the system's monospaced font, which has no one name: here it is `Menlo`, the one every Mac has, and `monospaced: true` ([ADR 0005](docs/adr/0005-design-tools.md), decision 5). |
+| `tokens.json` | Every token in the [W3C Design Tokens (DTCG) format 2025.10](https://www.designtokens.org/tr/2025.10/format/), with no tool-specific fields: colors, font families and weights, font sizes and line heights, typography, spacing, heights, radii, shadows and text shadows, each with its DTCG `$type`. A family is the web font (`Nunito`, `Nunito Sans`); its fallback (or `"web": "system"`) and its iOS and Android binding (the system font) are under `$extensions.prism`. The code family of `mono`, `monosmall` and `monomedium` is the system's monospaced font, which has no one name: here it is `Menlo`, the one every Mac has, and `monospaced: true` ([ADR 0005](docs/adr/0005-design-tools.md), decision 5). |
 | `tokens.css` | The same tokens as CSS custom properties on `:root`, named by the same rule: the DTCG path `color.primary` is `--prism-color-primary`. A typography token is the `font` shorthand, a shadow the `box-shadow` (or `text-shadow`) value. The code family is the web's monospaced stack, `ui-monospace, SFMono-Regular, Menlo, Consolas, monospace`. The 50% radius is only here: DTCG has no percent unit. |
 | `overview.svg` | Every token drawn (swatches, the fonts and typography in their own fonts, spacing, radii, shadows) and every component's variants and states, as shapes and `<text>`. It opens in a browser as it is, and has no external references. |
 
