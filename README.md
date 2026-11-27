@@ -225,13 +225,13 @@ Each component is a composable in Compose's own form ([ADR 0015](docs/adr/0015-k
 
 | File | What |
 |---|---|
-| `tokens.json` | Every token in the [W3C Design Tokens (DTCG) format 2025.10](https://www.designtokens.org/tr/2025.10/format/), with no tool-specific fields: colors, font families and weights, font sizes and line heights, typography, spacing, heights, radii, shadows and text shadows, each with its DTCG `$type`. A family is the web font (`Nunito`, `Nunito Sans`); its fallback and its iOS and Android binding (the system font) are under `$extensions.prism`. |
-| `tokens.css` | The same tokens as CSS custom properties on `:root`, named by the same rule: the DTCG path `color.primary` is `--prism-color-primary`. A typography token is the `font` shorthand, a shadow the `box-shadow` (or `text-shadow`) value. The 50% radius is only here: DTCG has no percent unit. |
+| `tokens.json` | Every token in the [W3C Design Tokens (DTCG) format 2025.10](https://www.designtokens.org/tr/2025.10/format/), with no tool-specific fields: colors, font families and weights, font sizes and line heights, typography, spacing, heights, radii, shadows and text shadows, each with its DTCG `$type`. A family is the web font (`Nunito`, `Nunito Sans`); its fallback and its iOS and Android binding (the system font) are under `$extensions.prism`. The code family of `mono`, `monosmall` and `monomedium` is the system's monospaced font, which has no one name: here it is `Menlo`, the one every Mac has, and `monospaced: true` ([ADR 0005](docs/adr/0005-design-tools.md), decision 5). |
+| `tokens.css` | The same tokens as CSS custom properties on `:root`, named by the same rule: the DTCG path `color.primary` is `--prism-color-primary`. A typography token is the `font` shorthand, a shadow the `box-shadow` (or `text-shadow`) value. The code family is the web's monospaced stack, `ui-monospace, SFMono-Regular, Menlo, Consolas, monospace`. The 50% radius is only here: DTCG has no percent unit. |
 | `overview.svg` | Every token drawn (swatches, the fonts and typography in their own fonts, spacing, radii, shadows) and every component's variants and states, as shapes and `<text>`. It opens in a browser as it is, and has no external references. |
 
 [ADR 0005](docs/adr/0005-design-tools.md) records the names and how typography, shadows and font roles are written. `npm test` in `targets/design-tools/` checks the files: `tokens.json` against the DTCG 2025.10 JSON Schema and through [Terrazzo](https://terrazzo.app)'s and [Style Dictionary](https://styledictionary.com)'s parsers, `tokens.css` against the same names, and `overview.svg` as standalone SVG. CI runs it.
 
-The overview names Nunito and Nunito Sans: install them (from `targets/web/fonts/`, or [Google Fonts](https://fonts.google.com/?query=nunito)) before you import it, or its text falls back to another font.
+The overview names Nunito and Nunito Sans: install them (from `targets/web/fonts/`, or [Google Fonts](https://fonts.google.com/?query=nunito)) before you import it, or its text falls back to another font. Its code text is in Menlo, which macOS has; elsewhere pick a monospaced font for it.
 
 ### Import steps
 

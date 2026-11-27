@@ -97,16 +97,43 @@ defmodule Prism.Generator.SchemaTest do
     end
   end
 
-  test "italic and monospaced are booleans" do
-    compile(family() <> "\n  font :code, :f, :reading, monospaced: true, italic: false")
+  test "a font's italic is a boolean" do
+    compile(family() <> "\n  font :code, :f, :reading, italic: false")
 
-    for option <- ["italic", "monospaced"] do
-      assert_compile_error(
-        family() <> ~s(\n  font :code, :f, :reading, #{option}: "yes"),
-        "#{option} is a boolean",
-        4
-      )
-    end
+    assert_compile_error(
+      family() <> ~s(\n  font :code, :f, :reading, italic: "yes"),
+      "italic is a boolean",
+      4
+    )
+  end
+
+  # A font is monospaced when its family is, so every platform draws the family's fonts alike.
+  test "monospaced is a family's boolean, not a font's" do
+    compile(family(monospaced: "true") <> "\n  font :code, :f, :reading")
+    assert_compile_error(family(monospaced: ~s("yes")), "monospaced is a boolean", 3)
+
+    assert_compile_error(
+      family() <> "\n  font :code, :f, :reading, monospaced: true",
+      "font :code: unknown option :monospaced",
+      4
+    )
+  end
+
+  # The web's only system font is its monospaced one (ui-monospace and its stack).
+  test "the web binds only a monospaced family to the system font" do
+    compile(family(monospaced: "true", web: "{:system, scale: #{@scale}}"))
+
+    assert_compile_error(
+      family(web: "{:system, scale: #{@scale}}"),
+      "family :f: web: the web's system font is only its monospaced one; name a font",
+      3
+    )
+
+    assert_compile_error(
+      family(monospaced: "true", web: "{:system, []}"),
+      "family :f: web: is {:system, scale:",
+      3
+    )
   end
 
   # A family is `font` and one member per emphasis in Swift: `font` would be declared twice.
@@ -283,12 +310,6 @@ defmodule Prism.Generator.SchemaTest do
     assert_compile_error(
       family(ios: ~s([name: "Brand", faces: [], scale: #{@scale}])),
       "family :f: ios: a face is",
-      3
-    )
-
-    assert_compile_error(
-      family(web: "{:system, scale: #{@scale}}"),
-      "web: the system font is not supported on the web yet",
       3
     )
   end

@@ -26,6 +26,20 @@ defmodule Prism.Generator.Web.ComponentsTest do
     mod.__schema__()
   end
 
+  # A monospaced family the web binds to the system font is CSS's stack of it, unquoted.
+  test "a typography of a monospaced family is the system's monospaced font" do
+    css =
+      css(
+        with_tag(fn tag ->
+          [label] = tag.parts
+          %{tag | parts: [%{label | style: Keyword.put(label.style, :typography, :code)}]}
+        end)
+      )
+
+    assert css =~
+             "  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;\n  font-weight: 400;\n"
+  end
+
   test "the web reads its own binding: a web property replaces the shared one there" do
     [tag] = ExampleDesign.__schema__().components
     assert tag.style[:radius] == :default
