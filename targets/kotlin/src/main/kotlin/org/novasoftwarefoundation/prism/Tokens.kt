@@ -310,6 +310,20 @@ public object Prism {
             size = 20.sp,
             lineHeight = 24.sp,
         )
+        public val monosmall: PrismTypography = PrismTypography(
+            family = Families.text,
+            emphasis = PrismEmphasis.Reading,
+            italic = false,
+            size = 16.sp,
+            lineHeight = 24.sp,
+        )
+        public val monomedium: PrismTypography = PrismTypography(
+            family = Families.text,
+            emphasis = PrismEmphasis.Reading,
+            italic = false,
+            size = 20.sp,
+            lineHeight = 30.sp,
+        )
         public val quote: PrismTypography = PrismTypography(
             family = Families.display,
             emphasis = PrismEmphasis.Strong,

@@ -97,6 +97,18 @@ defmodule Prism.Generator.SchemaTest do
     end
   end
 
+  test "italic and monospaced are booleans" do
+    compile(family() <> "\n  font :code, :f, :reading, monospaced: true, italic: false")
+
+    for option <- ["italic", "monospaced"] do
+      assert_compile_error(
+        family() <> ~s(\n  font :code, :f, :reading, #{option}: "yes"),
+        "#{option} is a boolean",
+        4
+      )
+    end
+  end
+
   # A family is `font` and one member per emphasis in Swift: `font` would be declared twice.
   test "an emphasis can't be named font" do
     assert_compile_error(

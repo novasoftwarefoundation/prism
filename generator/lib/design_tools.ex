@@ -31,7 +31,8 @@ defmodule Prism.Generator.DesignTools do
 
   - Data no DTCG type has goes under `$extensions`, in a `prism` key: a
     family's fallback and its iOS and Android binding (`"system"` or
-    `{"name": …}`), a font's family (a reference) and `italic`, and a
+    `{"name": …}`), a font's family (a reference), `italic` and `monospaced`
+    (the system font's monospaced design on iOS and macOS), and a
     typography token's `fontStyle` when its font is italic.
   - A deprecated shadow has `$deprecated: true`.
   - A length in percent has no DTCG unit, so such a radius is only in
@@ -153,11 +154,12 @@ defmodule Prism.Generator.DesignTools do
   # Its emphasis's weight in the family's web font.
   defp font(t, tokens) do
     italic = if t[:italic], do: [italic: true], else: []
+    monospaced = if t[:monospaced], do: [monospaced: true], else: []
     family = Enum.find(tokens, &(&1.kind == :family and &1.name == t.family))
     weight = Schema.weight(family, :web, t.emphasis)
 
     token(["font-weight", t.name], "fontWeight", {:number, weight}, t, %{
-      extensions: [family: {:ref, ["font-family", t.family]}] ++ italic
+      extensions: [family: {:ref, ["font-family", t.family]}] ++ italic ++ monospaced
     })
   end
 

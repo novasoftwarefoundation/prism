@@ -180,8 +180,14 @@ public enum Prism {
             family: Families.text, emphasis: .data, italic: false, size: 14, lineHeight: 16,
             textStyle: .footnote)
         public static let mono = PrismTypography(
-            family: Families.text, emphasis: .reading, italic: false, size: 20, lineHeight: 24,
-            textStyle: .body)
+            family: Families.text, emphasis: .reading, italic: false, monospaced: true, size: 20,
+            lineHeight: 24, textStyle: .body)
+        public static let monosmall = PrismTypography(
+            family: Families.text, emphasis: .reading, italic: false, monospaced: true, size: 16,
+            lineHeight: 24, textStyle: .callout)
+        public static let monomedium = PrismTypography(
+            family: Families.text, emphasis: .reading, italic: false, monospaced: true, size: 20,
+            lineHeight: 30, textStyle: .body)
         public static let quote = PrismTypography(
             family: Families.display, emphasis: .strong, italic: false, size: 24, lineHeight: 30,
             textStyle: .title2)

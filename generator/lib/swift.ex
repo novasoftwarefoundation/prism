@@ -40,8 +40,10 @@ defmodule Prism.Generator.Swift do
   Type comes only from the typography tokens and the components' typography
   pairs. A typography is its font's family as `ios:` binds it (the system
   font or a named one, with the iOS scale's weight of each emphasis), its
-  emphasis (`<module>Emphasis`, drawn at the family's weight for it) and italic,
-  and its size and line height in points. Dynamic Type scales the size and the line height as the text style
+  emphasis (`<module>Emphasis`, drawn at the family's weight for it), italic and
+  monospaced (the system font's monospaced design, `monospaced: true` on a font
+  whose family is the system font on iOS), and its size and line height in points.
+  Dynamic Type scales the size and the line height as the text style
   whose default size is the closest below it: text up to 20 pt as body text
   (body 17, callout 16, subheadline 15, footnote 13, caption 12, caption 2
   11), larger text as a title (title 3 20, title 2 22, title 28, large title
@@ -524,15 +526,20 @@ defmodule Prism.Generator.Swift do
         name -> {ctx.tokens[{:text, name}].size, ctx.tokens[{:text, name}].line_height}
       end
 
+    monospaced = if font[:monospaced], do: ["monospaced: true"], else: []
+
     {"#{ctx.m}Typography(",
      [
        "family: #{families}#{member(font.family)}",
        "emphasis: .#{member(font.emphasis)}",
-       "italic: #{Map.get(font, :italic, false)}",
-       "size: #{number(size)}",
-       "lineHeight: #{number(line_height)}",
-       "textStyle: .#{text_style(size)}"
-     ]}
+       "italic: #{Map.get(font, :italic, false)}"
+     ] ++
+       monospaced ++
+       [
+         "size: #{number(size)}",
+         "lineHeight: #{number(line_height)}",
+         "textStyle: .#{text_style(size)}"
+       ]}
   end
 
   @doc """

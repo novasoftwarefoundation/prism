@@ -67,7 +67,8 @@ defmodule Prism.Generator.Schema do
       scale]}` or a keyword list with `name`, `faces`, `scale` and, on the web,
       `fallback`); a scale is `[{emphasis, weight}]`, every emphasis in order
       (`weight/3` reads it);
-    - `:font`: `family`, `emphasis` (an emphasis's name), and `italic` when given;
+    - `:font`: `family`, `emphasis` (an emphasis's name), and `italic` and
+      `monospaced` when given;
     - `:text`: `size` and `line_height` (px);
     - `:typography`: `font` and `text` (the names of a font and a text size).
   - Every component is a map, in the order of the design:
@@ -145,7 +146,7 @@ defmodule Prism.Generator.Schema do
     radius: [:value],
     emphasis: [],
     family: [:doc | @platforms],
-    font: [:family, :emphasis, :italic],
+    font: [:family, :emphasis, :italic, :monospaced],
     text: [:size, :line_height],
     typography: [:font, :text]
   }
@@ -341,7 +342,12 @@ defmodule Prism.Generator.Schema do
   """
   defmacro family(name, opts), do: token(:family, name, [], opts, __CALLER__)
 
-  @doc "A font: a family and an emphasis (its name), optionally `italic: true`."
+  @doc """
+  A font: a family and an emphasis (its name), optionally `italic: true` and
+  `monospaced: true`. On iOS and macOS (the Swift target) a monospaced font of a
+  family that `ios:` binds to the system font is the system font's monospaced
+  design; a named font and the other targets draw the family as it is.
+  """
   defmacro font(name, family, emphasis, opts \\ []),
     do: token(:font, name, [family: family, emphasis: emphasis], opts, __CALLER__)
 
@@ -641,6 +647,9 @@ defmodule Prism.Generator.Schema do
 
       Map.get(font, :italic, false) not in [true, false] ->
         {:error, "italic is a boolean"}
+
+      Map.get(font, :monospaced, false) not in [true, false] ->
+        {:error, "monospaced is a boolean"}
 
       true ->
         known(seen, :family, font.family, "unknown family #{inspect(font.family)}")
