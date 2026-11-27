@@ -234,6 +234,9 @@ public struct PrismButtonLooks: Sendable, Hashable {
         if variant == .icon && size == .small {
             root.apply(PrismLook(size: 16))
         }
+        if variant == .link && size == .small {
+            root.apply(PrismLook(emphasis: .supporting))
+        }
         if variant == .plain && padded {
             root.apply(PrismLook(padding: .init(top: 15, leading: 16, bottom: 15, trailing: 16)))
         }

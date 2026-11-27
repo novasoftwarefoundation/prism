@@ -360,6 +360,10 @@
   height: 16px;
 }
 
+.prism-button--link.prism-button--small {
+  font-weight: 500;
+}
+
 /* Plain and text buttons with padding */
 .prism-button--plain.prism-button--padded {
   padding: 15px 16px;

@@ -302,6 +302,9 @@ public class PrismButtonLooks(
         if (variant == PrismButtonVariant.Icon && size == PrismButtonSize.Small) {
             root += PrismLook(size = 16.dp)
         }
+        if (variant == PrismButtonVariant.Link && size == PrismButtonSize.Small) {
+            root += PrismLook(emphasis = PrismEmphasis.Supporting)
+        }
         if (variant == PrismButtonVariant.Plain && padded) {
             root += PrismLook(
                 padding = PrismInsets(top = 15.dp, start = 16.dp, bottom = 15.dp, end = 16.dp),

@@ -180,7 +180,7 @@ defmodule Prism.Design.ComponentsTest do
     assert [%{name: :icon, style: [size: 16]}] = small.parts
 
     looks = Map.new(small.with_variants, &{&1.name, &1})
-    assert Map.keys(looks) |> Enum.sort() == [:icon, :primary, :secondary, :soft]
+    assert Map.keys(looks) |> Enum.sort() == [:icon, :link, :primary, :secondary, :soft]
 
     for name <- [:primary, :soft] do
       assert looks[name].style == [padding: [y: 8, x: 12]]
@@ -190,6 +190,7 @@ defmodule Prism.Design.ComponentsTest do
     assert looks[:secondary].style == [padding: [y: 6, x: 12]]
     assert [%{name: :pressed, style: [padding: [top: 7, bottom: 5]]}] = looks[:secondary].states
     assert looks[:icon].style == [size: 16]
+    assert looks[:link].style == [emphasis: :supporting]
 
     # A padded plain or text button: the flag's look with the variant and small.
     [padded] = button.flags
@@ -209,6 +210,30 @@ defmodule Prism.Design.ComponentsTest do
 
     assert css =~
              "\n.prism-button--text.prism-button--padded.prism-button--small {\n  padding: 8px 12px;\n}\n"
+  end
+
+  # On the web the small size's typography comes after a variant's emphasis, with the
+  # same specificity, so it would take a small link's weight; the native targets keep
+  # the emphasis apart from the typography. Small gives each such variant its emphasis
+  # back, after its own rule.
+  test "a small button keeps its variant's emphasis" do
+    button = Enum.find(@design.components, &(&1.name == :button))
+    small = Enum.find(button.variants, &(&1.axis == :size and &1.name == :small))
+    emphasized = for v <- button.variants, v.style[:emphasis], do: v
+    assert Enum.map(emphasized, & &1.name) == [:link]
+
+    {_, css, _} =
+      @design |> Prism.Generator.Web.files() |> List.keyfind("css/components.css", 0)
+
+    [_, after_small] = String.split(css, "\n.prism-button--small {\n", parts: 2)
+    looks = Map.new(small.with_variants, &{&1.name, &1.style})
+
+    for v <- emphasized do
+      assert looks[v.name][:emphasis] == v.style[:emphasis]
+
+      assert after_small =~
+               "\n.prism-button--#{v.name}.prism-button--small {\n  font-weight: 500;\n}\n"
+    end
   end
 
   # A button element has padding and a background of its own; the CSS doesn't rely

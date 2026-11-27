@@ -186,6 +186,10 @@ defmodule Prism.Design.Components do
         end
 
         with_variant(:icon, size: 16)
+
+        # The web's buttonsmall rule comes after the link's emphasis and would take its
+        # weight; the native targets keep the emphasis apart from the typography.
+        with_variant(:link, emphasis: :supporting)
       end
     end
 
