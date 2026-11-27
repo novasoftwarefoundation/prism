@@ -596,7 +596,13 @@ defmodule Prism.Generator.Web.Elements do
       c.states ++
         withs.(c.with_parts) ++
         Enum.flat_map(c.variants, &(&1.states ++ withs.(&1.with_parts ++ &1.with_variants))) ++
-        Enum.flat_map(c.flags, &(&1.states ++ withs.(&1.with_variants)))
+        Enum.flat_map(
+          c.flags,
+          &(&1.states ++
+              withs.(
+                &1.with_variants ++ Enum.flat_map(&1.with_variants, fn w -> w.with_variants end)
+              ))
+        )
 
     # The form controls among the parts: a radio's control, a select's field.
     controls =

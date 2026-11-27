@@ -445,6 +445,64 @@ defmodule Prism.Generator.Schema.ComponentsTest do
         14
       )
     end
+
+    test "in a flag, holds the flag's looks with a variant of a third axis too" do
+      [c] =
+        compile("""
+          component :c do
+            variant :a
+
+            variants :size do
+              variant :s
+            end
+
+            flag :f, default: true do
+              with_variant :a, opacity: 0.9 do
+                state :pressed, opacity: 0.8
+
+                with_variant :s, opacity: 0.7, web: [doc: "Small"] do
+                  state :pressed, opacity: 0.6
+                end
+              end
+            end
+          end
+        """).components
+
+      assert [%{with_variants: [a]}] = c.flags
+      assert %{name: :a, style: [opacity: 0.9], states: [%{name: :pressed}]} = a
+
+      assert [
+               %{
+                 name: :s,
+                 style: [opacity: 0.7],
+                 states: [%{name: :pressed, style: [opacity: 0.6]}],
+                 with_variants: [],
+                 web: [doc: "Small"]
+               }
+             ] = a.with_variants
+
+      assert Enum.find(c.variants, &(&1.name == :s)).with_variants == []
+    end
+
+    test "holds one only in a flag's look with a variant, of a third axis" do
+      assert_compile_error(
+        "  component :c do\n    variant :a\n    variants :tone do\n      variant :t do\n        with_variant :a do\n          with_variant :t\n        end\n      end\n    end\n  end",
+        "only a flag's look with a variant holds looks with a variant",
+        17
+      )
+
+      assert_compile_error(
+        "  component :c do\n    variant :a\n    variant :b\n    flag :f do\n      with_variant :a do\n        with_variant :b\n      end\n    end\n  end",
+        "with_variant :b: :b is a variant of the same axis, :variant",
+        17
+      )
+
+      assert_compile_error(
+        "  component :c do\n    variant :a\n    variants :tone do\n      variant :t\n    end\n    variants :size do\n      variant :s\n    end\n    flag :f do\n      with_variant :a do\n        with_variant :t do\n          with_variant :s\n        end\n      end\n    end\n  end",
+        "only a flag's look with a variant holds looks with a variant",
+        23
+      )
+    end
   end
 
   describe "a flag" do

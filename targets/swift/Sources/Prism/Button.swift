@@ -11,6 +11,11 @@ public enum PrismButtonTone: Sendable, Hashable, CaseIterable {
     case accent, success, warning, danger, neutral, highlight
 }
 
+/// The size of a button.
+public enum PrismButtonSize: Sendable, Hashable, CaseIterable {
+    case regular, small
+}
+
 /// The look of a button and of each of its parts in one choice of its
 /// variants, flags, parts and states, laid over each other as on the web.
 public struct PrismButtonLooks: Sendable, Hashable {
@@ -22,6 +27,7 @@ public struct PrismButtonLooks: Sendable, Hashable {
     public init(
         _ variant: PrismButtonVariant? = nil,
         tone: PrismButtonTone = .accent,
+        size: PrismButtonSize = .regular,
         padded: Bool = true,
         withIcon: Bool = false,
         pressed: Bool = false,
@@ -68,6 +74,9 @@ public struct PrismButtonLooks: Sendable, Hashable {
             root.apply(PrismLook(
                 background: Color.clear, padding: .init(top: 0, leading: 0, bottom: 0, trailing: 0),
                 size: 24))
+        }
+        if size == .small {
+            root.apply(PrismLook(typography: Prism.Typography.buttonsmall))
         }
         if loading {
             label.apply(PrismLook(opacity: 0))
@@ -210,6 +219,24 @@ public struct PrismButtonLooks: Sendable, Hashable {
         if variant == .text && tone == .highlight {
             root.apply(PrismLook(foreground: Prism.Colors.tertiary))
         }
+        if size == .small {
+            icon.apply(PrismLook(size: 16))
+        }
+        if variant == .primary && size == .small {
+            root.apply(PrismLook(padding: .init(top: 8, leading: 12, bottom: 8, trailing: 12)))
+        }
+        if variant == .soft && size == .small {
+            root.apply(PrismLook(padding: .init(top: 8, leading: 12, bottom: 8, trailing: 12)))
+        }
+        if variant == .secondary && size == .small {
+            root.apply(PrismLook(padding: .init(top: 6, leading: 12, bottom: 6, trailing: 12)))
+        }
+        if variant == .icon && size == .small {
+            root.apply(PrismLook(size: 16))
+        }
+        if variant == .link && size == .small {
+            root.apply(PrismLook(emphasis: .supporting))
+        }
         if variant == .plain && padded {
             root.apply(PrismLook(padding: .init(top: 15, leading: 16, bottom: 15, trailing: 16)))
         }
@@ -222,11 +249,32 @@ public struct PrismButtonLooks: Sendable, Hashable {
         if variant == .soft && withIcon && pressed {
             root.apply(PrismLook(padding: .init(top: 5, bottom: 3)))
         }
+        if variant == .primary && size == .small && pressed {
+            root.apply(PrismLook(padding: .init(top: 9, bottom: 7)))
+        }
+        if variant == .soft && size == .small && pressed {
+            root.apply(PrismLook(padding: .init(top: 9, bottom: 7)))
+        }
+        if variant == .secondary && size == .small && pressed {
+            root.apply(PrismLook(padding: .init(top: 7, bottom: 5)))
+        }
         if variant == .plain && padded && pressed {
             root.apply(PrismLook(padding: .init(top: 16, bottom: 14)))
         }
+        if variant == .plain && size == .small && padded {
+            root.apply(PrismLook(padding: .init(top: 8, leading: 12, bottom: 8, trailing: 12)))
+        }
         if variant == .text && padded && pressed {
             root.apply(PrismLook(padding: .init(top: 16, bottom: 14)))
+        }
+        if variant == .text && size == .small && padded {
+            root.apply(PrismLook(padding: .init(top: 8, leading: 12, bottom: 8, trailing: 12)))
+        }
+        if variant == .plain && size == .small && padded && pressed {
+            root.apply(PrismLook(padding: .init(top: 9, bottom: 7)))
+        }
+        if variant == .text && size == .small && padded && pressed {
+            root.apply(PrismLook(padding: .init(top: 9, bottom: 7)))
         }
     }
 }
@@ -242,6 +290,7 @@ public struct PrismButtonLooks: Sendable, Hashable {
 public struct PrismButtonStyle: ButtonStyle {
     public var variant: PrismButtonVariant?
     public var tone: PrismButtonTone
+    public var size: PrismButtonSize
     public var padded: Bool
     public var loading: Bool
     public var icon: PrismSide?
@@ -249,12 +298,14 @@ public struct PrismButtonStyle: ButtonStyle {
     public init(
         _ variant: PrismButtonVariant? = nil,
         tone: PrismButtonTone = .accent,
+        size: PrismButtonSize = .regular,
         padded: Bool = true,
         loading: Bool = false,
         icon: PrismSide? = nil
     ) {
         self.variant = variant
         self.tone = tone
+        self.size = size
         self.padded = padded
         self.loading = loading
         self.icon = icon
@@ -270,11 +321,13 @@ extension ButtonStyle where Self == PrismButtonStyle {
     public static func prism(
         _ variant: PrismButtonVariant? = nil,
         tone: PrismButtonTone = .accent,
+        size: PrismButtonSize = .regular,
         padded: Bool = true,
         loading: Bool = false,
         icon: PrismSide? = nil
     ) -> PrismButtonStyle {
-        PrismButtonStyle(variant, tone: tone, padded: padded, loading: loading, icon: icon)
+        PrismButtonStyle(
+            variant, tone: tone, size: size, padded: padded, loading: loading, icon: icon)
     }
 }
 
@@ -286,9 +339,9 @@ private struct PrismButtonBody: View {
 
     var body: some View {
         let looks = PrismButtonLooks(
-            style.variant, tone: style.tone, padded: style.padded, withIcon: style.icon != nil,
-            pressed: configuration.isPressed, hovered: hovered, disabled: !isEnabled,
-            loading: style.loading)
+            style.variant, tone: style.tone, size: style.size, padded: style.padded,
+            withIcon: style.icon != nil, pressed: configuration.isPressed, hovered: hovered,
+            disabled: !isEnabled, loading: style.loading)
         content(looks)
             .overlay {
                 if style.loading {

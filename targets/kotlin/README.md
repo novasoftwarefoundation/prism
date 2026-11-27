@@ -40,6 +40,11 @@ PrismButton(onClick = save, variant = PrismButtonVariant.Primary, loading = savi
     Text("Save")
 }
 
+// A small button, of any variant and tone; without `size`, it is Regular.
+PrismButton(onClick = save, variant = PrismButtonVariant.Secondary, size = PrismButtonSize.Small) {
+    Text("Save")
+}
+
 PrismButton(
     onClick = next,
     variant = PrismButtonVariant.Plain,

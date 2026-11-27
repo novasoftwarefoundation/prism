@@ -14,7 +14,9 @@ defmodule Prism.Generator.Looks do
   - the component, a part, a variant, a flag and a look with a part are one
     class (`.acme-button`, `.acme-button--primary`, `.acme-button--with-icon`);
   - a variant's part, a variant's look with a part and a look with a variant
-    are two (`.acme-button--primary.acme-button--with-icon`);
+    are two (`.acme-button--primary.acme-button--with-icon`), and a flag's
+    look with two variants three
+    (`.acme-button--plain.acme-button--padded.acme-button--small`);
   - a state adds one, a pseudo-class or a modifier class; but a state the app
     sets on the component or on a part replaces that element's class
     (`.acme-text-field--invalid`), so it adds nothing there;
@@ -223,12 +225,20 @@ defmodule Prism.Generator.Looks do
     ]
   end
 
-  # A variant's or a flag's looks with a variant of another axis.
+  # A variant's or a flag's looks with a variant of another axis, and a flag's looks
+  # with a variant of a third axis too: a class for each condition
+  # (`.acme-button--plain.acme-button--padded.acme-button--small`).
   defp with_variants(c, own, node) do
     for w <- node.with_variants do
       other = Enum.find(c.variants, &(&1.name == w.name))
       conditions = sort([{:axis, other.axis, other.name} | own], c)
-      [layer(c, nil, conditions, 2, w) | states(c, nil, conditions, 2, w, false)]
+      rank = length(conditions)
+
+      [
+        layer(c, nil, conditions, rank, w),
+        states(c, nil, conditions, rank, w, false),
+        with_variants(c, conditions, w)
+      ]
     end
   end
 

@@ -1,4 +1,4 @@
-# 0006: Button looks: tones on every variant, soft, icon, padded, the icon's side
+# 0006: Button looks: tones on every variant, soft, icon, padded, the icon's side, small
 
 Status: proposed, 2026-10-31
 
@@ -24,6 +24,8 @@ The changes are in 0.2.0, which isn't released yet.
 
 6. **The icon's side.** The app puts the icon at the `:start` (the default) or the `:end` of the label, as Fluent's `iconPosition` (whose values are `before` and `after`): the part's `position:` in the design ([ADR 0001](0001-design-format.md)), `icon_position` in Phoenix and `iconPosition` in React; any other value fails when the button renders, rather than leaving the icon out. `start` and `end` follow the text's direction, so they stay right in right-to-left languages, where left and right would not. The components put the icon's element before or after the label's, so a flex row lays them out in the text's direction with no CSS of its own. Before, the icon always came after the label; in the components it now comes before it unless the app says `:end`.
 
+7. **A size axis: `regular` and `small`.** A `variants :size` block, `default: :regular`, a name without a look of its own: a button without a size looks exactly as above, with no class, and Swift's `size: .regular`, Compose's `PrismButtonSize.Regular` and the components' defaults leave existing buttons as they are. `small` (`.prism-button--small`, `size: .small`, `PrismButtonSize.Small`) has every variant and tone: the `buttonsmall` typography (16/16), padding 8px top and bottom and 12px at the sides on a primary, soft or padded plain or text button (9/7 while pressed), 6px and 12px on a secondary one, inside its 2px border, as the regular secondary's 13px is 15px less the border (7/5 while pressed), a 16px icon, and a 16×16 icon button. An unpadded plain, link or text button keeps its padding and takes the smaller text. A small button with an icon keeps 8px 12px, which holds the 16px icon as the regular button's 4px holds its own. A padded plain or text button's small look is a look of the `padded` flag with two variants, `with_variant :small` in its `with_variant [:plain, :text]` (`.prism-button--plain.prism-button--padded.prism-button--small`, [ADR 0001](0001-design-format.md)): the flag's looks come after the size's, so a look of the size alone couldn't outweigh them.
+
 ## Alternatives
 
 | Option | Why not |
@@ -42,3 +44,5 @@ The changes are in 0.2.0, which isn't released yet.
 - `css/components.css` changes: the tones' rules become rules with each variant, `text` loses its 16px at the sides without `--padded`, and `soft`, `icon`, `neutral`, `highlight` and `padded` are new. The golden diff (`design/test/golden/0.1.7.diff`) holds every change.
 - Phoenix and React components add `--padded` to plain and text buttons and put the icon first unless told otherwise.
 - The format gains `with_variant`, `flag` and a part's `position:` ([ADR 0001](0001-design-format.md)), which other components can use too.
+- The small size (decision 7) adds only rules with `--small`, which the golden diff holds, and a `size` that defaults to regular in every target: no existing button changes. A flag's look with two variants is new in the format ([ADR 0001](0001-design-format.md)), and the design-tool overview has a row for each.
+- Breaking for Kotlin: `size` comes after `tone` and before `padded` in `PrismButton` and `PrismButtonLooks`, so both change their JVM signatures. A library compiled against 0.7.0 that calls either one must be rebuilt against 0.8.0: the old signature is gone, so it fails at runtime with `NoSuchMethodError`. A call that passes arguments by position after `tone`, such as `PrismButton(onClick, modifier, variant, tone, false)` or `PrismButtonLooks(variant, tone, false)`, no longer compiles; one with named arguments compiles and looks as before. Swift's new `size:` sits among labelled arguments with defaults, so it stays source compatible, and the package is consumed as source.

@@ -48,8 +48,8 @@ defmodule Prism.Design.PhoenixTest do
              "prism-spinner--20"
            ]
 
-    # The icon part has no look of its own, so no rule: its class is a hook for the app.
-    assert Enum.reject(classes(rendered), &in_css?/1) == ["prism-button__icon"]
+    # The icon part's only rule is the small size's: elsewhere its size is the app's.
+    assert Enum.reject(classes(rendered), &in_css?/1) == []
   end
 
   test "the icon is at the start of the label, or at its end with icon_position={:end}" do
@@ -179,7 +179,7 @@ defmodule Prism.Design.PhoenixTest do
     classes = rendered |> List.flatten() |> Enum.flat_map(&classes/1) |> Enum.uniq()
     assert length(classes) > 50
 
-    # Without a look of its own, the button's icon has no rule.
-    assert Enum.reject(classes, &in_css?/1) == ["prism-button__icon"]
+    # Every class has a rule; the button's icon only in a small button.
+    assert Enum.reject(classes, &in_css?/1) == []
   end
 end

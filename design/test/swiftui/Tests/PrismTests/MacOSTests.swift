@@ -27,6 +27,15 @@ struct MacOSTests {
                         Button("Saving") {}.buttonStyle(.prism(.primary, loading: true))
                     })),
             Sample(
+                name: "small button", look: PrismButtonLooks(.primary, size: .small).root,
+                view: AnyView(
+                    HStack {
+                        Button("Save") {}.buttonStyle(.prism(.primary, size: .small))
+                        Button("Cancel") {}.buttonStyle(.prism(.secondary, size: .small))
+                        Button("Delete") {}.buttonStyle(.prism(.primary, tone: .danger, size: .small))
+                        Button("Back") {}.buttonStyle(.prism(.text, size: .small))
+                    })),
+            Sample(
                 name: "tag", look: PrismTagLooks(tone: .success).label,
                 view: AnyView(
                     HStack {
@@ -71,7 +80,7 @@ struct MacOSTests {
     }
 
     static let names = [
-        "button", "tag", "step indicator", "radio group", "message bar", "spinner",
+        "button", "small button", "tag", "step indicator", "radio group", "message bar", "spinner",
     ]
 
     /// The view 480pt wide on the window background of `scheme`, drawn at 2x. SwiftUI's
