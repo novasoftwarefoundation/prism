@@ -41,8 +41,8 @@ defmodule Prism.Generator.Swift do
   pairs. A typography is its font's family as `ios:` binds it (the system
   font or a named one, with the iOS scale's weight of each emphasis), its
   emphasis (`<module>Emphasis`, drawn at the family's weight for it), italic and
-  monospaced (the system font's monospaced design, `monospaced: true` on a font
-  whose family is the system font on iOS), and its size and line height in points.
+  monospaced (the system font's monospaced design, SF Mono, for a family that is
+  `monospaced: true` and the system font on iOS), and its size and line height in points.
   Dynamic Type scales the size and the line height as the text style
   whose default size is the closest below it: text up to 20 pt as body text
   (body 17, callout 16, subheadline 15, footnote 13, caption 12, caption 2
@@ -526,7 +526,8 @@ defmodule Prism.Generator.Swift do
         name -> {ctx.tokens[{:text, name}].size, ctx.tokens[{:text, name}].line_height}
       end
 
-    monospaced = if font[:monospaced], do: ["monospaced: true"], else: []
+    monospaced =
+      if ctx.tokens[{:family, font.family}][:monospaced], do: ["monospaced: true"], else: []
 
     {"#{ctx.m}Typography(",
      [

@@ -136,6 +136,16 @@ defmodule Prism.Design.Tokens do
     ios: {:system, scale: @sf_pro},
     android: {:system, scale: @android}
 
+  # Code, in each platform's monospaced system font: SF Mono on iOS and macOS,
+  # FontFamily.Monospace on Android, ui-monospace and its stack on the web. At the
+  # text family's weights.
+  family :code,
+    doc: "Code",
+    monospaced: true,
+    web: {:system, scale: @nunito},
+    ios: {:system, scale: @sf_pro},
+    android: {:system, scale: @android}
+
   # Fonts: family and emphasis (`font-…`). Sizes are separate (`text-…`).
   font :title0, :display, :headline
   font :title1, :display, :headline
@@ -160,11 +170,10 @@ defmodule Prism.Design.Tokens do
   font :tablehead, :text, :strong
   font :tablerow, :text, :data
   font :bold, :text, :strong
-  # Code: the text family at its reading weight; on iOS and macOS the system font's
-  # monospaced design (`monospaced: true`). Sizes as the body text beside it.
-  font :mono, :text, :reading, monospaced: true
-  font :monosmall, :text, :reading, monospaced: true
-  font :monomedium, :text, :reading, monospaced: true
+  # Code, at the reading weight. Sizes as the body text beside it.
+  font :mono, :code, :reading
+  font :monosmall, :code, :reading
+  font :monomedium, :code, :reading
 
   # Text sizes: size and line height in px (`text-…`).
   text :title0, 64, 68

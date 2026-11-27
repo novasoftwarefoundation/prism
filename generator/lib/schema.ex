@@ -63,12 +63,12 @@ defmodule Prism.Generator.Schema do
     - `:max_height`: `value` (px); `:radius`: `value` (a length);
     - `:emphasis`: no value of its own; the emphases are in the design's
       order, lightest first;
-    - `:family`: `doc`, and `web`, `ios`, `android` (each `{:system, [scale:
-      scale]}` or a keyword list with `name`, `faces`, `scale` and, on the web,
-      `fallback`); a scale is `[{emphasis, weight}]`, every emphasis in order
-      (`weight/3` reads it);
-    - `:font`: `family`, `emphasis` (an emphasis's name), and `italic` and
-      `monospaced` when given;
+    - `:family`: `doc`, `monospaced` when given, and `web`, `ios`, `android`
+      (each `{:system, [scale: scale]}` or a keyword list with `name`, `faces`,
+      `scale` and, on the web, `fallback`); a scale is `[{emphasis, weight}]`,
+      every emphasis in order (`weight/3` reads it);
+    - `:font`: `family`, `emphasis` (an emphasis's name), and `italic` when
+      given;
     - `:text`: `size` and `line_height` (px);
     - `:typography`: `font` and `text` (the names of a font and a text size).
   - Every component is a map, in the order of the design:
@@ -145,8 +145,8 @@ defmodule Prism.Generator.Schema do
     max_height: [:value],
     radius: [:value],
     emphasis: [],
-    family: [:doc | @platforms],
-    font: [:family, :emphasis, :italic, :monospaced],
+    family: [:doc, :monospaced | @platforms],
+    font: [:family, :emphasis, :italic],
     text: [:size, :line_height],
     typography: [:font, :text]
   }
@@ -325,15 +325,20 @@ defmodule Prism.Generator.Schema do
 
   @doc """
   A font family: a role (`:display`, `:text`) that each platform binds to a
-  font. Options, all required:
+  font. Options, all required but `monospaced:`:
 
   - `doc:` what the role is for; a trailing `(…)` such as `(> 20px)` is the
     size range the web comments name.
+  - `monospaced: true` for a role in a monospaced font, such as code. Where a
+    platform binds it to the system font, it is the platform's monospaced
+    system font: SF Mono on iOS and macOS, `FontFamily.Monospace` on Android,
+    and on the web the CSS stack of the system's monospaced font. A named font
+    is drawn as it is, so name a monospaced one.
   - `web:`, `ios:`, `android:` one per platform, so a new platform forces a
     choice. A binding is `{:system, scale: scale}` (the platform's system font)
     or a named font `[name:, faces: [[file:, weights: {from, to}, style:]],
     scale:]`; on the web also `fallback:` (a generic CSS family). The web has
-    no system binding yet.
+    a system binding only for a monospaced family.
 
   A scale gives every emphasis, in order, a weight of the font: `[reading: 400,
   strong: 700]`, each one of 100, 200, …, 1000 and none lighter than the one
@@ -343,10 +348,8 @@ defmodule Prism.Generator.Schema do
   defmacro family(name, opts), do: token(:family, name, [], opts, __CALLER__)
 
   @doc """
-  A font: a family and an emphasis (its name), optionally `italic: true` and
-  `monospaced: true`. On iOS and macOS (the Swift target) a monospaced font of a
-  family that `ios:` binds to the system font is the system font's monospaced
-  design; a named font and the other targets draw the family as it is.
+  A font: a family and an emphasis (its name), optionally `italic: true`. It is
+  monospaced when its family is.
   """
   defmacro font(name, family, emphasis, opts \\ []),
     do: token(:font, name, [family: family, emphasis: emphasis], opts, __CALLER__)
@@ -623,7 +626,10 @@ defmodule Prism.Generator.Schema do
   defp check(%{kind: :family} = family, seen) do
     emphases = for {:emphasis, name} <- Enum.reverse(seen), do: name
 
+    monospaced = Map.get(family, :monospaced, false)
+
     with :ok <- if(text?(Map.get(family, :doc)), do: :ok, else: {:error, "doc: " <> @text_rule}),
+         :ok <- if(is_boolean(monospaced), do: :ok, else: {:error, "monospaced is a boolean"}),
          :ok <- if(emphases != [], do: :ok, else: {:error, "declare the emphases before it"}) do
       Enum.find_value(@platforms, :ok, fn platform ->
         case Map.fetch(family, platform) do
@@ -631,7 +637,7 @@ defmodule Prism.Generator.Schema do
             {:error, "missing #{platform}: (every family names #{Enum.join(@platforms, ", ")})"}
 
           {:ok, binding} ->
-            case binding(platform, binding, emphases) do
+            case binding(platform, binding, emphases, monospaced) do
               :ok -> nil
               {:error, message} -> {:error, "#{platform}: #{message}"}
             end
@@ -647,9 +653,6 @@ defmodule Prism.Generator.Schema do
 
       Map.get(font, :italic, false) not in [true, false] ->
         {:error, "italic is a boolean"}
-
-      Map.get(font, :monospaced, false) not in [true, false] ->
-        {:error, "monospaced is a boolean"}
 
       true ->
         known(seen, :family, font.family, "unknown family #{inspect(font.family)}")
@@ -674,16 +677,17 @@ defmodule Prism.Generator.Schema do
     end)
   end
 
-  defp binding(:web, {:system, _}, _),
-    do: {:error, "the system font is not supported on the web yet; name a font"}
+  # The web names no system font but the monospaced one, `ui-monospace` and its stack.
+  defp binding(:web, {:system, _}, _, false),
+    do: {:error, "the web's system font is only its monospaced one; name a font"}
 
-  defp binding(_, {:system, opts} = font, emphases) do
+  defp binding(_, {:system, opts} = font, emphases, _) do
     if Keyword.keyword?(opts) and Keyword.keys(opts) == [:scale],
       do: scale(opts[:scale], emphases),
       else: {:error, @font_rule <> ", got #{inspect(font)}"}
   end
 
-  defp binding(platform, font, emphases) do
+  defp binding(platform, font, emphases, _) do
     keys =
       if platform == :web, do: [:faces, :fallback, :name, :scale], else: [:faces, :name, :scale]
 

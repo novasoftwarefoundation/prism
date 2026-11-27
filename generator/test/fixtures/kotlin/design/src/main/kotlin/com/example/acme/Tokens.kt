@@ -99,6 +99,13 @@ public object Acme {
             reading = 400,
             headline = 900,
         )
+        /** Code */
+        public val code: AcmeFontFamily = AcmeFontFamily(
+            font = FontFamily.Monospace,
+            aside = 300,
+            reading = 400,
+            headline = 700,
+        )
     }
 
     /** The typography tokens. */
@@ -121,6 +128,13 @@ public object Acme {
             family = Families.text,
             emphasis = AcmeEmphasis.Aside,
             italic = true,
+            size = 16.sp,
+            lineHeight = 24.sp,
+        )
+        public val code: AcmeTypography = AcmeTypography(
+            family = Families.code,
+            emphasis = AcmeEmphasis.Reading,
+            italic = false,
             size = 16.sp,
             lineHeight = 24.sp,
         )

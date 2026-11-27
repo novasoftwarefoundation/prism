@@ -15,7 +15,7 @@ defmodule Prism.Generator.DesignTools do
   | Group | DTCG `$type` | From | CSS value |
   |---|---|---|---|
   | `color` | `color` | colors; an alias is a reference | `#RRGGBB`, or `var(…)` for an alias |
-  | `font-family` | `fontFamily` | families: the web font's name | the name and its fallback |
+  | `font-family` | `fontFamily` | families: the web font's name (`family_name/1`) | the web's `font-family` value |
   | `font-weight` | `fontWeight` | fonts: their emphasis's weight in the family's web font, with the family | the weight |
   | `font-size`, `line-height` | `dimension` | text sizes | px |
   | `typography` | `typography` | typography tokens, referring to the four groups above | the `font` shorthand, of `var(…)`s |
@@ -30,10 +30,10 @@ defmodule Prism.Generator.DesignTools do
   ## What the DTCG file holds besides values
 
   - Data no DTCG type has goes under `$extensions`, in a `prism` key: a
-    family's fallback and its iOS and Android binding (`"system"` or
-    `{"name": …}`), a font's family (a reference), `italic` and `monospaced`
-    (the system font's monospaced design on iOS and macOS), and a
-    typography token's `fontStyle` when its font is italic.
+    family's web fallback (or `"web": "system"`), its iOS and Android
+    binding (`"system"` or `{"name": …}`) and `monospaced`, a font's family
+    (a reference) and `italic`, and a typography token's `fontStyle` when its
+    font is italic.
   - A deprecated shadow has `$deprecated: true`.
   - A length in percent has no DTCG unit, so such a radius is only in
     `tokens.css`.
@@ -46,6 +46,10 @@ defmodule Prism.Generator.DesignTools do
   alias Prism.Generator.Web
 
   @extension "prism"
+
+  # A tool takes one installed font by its name, so the web's system monospaced font is
+  # named by the font of its stack that every Mac has.
+  @monospace_name "Menlo"
 
   # The groups of the token files, in their order.
   @groups ~w(color font-family font-weight font-size line-height typography spacing height
@@ -139,13 +143,28 @@ defmodule Prism.Generator.DesignTools do
 
   defp color(t), do: token(["color", t.name], "color", {:color, t.value, 1}, t)
 
-  defp family(t) do
-    web = t.web
+  @doc """
+  The one font name a design tool takes for a family: its web font's name, or
+  for a family the web binds to the system's monospaced font, Menlo, the font
+  of that stack every Mac has.
+  """
+  def family_name(%{web: {:system, _}}), do: @monospace_name
+  def family_name(%{web: web}), do: web[:name]
 
-    token(["font-family", t.name], "fontFamily", {:family, web[:name], web[:fallback]}, t, %{
-      description: t.doc,
-      extensions: [fallback: web[:fallback], ios: native(t.ios), android: native(t.android)]
-    })
+  defp family(t) do
+    web = if match?({:system, _}, t.web), do: [web: "system"], else: [fallback: t.web[:fallback]]
+    monospaced = if t[:monospaced], do: [monospaced: true], else: []
+
+    token(
+      ["font-family", t.name],
+      "fontFamily",
+      {:family, family_name(t), Web.css_family(t)},
+      t,
+      %{
+        description: t.doc,
+        extensions: web ++ [ios: native(t.ios), android: native(t.android)] ++ monospaced
+      }
+    )
   end
 
   defp native({:system, _}), do: "system"
@@ -154,12 +173,11 @@ defmodule Prism.Generator.DesignTools do
   # Its emphasis's weight in the family's web font.
   defp font(t, tokens) do
     italic = if t[:italic], do: [italic: true], else: []
-    monospaced = if t[:monospaced], do: [monospaced: true], else: []
     family = Enum.find(tokens, &(&1.kind == :family and &1.name == t.family))
     weight = Schema.weight(family, :web, t.emphasis)
 
     token(["font-weight", t.name], "fontWeight", {:number, weight}, t, %{
-      extensions: [family: {:ref, ["font-family", t.family]}] ++ italic ++ monospaced
+      extensions: [family: {:ref, ["font-family", t.family]}] ++ italic
     })
   end
 
@@ -272,7 +290,7 @@ defmodule Prism.Generator.DesignTools do
   defp json_value({:color, hex, alpha}), do: color_object(hex, alpha)
   defp json_value({:px, n}), do: dimension(n, "px")
   defp json_value({:rem, n}), do: dimension(n, "rem")
-  defp json_value({:family, name, _fallback}), do: name
+  defp json_value({:family, name, _css}), do: name
   defp json_value({:number, n}), do: n
 
   defp json_value({:typography, t}) do
@@ -382,7 +400,7 @@ defmodule Prism.Generator.DesignTools do
   defp css_value({:px, n}, _), do: "#{Web.number(n)}px"
   defp css_value({:rem, n}, _), do: "#{Web.number(n)}rem"
   defp css_value({:percent, n}, _), do: "#{Web.number(n)}%"
-  defp css_value({:family, name, fallback}, _), do: "#{Web.css_str(name)}, #{fallback}"
+  defp css_value({:family, _name, css}, _), do: css
   defp css_value({:number, n}, _), do: Integer.to_string(n)
 
   defp css_value({:typography, t}, var) do

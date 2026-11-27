@@ -38,6 +38,8 @@ module.exports = {
         // Acme Text
         body: ["Acme Text", "sans-serif"],
         hint: ["Acme Text", "sans-serif"],
+        // System monospace
+        code: ["ui-monospace", "SFMono-Regular", "Menlo", "Consolas", "monospace"],
       },
       fontSize: {
         heading: ["32px", "40px"],
@@ -92,6 +94,11 @@ module.exports = {
           "font-family": "Acme Text, sans-serif",
           "font-weight": "300",
           "font-style": "italic",
+        },
+        // System monospace
+        ".font-code": {
+          "font-family": "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
+          "font-weight": "400",
         },
       });
     },

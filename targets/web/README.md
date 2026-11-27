@@ -196,7 +196,7 @@ Prism uses a two-font system:
 
 Font classes: `font-title0` through `font-title7`, `font-body`, `font-button`, `font-label`, etc.
 
-Code: `font-mono text-mono` (20/24), `font-monomedium text-monomedium` (20/30, beside `text-bodymedium`) and `font-monosmall text-monosmall` (16/24, beside `text-bodysmall`). On the web they are Nunito Sans at 300; the Swift package draws them in SF Mono.
+Code: `font-mono text-mono` (20/24), `font-monomedium text-monomedium` (20/30, beside `text-bodymedium`) and `font-monosmall text-monosmall` (16/24, beside `text-bodysmall`). They are the system's monospaced font at 300, on every target: on the web `ui-monospace, SFMono-Regular, Menlo, Consolas, monospace` (SF Mono in Safari, Menlo in the other browsers on macOS, Consolas on Windows, the browser's monospace elsewhere), SF Mono in the Swift package and `FontFamily.Monospace` in the Compose library. No font file is loaded for them.
 
 ## Component Classes
 

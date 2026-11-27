@@ -29,7 +29,7 @@ Apps you build for your own workspace need no Marketplace review.
   - Colors get Prism's name: `primarylight`, `success` and so on.
   - Every other token goes in a folder named after its kind: `font-family/display`, `font-weight/title0` (a number variable), `font-size/title0`, `line-height/title0`, `spacing/15`, `height/44px`, `max-height/dropdown` and `radius/default`.
   - `delete` and `deletelight` are aliases of `error` and `errorlight`.
-- **Fonts:** a font family variable holds the font's name (`Nunito`, `Nunito Sans`). The site needs those fonts installed (Site settings, then Fonts).
+- **Fonts:** a font family variable holds the font's name (`Nunito`, `Nunito Sans`). The site needs those fonts installed (Site settings, then Fonts). The code family (`font-family/code`) is the system's monospaced font in Prism's apps, which has no one name; its variable holds `Menlo`, the one macOS has, so set it to a monospaced font the site has if Menlo is not one of them.
 - **Modes:** it sets only the base value; other variable modes keep theirs.
 - **Never:** it never removes or renames a variable. If a variable has a Prism name but a different type (say, a number named `primary`), it skips that one and says why.
 - **Skipped tokens:** Webflow variables have no type for these, so the extension skips them:

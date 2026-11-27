@@ -79,9 +79,18 @@ defmodule Prism.Generator.ExampleDesign do
       scale: [aside: 300, reading: 400, headline: 900]
     ]
 
+  # A monospaced family: each platform's monospaced system font, the web's too.
+  family :code,
+    doc: "Code",
+    monospaced: true,
+    web: {:system, scale: [aside: 300, reading: 400, headline: 700]},
+    ios: {:system, scale: [aside: 300, reading: 400, headline: 600]},
+    android: {:system, scale: [aside: 300, reading: 400, headline: 700]}
+
   font :heading, :display, :headline
   font :body, :text, :reading
   font :hint, :text, :aside, italic: true
+  font :code, :code, :reading
 
   text :heading, 32, 40
   text :body, 16, 24
@@ -89,6 +98,7 @@ defmodule Prism.Generator.ExampleDesign do
   typography(:heading, font: :heading, text: :heading)
   typography(:body, font: :body, text: :body)
   typography(:note, font: :hint, text: :body)
+  typography(:code, font: :code, text: :body)
 
   # A shared look, a web binding that replaces the radius on the web only, and an
   # iOS binding the web never reads.
