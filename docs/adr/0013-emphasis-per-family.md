@@ -19,7 +19,7 @@ A weight belongs to one font. What the design means holds in every font: a page'
 
    | Emphasis | What it is for | Typography today |
    |---|---|---|
-   | `reading` | running text people read | body, bodymedium, bodysmall, bodylarge, hint, mono |
+   | `reading` | running text people read | body, bodymedium, bodysmall, bodylarge, hint, mono, monosmall, monomedium |
    | `data` | values in a table | tablerow |
    | `supporting` | text that goes with the content: captions, footnotes, intros, links | caption, captionsmall, footnote, intro, introdesktop, link, bodylinklarge, bodylinkmedium |
    | `subheading` | a heading inside a section | subhead |

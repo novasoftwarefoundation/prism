@@ -838,14 +838,17 @@ defmodule Prism.Generator.Web.Components do
     )
   end
 
-  # A variant's or a flag's looks with another variant: the rule, then its states.
+  # A variant's or a flag's looks with another variant: the rule, its states, then
+  # its looks with a variant of a third axis.
   defp with_variants(path, node, selectors) do
     for w <- node.with_variants do
       with_path = path ++ [{:with_variant, w.name}]
 
-      with_doc(with_path, [
-        rule(selector(with_path), declarations(with_path)) | states(with_path, w, selectors)
-      ])
+      with_doc(
+        with_path,
+        [rule(selector(with_path), declarations(with_path)) | states(with_path, w, selectors)] ++
+          with_variants(with_path, w, selectors)
+      )
     end
   end
 
@@ -1084,7 +1087,13 @@ defmodule Prism.Generator.Web.Components do
 
     flags =
       Enum.flat_map(c.flags, fn f ->
-        [[name, f.name] | for(w <- f.with_variants, do: [name, f.name, {:with_variant, w.name}])]
+        withs =
+          for w <- f.with_variants,
+              path = [name, f.name, {:with_variant, w.name}],
+              p <- [path | for(n <- w.with_variants, do: path ++ [{:with_variant, n.name}])],
+              do: p
+
+        [[name, f.name] | withs]
       end)
 
     [[name]] ++ for(w <- c.with_parts, do: [name, w.name]) ++ variants ++ flags
@@ -1403,9 +1412,15 @@ defmodule Prism.Generator.Web.Components do
         [{kind, _}] when kind in [:part, :with_part, :flag, :value] ->
           [class(path)]
 
-        # A flag's look with a variant: the variant's class, then the flag's.
+        # A flag's look with a variant: the variant's class, then the flag's; with a
+        # variant of a third axis too, its class last.
         [{:flag, f}, {:with_variant, w}] ->
           for other <- names(c, w.name), do: "#{modifier.(other)}.#{modifier.(f.name)}"
+
+        [{:flag, f}, {:with_variant, w}, {:with_variant, n}] ->
+          for other <- names(c, w.name),
+              third <- names(c, n.name),
+              do: "#{modifier.(other)}.#{modifier.(f.name)}.#{modifier.(third)}"
 
         [{:variant, v} | rest] ->
           own = for name <- names(c, v.name), do: modifier.(name)
@@ -1542,11 +1557,11 @@ defmodule Prism.Generator.Web.Components do
 
   defp declaration(:typography, value) do
     {font, {size, line_height}} = typography(value)
-    family = token!(:family, font.family).web
+    family = token!(:family, font.family)
     italic = if font[:italic], do: ["font-style: italic"], else: []
 
     [
-      "font-family: #{Web.css_str(family[:name])}, #{family[:fallback]}",
+      "font-family: #{Web.css_family(family)}",
       "font-weight: #{Schema.weight(token!(:family, font.family), :web, font.emphasis)}"
     ] ++ italic ++ ["font-size: #{css_length(size)}", "line-height: #{css_length(line_height)}"]
   end

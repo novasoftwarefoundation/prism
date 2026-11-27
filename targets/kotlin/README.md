@@ -21,7 +21,7 @@ dependencyResolutionManagement {
 
 // build.gradle.kts
 dependencies {
-    implementation("org.novasoftwarefoundation:prism-compose:0.7.0")
+    implementation("org.novasoftwarefoundation:prism-compose:0.8.0")
 }
 ```
 
@@ -37,6 +37,11 @@ import org.novasoftwarefoundation.prism.*
 // On Compose's clickable, with the button role and the theme's indication (Material's
 // ripple under a MaterialTheme), inside the button's shape.
 PrismButton(onClick = save, variant = PrismButtonVariant.Primary, loading = saving) {
+    Text("Save")
+}
+
+// A small button, of any variant and tone; without `size`, it is Regular.
+PrismButton(onClick = save, variant = PrismButtonVariant.Secondary, size = PrismButtonSize.Small) {
     Text("Save")
 }
 
@@ -128,7 +133,7 @@ Prism.Radii.default               // PrismRadius: .shape
 Prism.Shadows.prismCard           // PrismShadow: .shadow for Modifier.dropShadow
 ```
 
-Lengths are dp. Type is sp, so it follows the user's font size, to 200% on Android 14 and later; a box that holds text (a text field, a select, a message bar, a step indicator) grows with it, so the largest sizes cut nothing off. A line is as high as its typography's line height, as on the web, except where that is less than the font's own height, which Android never goes below. The fonts are the system font (Roboto); the library bundles no fonts.
+Lengths are dp. Type is sp, so it follows the user's font size, to 200% on Android 14 and later; a box that holds text (a text field, a select, a message bar, a step indicator) grows with it, so the largest sizes cut nothing off. A line is as high as its typography's line height, as on the web, except where that is less than the font's own height, which Android never goes below. The fonts are the system font (Roboto), and for code (`mono`, `monosmall`, `monomedium`) the system's monospaced font (`FontFamily.Monospace`); the library bundles no fonts.
 
 ## License
 

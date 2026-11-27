@@ -29,6 +29,7 @@
   /* Font families */
   --prism-font-family-display: "Nunito", sans-serif;
   --prism-font-family-text: "Nunito Sans", sans-serif;
+  --prism-font-family-code: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
   /* Font weights */
   --prism-font-weight-title0: 800;
@@ -55,6 +56,8 @@
   --prism-font-weight-tablerow: 400;
   --prism-font-weight-bold: 700;
   --prism-font-weight-mono: 300;
+  --prism-font-weight-monosmall: 300;
+  --prism-font-weight-monomedium: 300;
 
   /* Font sizes */
   --prism-font-size-title0: 64px;
@@ -85,6 +88,8 @@
   --prism-font-size-tablehead: 14px;
   --prism-font-size-tablerow: 14px;
   --prism-font-size-mono: 20px;
+  --prism-font-size-monosmall: 16px;
+  --prism-font-size-monomedium: 20px;
   --prism-font-size-quote: 24px;
 
   /* Line heights */
@@ -116,6 +121,8 @@
   --prism-line-height-tablehead: 16px;
   --prism-line-height-tablerow: 16px;
   --prism-line-height-mono: 24px;
+  --prism-line-height-monosmall: 24px;
+  --prism-line-height-monomedium: 30px;
   --prism-line-height-quote: 30px;
 
   /* Typography */
@@ -139,7 +146,9 @@
   --prism-typography-hint: italic var(--prism-font-weight-hint) var(--prism-font-size-hint)/var(--prism-line-height-hint) var(--prism-font-family-text);
   --prism-typography-tablehead: var(--prism-font-weight-tablehead) var(--prism-font-size-tablehead)/var(--prism-line-height-tablehead) var(--prism-font-family-text);
   --prism-typography-tablerow: var(--prism-font-weight-tablerow) var(--prism-font-size-tablerow)/var(--prism-line-height-tablerow) var(--prism-font-family-text);
-  --prism-typography-mono: var(--prism-font-weight-mono) var(--prism-font-size-mono)/var(--prism-line-height-mono) var(--prism-font-family-text);
+  --prism-typography-mono: var(--prism-font-weight-mono) var(--prism-font-size-mono)/var(--prism-line-height-mono) var(--prism-font-family-code);
+  --prism-typography-monosmall: var(--prism-font-weight-monosmall) var(--prism-font-size-monosmall)/var(--prism-line-height-monosmall) var(--prism-font-family-code);
+  --prism-typography-monomedium: var(--prism-font-weight-monomedium) var(--prism-font-size-monomedium)/var(--prism-line-height-monomedium) var(--prism-font-family-code);
   --prism-typography-quote: var(--prism-font-weight-quote) var(--prism-font-size-quote)/var(--prism-line-height-quote) var(--prism-font-family-display);
   --prism-typography-body: var(--prism-font-weight-body) var(--prism-font-size-bodymedium)/var(--prism-line-height-bodymedium) var(--prism-font-family-text);
   --prism-typography-bold: var(--prism-font-weight-bold) var(--prism-font-size-bodymedium)/var(--prism-line-height-bodymedium) var(--prism-font-family-text);

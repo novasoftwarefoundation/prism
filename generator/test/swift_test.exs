@@ -89,6 +89,51 @@ defmodule Prism.Generator.SwiftTest do
                "family: Families.text, emphasis: .aside, italic: true, size: 16, lineHeight: 24"
     end
 
+    # A typography of a monospaced family bound to the system font is its monospaced design
+    # (SF Mono); the argument is written only where it is true, since it defaults to false.
+    test "a monospaced typography is the system font's monospaced design" do
+      files =
+        Swift.files(
+          tokens_design("""
+          emphases [:reading]
+          family :text,
+            doc: "Text",
+            web: [name: "Fonty", fallback: "sans-serif", faces: [[file: "Fonty", weights: {100, 900}, style: :normal]], scale: [reading: 400]],
+            ios: {:system, scale: [reading: 300]},
+            android: {:system, scale: [reading: 400]}
+          family :mono,
+            doc: "Code",
+            monospaced: true,
+            web: {:system, scale: [reading: 400]},
+            ios: {:system, scale: [reading: 300]},
+            android: {:system, scale: [reading: 400]}
+          font :body, :text, :reading
+          font :code, :mono, :reading
+          text :body, 16, 24
+          typography(:body, font: :body, text: :body)
+          typography(:code, font: :code, text: :body)
+          """)
+        )
+
+      {_, tokens, _} = List.keyfind(files, "Sources/Fonty/Tokens.swift", 0)
+
+      assert tokens =~
+               "public static let code = FontyTypography(\n" <>
+                 "            family: Families.mono, emphasis: .reading, italic: false, monospaced: true, size: 16,\n"
+
+      assert tokens =~
+               "public static let body = FontyTypography(\n" <>
+                 "            family: Families.text, emphasis: .reading, italic: false, size: 16, lineHeight: 24,\n"
+
+      {_, look, _} = List.keyfind(files, "Sources/Fonty/Look.swift", 0)
+      assert look =~ "        monospaced: Bool = false, size: CGFloat,"
+
+      assert look =~
+               "                monospaced\n" <>
+                 "                ? .monospacedSystemFont(ofSize: size, weight: platformWeight)\n" <>
+                 "                : .systemFont(ofSize: size, weight: platformWeight)\n"
+    end
+
     # The design's emphases are an enum; each family gives every one the weight of its iOS
     # scale, not the web's, and a typography's font is drawn at that weight.
     test "an emphasis is a case; a family has its iOS scale's weight of each" do

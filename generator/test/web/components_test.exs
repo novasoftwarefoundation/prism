@@ -26,6 +26,20 @@ defmodule Prism.Generator.Web.ComponentsTest do
     mod.__schema__()
   end
 
+  # A monospaced family the web binds to the system font is CSS's stack of it, unquoted.
+  test "a typography of a monospaced family is the system's monospaced font" do
+    css =
+      css(
+        with_tag(fn tag ->
+          [label] = tag.parts
+          %{tag | parts: [%{label | style: Keyword.put(label.style, :typography, :code)}]}
+        end)
+      )
+
+    assert css =~
+             "  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;\n  font-weight: 400;\n"
+  end
+
   test "the web reads its own binding: a web property replaces the shared one there" do
     [tag] = ExampleDesign.__schema__().components
     assert tag.style[:radius] == :default
@@ -1181,6 +1195,57 @@ defmodule Prism.Generator.Web.ComponentsTest do
     test "a variant may have a part's name" do
       css = css(compile(@button))
       assert css =~ ".only-button--icon {\n  width: 24px;\n  height: 24px;\n}\n"
+    end
+
+    # A flag's look with two variants is three classes: it outweighs the flag's look
+    # with one, and each variant's look with the other. The native targets lay it as
+    # high (`Prism.Generator.Looks`).
+    test "a flag's look with two variants is their classes and the flag's" do
+      design =
+        compile("""
+          component :button do
+            part :label
+            variant :solid, background: :ink
+            variant :outlined, aliases: [:framed], border: [width: 1, color: :ink]
+
+            variants :size do
+              variant :small, opacity: 0.9 do
+                with_variant :solid, padding: [x: 2]
+              end
+            end
+
+            flag :tight, default: true do
+              with_variant :solid, padding: [x: 1] do
+                with_variant :small, padding: [x: 3], web: [doc: "Tight and small"] do
+                  state :pressed, padding: [x: 4]
+                end
+              end
+            end
+          end
+        """)
+
+      css = css(design)
+
+      assert css =~
+               "/* Tight and small */\n.only-button--solid.only-button--tight.only-button--small {\n  padding-left: 3px;\n  padding-right: 3px;\n}\n"
+
+      assert css =~
+               "\n.only-button--solid.only-button--tight.only-button--small:active {\n  padding-left: 4px;\n  padding-right: 4px;\n}\n"
+
+      [button] = design.components
+      layers = Prism.Generator.Looks.layers(button, :ios)
+      conditions = Enum.map(layers, & &1.conditions)
+      small = [{:axis, :variant, :solid}, {:axis, :size, :small}]
+      tight = [{:axis, :variant, :solid}, {:flag, :tight}]
+      both = small ++ [{:flag, :tight}]
+      index = fn c -> Enum.find_index(conditions, &(&1 == c)) end
+
+      assert [i_small, i_tight, i_both, i_pressed] =
+               Enum.map([small, tight, both, both ++ [{:state, :pressed}]], index)
+
+      assert Enum.all?([i_small, i_tight, i_both, i_pressed], &is_integer/1)
+      assert i_both > max(i_small, i_tight)
+      assert i_pressed > i_both
     end
   end
 end

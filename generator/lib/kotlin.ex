@@ -43,7 +43,8 @@ defmodule Prism.Generator.Kotlin do
 
   Type comes only from the typography tokens and the components' typography
   pairs. A typography is its font's family as `android:` binds it (the system
-  font, `FontFamily.Default`, or a named font on the device), its emphasis
+  font, `FontFamily.Default`, or `FontFamily.Monospace` for a monospaced family,
+  or a named font on the device), its emphasis
   (`<name>Emphasis`, drawn at the Android scale's weight for it) and italic,
   and its size and line height in sp, so both follow the user's font size,
   Android's nonlinear curve included; Compose keeps an sp line height in
@@ -395,8 +396,9 @@ defmodule Prism.Generator.Kotlin do
   defp radius_token(ctx, t),
     do: val(t.name, "#{ctx.m}Radius", radius(ctx, t.value, "radius #{inspect(t.name)}"))
 
-  # The family's Android font, with the weight of each emphasis in it: the system font,
-  # or a named font the device has, at each weight of its scale.
+  # The family's Android font, with the weight of each emphasis in it: the system font (its
+  # monospaced one for a monospaced family), or a named font the device has, at each weight
+  # of its scale.
   defp family_token(ctx, t) do
     emphases = for %{kind: :emphasis, name: e} <- ctx.design.tokens, do: e
     weights = for e <- emphases, do: Schema.weight(t, :android, e)
@@ -404,7 +406,7 @@ defmodule Prism.Generator.Kotlin do
     font =
       case t.android do
         {:system, _} ->
-          "FontFamily.Default"
+          if t[:monospaced], do: "FontFamily.Monospace", else: "FontFamily.Default"
 
         font ->
           italic? = Enum.any?(font[:faces], &(&1[:style] == :italic))

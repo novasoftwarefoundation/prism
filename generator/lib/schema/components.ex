@@ -63,7 +63,9 @@ defmodule Prism.Generator.Schema.Components do
     axis too: in a variant, it names a variant of another axis
     (`with_variant :secondary, foreground: :error` in a tone); in a flag, a
     variant of any axis. A list (`with_variant [:plain, :text], …`) gives
-    each of them the same look.
+    each of them the same look. A flag's look with a variant may hold looks
+    with a variant of a third axis (`with_variant :small` in the flag's
+    `with_variant :plain`): its look while the component has both variants.
   - A `flag` is a look the app turns on or off, such as a button's padding:
     `default:` is `true` or `false` (the default) when the app sets nothing.
     Its own properties are its look on any variant, and its `with_variant`s
@@ -176,7 +178,7 @@ defmodule Prism.Generator.Schema.Components do
     variant: [:part, :with_part, :with_variant, :state, :value],
     part: [:state],
     with_part: [:state],
-    with_variant: [:state],
+    with_variant: [:with_variant, :state],
     flag: [:with_variant, :state],
     state: [:part],
     value: [],
@@ -593,7 +595,7 @@ defmodule Prism.Generator.Schema.Components do
             name: f.name,
             default: default,
             style: props!(f, props, known, file),
-            with_variants: with_variants!(nodes, f, nil, c, variants, known, file),
+            with_variants: with_variants!(nodes, f, nil, c, variants, known, file, true),
             states: states!(nodes, f, c, known, file)
           },
           bindings!(f, opts, known, file)
@@ -748,28 +750,45 @@ defmodule Prism.Generator.Schema.Components do
 
   # A variant's or a flag's looks with another variant: each names a variant of the
   # component, of another axis than `axis` (the variant's own; `nil` for a flag),
-  # once.
-  defp with_variants!(nodes, node, axis, component, variants, known, file) do
+  # once. Only a flag's looks with a variant (`nest?`) may hold looks with a variant
+  # of a third axis, which hold none themselves.
+  defp with_variants!(nodes, node, axis, component, variants, known, file, nest? \\ false) do
     withs = children(nodes, node, :with_variant)
     unique!(Enum.map(withs, &{&1.name, "look with a variant"}), node, file)
 
     for w <- withs do
       fail = &fail(file, w.line, "#{path_label(w)}: #{&1}")
 
-      case Enum.find(variants, &(&1.name == w.name)) do
-        nil ->
-          if v = Enum.find(variants, &(w.name in &1.aliases)),
-            do: fail.("#{inspect(w.name)} is an alias of #{inspect(v.name)}; name the variant"),
-            else: fail.("the component has no variant #{inspect(w.name)}")
+      variant =
+        case Enum.find(variants, &(&1.name == w.name)) do
+          nil ->
+            if v = Enum.find(variants, &(w.name in &1.aliases)),
+              do: fail.("#{inspect(w.name)} is an alias of #{inspect(v.name)}; name the variant"),
+              else: fail.("the component has no variant #{inspect(w.name)}")
 
-        %{axis: ^axis} ->
-          fail.(
-            "#{inspect(w.name)} is a variant of the same axis, #{inspect(axis)}, which the app can't combine with it"
+          %{axis: ^axis} ->
+            fail.(
+              "#{inspect(w.name)} is a variant of the same axis, #{inspect(axis)}, which the app can't combine with it"
+            )
+
+          v ->
+            v
+        end
+
+      nested = children(nodes, w, :with_variant)
+
+      if nested != [] and not nest?,
+        do:
+          fail(
+            file,
+            hd(nested).line,
+            "#{path_label(hd(nested))}: only a flag's look with a variant holds looks with a variant"
           )
 
-        _ ->
-          :ok
-      end
+      withs =
+        if nest?,
+          do: with_variants!(nodes, w, variant.axis, component, variants, known, file),
+          else: []
 
       {opts, props} = split!(w, file)
 
@@ -777,7 +796,8 @@ defmodule Prism.Generator.Schema.Components do
         %{
           name: w.name,
           style: props!(w, props, known, file),
-          states: states!(nodes, w, component, known, file)
+          states: states!(nodes, w, component, known, file),
+          with_variants: withs
         },
         bindings!(w, opts, known, file)
       )

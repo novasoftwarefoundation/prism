@@ -67,7 +67,7 @@ An Elixir app reads the design itself, so it needs no generated files: a module 
 defp deps do
   [
     {:prism_design,
-     git: "https://github.com/novasoftwarefoundation/prism.git", tag: "v0.7.0", subdir: "design"},
+     git: "https://github.com/novasoftwarefoundation/prism.git", tag: "v0.8.0", subdir: "design"},
     {:phoenix_live_view, "~> 1.1"}
   ]
 end
@@ -103,7 +103,7 @@ end
 
 - **Axes** (`variant`, `tone`, `size`, `status`, a text area's `editor`) are atom attributes with the design's values (a spinner's `size` an integer), so Phoenix warns at compile time about `variant={:primray}`, and a value it can't check then (from an assign) fails when it renders. Without one, an axis has the design's default: a button's tone is accent and a spinner's size 24 (no class), a tag's tone is `:accent`, a message bar's `:info`, a step's `:incomplete`. A button's `variant` and a spinner's color have no default. A text area's `editor` is `:plain`, or `:rich_text` (16px on every side) for the box around the app's rich-text editor. A text area with `editor={:rich_text}` is a `<div>` with the text area's classes around its inner block, the app's rich-text editor: its toolbar goes inside the box, and its editing surface takes the class `prism-text-area__editor` (`<trix-editor class="prism-text-area__editor">`); `disabled` on that surface disables the box. The wrapper takes its own attributes only: `disabled`, `value` and the textarea's own attributes (`rows`, `placeholder`, `name`, …) fail when it renders, since they are the editor's; a plain text area fails on an inner block, since its content is its `value`.
 - **Spinners** ([ADR 0007](docs/adr/0007-spinner-sizes-progress.md)): `size` is an integer, the spinner's px: `16`, `20`, `24` (the default) or `32` (`size={16}`). `progress`, a number from 0 to 100 or `nil`, shows a light grey ring (white at 20% on the inverse spinner) with an arc in the spinner's color as long as the value (clamped to 0..100), with `role="progressbar"` and the ARIA values; the spinner keeps turning. Name it with `aria-label` (or `aria-labelledby`): `<MyAppWeb.Prism.spinner progress={@upload.progress} aria-label="Uploading" />`. A loading button's spinner is 20px.
-- **Buttons** ([ADR 0006](docs/adr/0006-button-looks.md)): the variants are `:primary`, `:secondary`, `:plain`, `:link`, `:text`, `:soft` (the tone's light color behind its color) and `:icon` (an icon only, 24×24; give it an `aria-label`). A tone (`:success`, `:warning`, `:danger`, `:neutral`, `:highlight`) colors a primary button's background and the others' text and border; `:soft` has no look with `:neutral` or `:highlight`. `padded` (default `true`) makes a plain or text button as tall as a primary one beside it; `padded={false}` fits it to its text.
+- **Buttons** ([ADR 0006](docs/adr/0006-button-looks.md)): the variants are `:primary`, `:secondary`, `:plain`, `:link`, `:text`, `:soft` (the tone's light color behind its color) and `:icon` (an icon only, 24×24; give it an `aria-label`). A tone (`:success`, `:warning`, `:danger`, `:neutral`, `:highlight`) colors a primary button's background and the others' text and border; `:soft` has no look with `:neutral` or `:highlight`. `size` is `:regular` (the default, no class) or `:small` (16px text, padding 8px 12px, a 16px icon), with every variant and tone. `padded` (default `true`) makes a plain or text button as tall as a primary one of its size beside it; `padded={false}` fits it to its text.
 - **States the app sets** are boolean attributes: `loading`, `invalid`, `disabled`, `checked`. On a form control, `disabled` and `checked` set the element's own attribute; elsewhere a state adds its class (`prism-radio--disabled`). The browser's states (pressed, hovered, focused) need nothing.
 - **Parts** follow the design's order: the label is the inner block, the icon a `<:icon>` slot (with it, the button gets `prism-button--with-icon`), and the spinner shows while `loading`. The icon goes at the start of the label, or at its end with `icon_position={:end}`; start and end follow the text's direction. Any other value warns at compile time and fails when it renders, as `as` does. A text field takes a `<:prefix>` before its text, a currency symbol or the app's own picker ([ADR 0010](docs/adr/0010-text-field-prefix.md)): it is then a `<div>` with the text field's classes around the prefix and the `<input>`, which gets the other attributes (`name`, `phx-*`) and `disabled`. Adding or removing the prefix on a field that is on screen swaps its element, so the input loses its focus: give a field that may get a prefix one from its first render.
 - **Image pickers** ([ADR 0011](docs/adr/0011-image-picker.md)): `shape` is `:rectangular` (the default) or `:round`. The app puts its image (or its placeholder) in `<:preview>` and its own button in `<:button>`, with the variant it picks: primary while there is no image, secondary with one. The file input is the app's: keep it focusable and visually hidden (`sr-only`, not `hidden`), so a keyboard reaches the picker, and give it the focus style you want.
@@ -160,7 +160,7 @@ The props follow the same rules as the Phoenix components: axes are props typed 
 An iOS app (iOS 26 or later) or a macOS app (macOS 26 or later) depends on the Swift package `Prism`, from the `prism-swift` repository at Prism's version:
 
 ```swift
-.package(url: "https://github.com/novasoftwarefoundation/prism-swift.git", exact: "0.7.0")
+.package(url: "https://github.com/novasoftwarefoundation/prism-swift.git", exact: "0.8.0")
 ```
 
 ```swift
@@ -188,7 +188,7 @@ An Android app (Kotlin 2.2 or later, minSdk 23 or later, compileSdk 37.1 with th
 ```kotlin
 // build.gradle.kts; settings.gradle.kts lists mavenCentral()
 dependencies {
-    implementation("org.novasoftwarefoundation:prism-compose:0.7.0")
+    implementation("org.novasoftwarefoundation:prism-compose:0.8.0")
 }
 ```
 
@@ -225,13 +225,13 @@ Each component is a composable in Compose's own form ([ADR 0015](docs/adr/0015-k
 
 | File | What |
 |---|---|
-| `tokens.json` | Every token in the [W3C Design Tokens (DTCG) format 2025.10](https://www.designtokens.org/tr/2025.10/format/), with no tool-specific fields: colors, font families and weights, font sizes and line heights, typography, spacing, heights, radii, shadows and text shadows, each with its DTCG `$type`. A family is the web font (`Nunito`, `Nunito Sans`); its fallback and its iOS and Android binding (the system font) are under `$extensions.prism`. |
-| `tokens.css` | The same tokens as CSS custom properties on `:root`, named by the same rule: the DTCG path `color.primary` is `--prism-color-primary`. A typography token is the `font` shorthand, a shadow the `box-shadow` (or `text-shadow`) value. The 50% radius is only here: DTCG has no percent unit. |
+| `tokens.json` | Every token in the [W3C Design Tokens (DTCG) format 2025.10](https://www.designtokens.org/tr/2025.10/format/), with no tool-specific fields: colors, font families and weights, font sizes and line heights, typography, spacing, heights, radii, shadows and text shadows, each with its DTCG `$type`. A family is the web font (`Nunito`, `Nunito Sans`); its fallback (or `"web": "system"`) and its iOS and Android binding (the system font) are under `$extensions.prism`. The code family of `mono`, `monosmall` and `monomedium` is the system's monospaced font, which has no one name: here it is `Menlo`, the one every Mac has, and `monospaced: true` ([ADR 0005](docs/adr/0005-design-tools.md), decision 5). |
+| `tokens.css` | The same tokens as CSS custom properties on `:root`, named by the same rule: the DTCG path `color.primary` is `--prism-color-primary`. A typography token is the `font` shorthand, a shadow the `box-shadow` (or `text-shadow`) value. The code family is the web's monospaced stack, `ui-monospace, SFMono-Regular, Menlo, Consolas, monospace`. The 50% radius is only here: DTCG has no percent unit. |
 | `overview.svg` | Every token drawn (swatches, the fonts and typography in their own fonts, spacing, radii, shadows) and every component's variants and states, as shapes and `<text>`. It opens in a browser as it is, and has no external references. |
 
 [ADR 0005](docs/adr/0005-design-tools.md) records the names and how typography, shadows and font roles are written. `npm test` in `targets/design-tools/` checks the files: `tokens.json` against the DTCG 2025.10 JSON Schema and through [Terrazzo](https://terrazzo.app)'s and [Style Dictionary](https://styledictionary.com)'s parsers, `tokens.css` against the same names, and `overview.svg` as standalone SVG. CI runs it.
 
-The overview names Nunito and Nunito Sans: install them (from `targets/web/fonts/`, or [Google Fonts](https://fonts.google.com/?query=nunito)) before you import it, or its text falls back to another font.
+The overview names Nunito and Nunito Sans: install them (from `targets/web/fonts/`, or [Google Fonts](https://fonts.google.com/?query=nunito)) before you import it, or its text falls back to another font. Its code text is in Menlo, which macOS has; elsewhere pick a monospaced font for it.
 
 ### Import steps
 

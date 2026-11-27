@@ -22,8 +22,9 @@ defmodule Prism.Generator.DesignTools.Overview do
 
   The SVG holds no external references and no CSS: every look is a
   presentation attribute. Text is `<text>` (not outlined), its family the
-  web font's name alone (no fallback list), so a design tool matches it to
-  the installed font; a browser without the font falls back to its default.
+  web font's name alone (no fallback list; Menlo for the system's monospaced
+  font, `Prism.Generator.DesignTools.family_name/1`), so a design tool matches
+  it to the installed font; a browser without the font falls back to its default.
   A shadow is an SVG filter in the structure Figma writes for its own drop
   and inner shadows. Every group has an `id`, which design tools show as the
   layer's name: a token's path (`color/accent`; a text size is its font size's,
@@ -31,6 +32,7 @@ defmodule Prism.Generator.DesignTools.Overview do
   component's cell (`button/primary/pressed`).
   """
 
+  alias Prism.Generator.DesignTools
   alias Prism.Generator.Schema
   alias Prism.Generator.Web
   alias Prism.Generator.Web.{Components, Elements}
@@ -129,8 +131,8 @@ defmodule Prism.Generator.DesignTools.Overview do
       end
 
     case {font, ctx.by.(:family)} do
-      {%{family: family}, _} -> ctx.families[family].web[:name]
-      {nil, [family | _]} -> family.web[:name]
+      {%{family: family}, _} -> DesignTools.family_name(ctx.families[family])
+      {nil, [family | _]} -> DesignTools.family_name(family)
       {nil, []} -> "sans-serif"
     end
   end
@@ -220,13 +222,13 @@ defmodule Prism.Generator.DesignTools.Overview do
   defp families(ctx) do
     items =
       for t <- ctx.by.(:family) do
-        web = t.web
-        native = "iOS: #{native(t.ios)} · Android: #{native(t.android)}"
+        name = DesignTools.family_name(t)
+        native = "iOS: #{native(t.ios, t)} · Android: #{native(t.android, t)}"
 
         {"font-family/#{key(t.name)}", @width - 2 * @margin, 76,
          fn x, y ->
            [
-             text(x, y + 36, web[:name], family: web[:name], size: 36, weight: 400, fill: @ink),
+             text(x, y + 36, name, family: name, size: 36, weight: 400, fill: @ink),
              label(ctx, x, y + 60, "#{key(t.name)} · #{t.doc} · #{native}",
                size: 12,
                fill: @muted
@@ -238,13 +240,14 @@ defmodule Prism.Generator.DesignTools.Overview do
     flow(ctx, "font-families", "Font families", items, 12)
   end
 
-  defp native({:system, _}), do: "system font"
-  defp native(font), do: font[:name]
+  defp native({:system, _}, %{monospaced: true}), do: "monospaced system font"
+  defp native({:system, _}, _), do: "system font"
+  defp native(font, _), do: font[:name]
 
   defp fonts(ctx) do
     items =
       for t <- ctx.by.(:font) do
-        family = ctx.families[t.family].web[:name]
+        family = DesignTools.family_name(ctx.families[t.family])
         weight = Schema.weight(ctx.families[t.family], :web, t.emphasis)
         italic = if t[:italic], do: " italic", else: ""
 
@@ -702,6 +705,22 @@ defmodule Prism.Generator.DesignTools.Overview do
         {Enum.map_join(pair, " + ", &key(&1.name)), rest ++ pair ++ on}
       end
 
+    # Each flag's look with two variants: the two, the :variant axis's first, with
+    # the flag on.
+    nested_rows =
+      for f <- c.flags, w <- f.with_variants, n <- w.with_variants do
+        pair =
+          [w, n]
+          |> Enum.map(fn x -> Enum.find(c.variants, &(&1.name == x.name)) end)
+          |> Enum.sort_by(&(&1.axis != :variant))
+
+        axes = Enum.map(pair, & &1.axis)
+        rest = for d <- defaults.(nil), d.axis not in axes, do: d
+        flags = if f.default, do: on, else: on ++ [f]
+        label = Enum.map_join(pair, " + ", &key(&1.name))
+        {if(f.default, do: label, else: "#{label} + #{key(f.name)}"), rest ++ pair ++ flags}
+      end
+
     # Each flag the other way round from its default: on its own look's base, or
     # with each variant it has a look with.
     flag_rows =
@@ -732,10 +751,10 @@ defmodule Prism.Generator.DesignTools.Overview do
         {"#{label} #{@sample}", sel ++ looks}
       end
 
-    Enum.uniq_by(none ++ own_rows ++ other_rows ++ with_rows ++ flag_rows ++ value_rows, fn {_,
-                                                                                             sel} ->
-      Enum.map(sel, & &1.name)
-    end)
+    Enum.uniq_by(
+      none ++ own_rows ++ other_rows ++ with_rows ++ nested_rows ++ flag_rows ++ value_rows,
+      fn {_, sel} -> Enum.map(sel, & &1.name) end
+    )
   end
 
   # The component with the part it wraps (a text field with its prefix), on its
@@ -785,7 +804,8 @@ defmodule Prism.Generator.DesignTools.Overview do
             [c | c.variants] ++
               c.parts ++
               Enum.flat_map(c.variants, &(&1.parts ++ &1.with_variants)) ++
-              c.flags ++ Enum.flat_map(c.flags, & &1.with_variants),
+              c.flags ++
+              for(f <- c.flags, w <- f.with_variants, x <- [w | w.with_variants], do: x),
           s <- node.states,
           into: MapSet.new(),
           do: s.name
@@ -842,7 +862,12 @@ defmodule Prism.Generator.DesignTools.Overview do
   # has no axis).
   defp with_variants(sel) do
     names = for n <- sel, Map.has_key?(n, :axis), do: n.name
-    for n <- sel, w <- Map.get(n, :with_variants, []), w.name in names, do: w
+
+    for n <- sel,
+        w <- Map.get(n, :with_variants, []),
+        w.name in names,
+        x <- [w | for(n <- w.with_variants, n.name in names, do: n)],
+        do: x
   end
 
   defp state_nodes(_node, nil), do: []
@@ -1557,7 +1582,7 @@ defmodule Prism.Generator.DesignTools.Overview do
     family = ctx.families[font.family]
 
     %{
-      family: family.web[:name],
+      family: DesignTools.family_name(family),
       weight: Schema.weight(family, :web, font.emphasis),
       weigh: &Schema.weight(family, :web, &1),
       italic: font[:italic] == true,

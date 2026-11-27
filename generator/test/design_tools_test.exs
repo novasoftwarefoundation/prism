@@ -49,10 +49,10 @@ defmodule Prism.Generator.DesignToolsTest do
     assert Enum.sort(json_paths(files["tokens.json"])) ==
              Enum.sort(~w(
                color.accent color.link color.ink color.paper
-               font-family.display font-family.text
-               font-weight.heading font-weight.body font-weight.hint
+               font-family.display font-family.text font-family.code
+               font-weight.heading font-weight.body font-weight.hint font-weight.code
                font-size.heading font-size.body line-height.heading line-height.body
-               typography.heading typography.body typography.note
+               typography.heading typography.body typography.note typography.code
                spacing.2px spacing.4px spacing.8px spacing.10 height.36px max-height.menu
                radius.default
                shadow.pressed shadow.card shadow.raised text-shadow.default text-shadow.strong
@@ -166,6 +166,33 @@ defmodule Prism.Generator.DesignToolsTest do
              ~s(  --acme-font-family-text: "Acme Text", sans-serif;\n)
   end
 
+  # A tool takes one installed font by its name: for the web's system monospaced font, Menlo,
+  # the font of its stack every Mac has. CSS takes the whole stack.
+  test "a monospaced family the web binds to the system font is Menlo, and its stack in CSS" do
+    json = JSON.decode!(bodies(ExampleDesign.__schema__())["tokens.json"])
+
+    assert json["font-family"]["code"] == %{
+             "$type" => "fontFamily",
+             "$value" => "Menlo",
+             "$description" => "Code",
+             "$extensions" => %{
+               "prism" => %{
+                 "web" => "system",
+                 "ios" => "system",
+                 "android" => "system",
+                 "monospaced" => true
+               }
+             }
+           }
+
+    assert json["font-weight"]["code"]["$extensions"]["prism"] == %{
+             "family" => "{font-family.code}"
+           }
+
+    assert bodies(ExampleDesign.__schema__())["tokens.css"] =~
+             "  --acme-font-family-code: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;\n"
+  end
+
   test "a length in percent or rem: rem in both files, percent only in the CSS" do
     %{tokens: tokens} = design = ExampleDesign.__schema__()
 
@@ -238,7 +265,7 @@ defmodule Prism.Generator.DesignToolsTest do
       svg = svg(ExampleDesign.__schema__())
       families = for [_, f] <- Regex.scan(~r/font-family="([^"]*)"/, svg), uniq: true, do: f
 
-      assert Enum.sort(families) == ["Acme Display", "Acme Text"]
+      assert Enum.sort(families) == ["Acme Display", "Acme Text", "Menlo"]
       assert svg =~ ~s(font-family="Acme Display" font-size="32" font-weight="800")
       assert svg =~ ~s(font-style="italic")
       refute svg =~ "<path"

@@ -101,7 +101,10 @@ module.exports = {
         tablehead: ["Nunito Sans", "sans-serif"],
         tablerow: ["Nunito Sans", "sans-serif"],
         bold: ["Nunito Sans", "sans-serif"],
-        mono: ["Nunito Sans", "sans-serif"],
+        // System monospace
+        mono: ["ui-monospace", "SFMono-Regular", "Menlo", "Consolas", "monospace"],
+        monosmall: ["ui-monospace", "SFMono-Regular", "Menlo", "Consolas", "monospace"],
+        monomedium: ["ui-monospace", "SFMono-Regular", "Menlo", "Consolas", "monospace"],
       },
       fontSize: {
         title0: ["64px", "68px"],
@@ -132,6 +135,8 @@ module.exports = {
         tablehead: ["14px", "16px"],
         tablerow: ["14px", "16px"],
         mono: ["20px", "24px"],
+        monosmall: ["16px", "24px"],
+        monomedium: ["20px", "30px"],
         quote: ["24px", "30px"],
       },
       maxHeight: {
@@ -264,8 +269,17 @@ module.exports = {
           "font-family": "Nunito Sans, sans-serif",
           "font-weight": "700",
         },
+        // System monospace
         ".font-mono": {
-          "font-family": "Nunito Sans, sans-serif",
+          "font-family": "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
+          "font-weight": "300",
+        },
+        ".font-monosmall": {
+          "font-family": "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
+          "font-weight": "300",
+        },
+        ".font-monomedium": {
+          "font-family": "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
           "font-weight": "300",
         },
       });

@@ -69,6 +69,10 @@ Classes follow BEM: `prism-<component>`, `__<part>` for a part, `--<name>` for a
 <button class="prism-button prism-button--soft prism-button--danger">
   <span class="prism-button__label">Delete</span>
 </button>
+<!-- Small: every variant and tone, 16px text and less padding -->
+<button class="prism-button prism-button--primary prism-button--small">
+  <span class="prism-button__label">Save</span>
+</button>
 
 <!-- Plain and text buttons: --padded lines them up beside a primary button;
      without it, they fit their text -->
@@ -196,6 +200,8 @@ Prism uses a two-font system:
 
 Font classes: `font-title0` through `font-title7`, `font-body`, `font-button`, `font-label`, etc.
 
+Code: `font-mono text-mono` (20/24), `font-monomedium text-monomedium` (20/30, beside `text-bodymedium`) and `font-monosmall text-monosmall` (16/24, beside `text-bodysmall`). They are the system's monospaced font at 300, on every target: on the web `ui-monospace, SFMono-Regular, Menlo, Consolas, monospace` (SF Mono in Safari, Menlo in the other browsers on macOS, Consolas on Windows, the browser's monospace elsewhere), SF Mono in the Swift package and `FontFamily.Monospace` in the Compose library. No font file is loaded for them.
+
 ## Component Classes
 
 ### Buttons
@@ -212,7 +218,8 @@ Font classes: `font-title0` through `font-title7`, `font-body`, `font-button`, `
 | `prism-button--text` | Brand-colored text, minimal styling; fits its text without `--padded` |
 | `prism-button--soft` | The tone's light color behind its color, laid out as a primary button |
 | `prism-button--icon` | An icon only, 24×24, no padding or background; give it an `aria-label` |
-| `prism-button--padded` | With `--plain` or `--text`: as tall as a primary button beside it (15px 16px) |
+| `prism-button--padded` | With `--plain` or `--text`: as tall as a primary button beside it (15px 16px; 8px 12px with `--small`) |
+| `prism-button--small` | Small, with any variant and tone: 16px text (`buttonsmall`), padding 8px 12px (6px 12px inside `--secondary`'s 2px border), a 16px icon, and 16×16 with `--icon`. Without it, a button is regular |
 | `prism-button--with-icon` | Spacing for a button with an icon (with `--primary`, `--secondary`, `--plain` or `--soft`) |
 | `prism-button--success`, `--warning`, `--danger`, `--neutral`, `--highlight` | Tones, with a variant: the background of `--primary`, the text (and border) of `--secondary`, `--plain`, `--link` and `--text`, the light background of `--soft` (no light color for `--neutral` and `--highlight`, so no soft look) |
 | `prism-button--loading` | Loading: hides the label, shows the spinner |

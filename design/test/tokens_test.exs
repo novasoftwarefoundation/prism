@@ -3,14 +3,33 @@ defmodule Prism.Design.TokensTest do
 
   test "the families are roles: Nunito and Nunito Sans on the web, the system font natively" do
     families = for %{kind: :family} = f <- Prism.Design.Tokens.__schema__().tokens, do: f
+    web = fn %{web: web} -> if match?({:system, _}, web), do: :system, else: web[:name] end
 
-    assert [{:display, "Nunito"}, {:text, "Nunito Sans"}] ==
-             Enum.map(families, &{&1.name, &1.web[:name]})
+    assert [{:display, "Nunito"}, {:text, "Nunito Sans"}, {:code, :system}] ==
+             Enum.map(families, &{&1.name, web.(&1)})
 
     assert Enum.all?(
              families,
              &(match?({:system, _}, &1.ios) and match?({:system, _}, &1.android))
            )
+  end
+
+  # Code is monospaced on every platform: the system's monospaced font, at the text family's
+  # weights on each.
+  test "the code family is the monospaced system font everywhere, the only monospaced one" do
+    families = for %{kind: :family} = f <- Prism.Design.Tokens.__schema__().tokens, do: f
+    assert for(%{monospaced: true} = f <- families, do: f.name) == [:code]
+
+    [code] = for %{name: :code} = f <- families, do: f
+    [text] = for %{name: :text} = f <- families, do: f
+
+    for platform <- [:web, :ios, :android],
+        %{kind: :emphasis, name: emphasis} <- Prism.Design.Tokens.__schema__().tokens do
+      assert {:system, _} = Map.fetch!(code, platform)
+
+      assert Prism.Generator.Schema.weight(code, platform, emphasis) ==
+               Prism.Generator.Schema.weight(text, platform, emphasis)
+    end
   end
 
   # The fonts' weights before they named an emphasis (prism 0.3.0): the web keeps them.
@@ -38,7 +57,9 @@ defmodule Prism.Design.TokensTest do
     tablehead: 700,
     tablerow: 400,
     bold: 700,
-    mono: 300
+    mono: 300,
+    monosmall: 300,
+    monomedium: 300
   ]
 
   test "a font names an emphasis: Nunito and Nunito Sans keep its weight, SF Pro has its own" do
@@ -74,6 +95,29 @@ defmodule Prism.Design.TokensTest do
     assert MapSet.new(typographies, & &1.name) == MapSet.union(names.(:font), names.(:text))
     assert MapSet.new(typographies, & &1.font) == names.(:font)
     assert MapSet.new(typographies, & &1.text) == names.(:text)
+  end
+
+  # Code beside body text: mono keeps 0.1.7's 20/24, monosmall and monomedium have the
+  # sizes of bodysmall and bodymedium. All three are the code family at reading, and the
+  # only fonts of a monospaced family.
+  test "mono, monosmall and monomedium: the mono font at body text's sizes" do
+    tokens = Prism.Design.Tokens.__schema__().tokens
+    find = fn kind, name -> Enum.find(tokens, &(&1.kind == kind and &1.name == name)) end
+    size = fn name -> {find.(:text, name).size, find.(:text, name).line_height} end
+
+    assert size.(:mono) == {20, 24}
+    assert size.(:monosmall) == size.(:bodysmall)
+    assert size.(:monomedium) == size.(:bodymedium)
+
+    monospaced =
+      for %{kind: :font} = f <- tokens, find.(:family, f.family)[:monospaced], do: f.name
+
+    assert monospaced == [:mono, :monosmall, :monomedium]
+
+    for name <- monospaced do
+      assert %{family: :code, emphasis: :reading} = find.(:font, name)
+      assert %{font: ^name, text: ^name} = find.(:typography, name)
+    end
   end
 
   test "mix prism.gen generates Prism's whole design into targets/web, react, design-tools, swift and kotlin" do

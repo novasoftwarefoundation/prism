@@ -11,7 +11,7 @@ This package is generated in [novasoftwarefoundation/prism](https://github.com/n
 Swift Package Manager, iOS 26 or later, or macOS 26 or later:
 
 ```swift
-.package(url: "https://github.com/novasoftwarefoundation/prism-swift.git", exact: "0.7.0")
+.package(url: "https://github.com/novasoftwarefoundation/prism-swift.git", exact: "0.8.0")
 ```
 
 In Xcode: File > Add Package Dependencies, with the same URL, and add the `Prism` library to the app's target.
@@ -30,6 +30,10 @@ Button("Save", action: save)
 
 Button(action: next) { Label("Next", systemImage: "arrow.right") }
     .buttonStyle(.prism(.plain, padded: false, icon: .end))
+
+// A small button, of any variant and tone; without `size`, it is `.regular`.
+Button("Save", action: save)
+    .buttonStyle(.prism(.secondary, size: .small))
 
 // A ProgressViewStyle: without a value it turns, with one it shows it.
 ProgressView().progressViewStyle(.prism(.accent, size: .size20))
@@ -99,6 +103,7 @@ PrismSelect(icon: Image(systemName: "chevron.down")) {
 Prism.Colors.primary          // Color
 Prism.Typography.title4       // PrismTypography: .font, .uiFont() (iOS, Dynamic Type), .nsFont() (macOS)
 Prism.Typography.title4.emphasis  // PrismEmphasis: .headline; .weight is SF Pro's 700
+Prism.Typography.monosmall    // code beside bodysmall (16/24), in SF Mono: .monospaced is true
 Prism.Spacing.px10            // CGFloat
 Prism.Radii.default           // PrismRadius
 Prism.Shadows.prismCard       // PrismShadow

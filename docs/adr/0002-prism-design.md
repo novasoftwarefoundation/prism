@@ -16,15 +16,16 @@ Prism is a look for scientific software: a Tailwind preset plus component CSS, p
 
 3. **Prism's web naming** comes from the `web` declaration in `Prism.Design.Tokens`: the class prefix `prism`, fonts in `../fonts`, three line-clamp classes, and 0.1.7's comments at the top of the files. `Prism.Design.Components` adds the comment at the top of `css/components.css`.
 
-4. **Fonts per platform.** Prism has two roles:
+4. **Fonts per platform.** Prism has three roles:
    - `:display` for headings (> 20px): Nunito on the web;
-   - `:text` for body text (≤ 20px): Nunito Sans on the web.
+   - `:text` for body text (≤ 20px): Nunito Sans on the web;
+   - `:code` for code: the system's monospaced font on every platform (`monospaced: true`, [ADR 0001](0001-design-format.md)).
 
-   Both are the system font on iOS and Android, with SF Pro's weight of each emphasis on iOS ([ADR 0013](0013-emphasis-per-family.md)). While iOS uses the system font, the Swift package bundles no fonts. Whether iOS binds Nunito and Nunito Sans instead is not decided yet; the Swift target supports it, as a change to the iOS binding and the `swift` declaration ([ADR 0009](0009-swift-target.md), decision 7). `font :mono` stays as it is in 0.1.7 for now: the `:text` role at `:reading` (300 on the web), not a monospaced font.
+   `:display` and `:text` are the system font on iOS and Android, with SF Pro's weight of each emphasis on iOS ([ADR 0013](0013-emphasis-per-family.md)). While iOS uses the system font, the Swift package bundles no fonts. Whether iOS binds Nunito and Nunito Sans instead is not decided yet; the Swift target supports it, as a change to the iOS binding and the `swift` declaration ([ADR 0009](0009-swift-target.md), decision 7). `font :mono` is the `:code` role at `:reading`, at the text family's weights (300 on the web and Android, SF Pro's 300 on iOS): SF Mono on iOS and macOS, `FontFamily.Monospace` on Android, and on the web `ui-monospace, SFMono-Regular, Menlo, Consolas, monospace` (SF Mono in Safari, Menlo in the other browsers on macOS, Consolas on Windows). In 0.1.7 it was Nunito Sans on the web; code is monospaced on every target since Flux 10551301939. `monosmall` (16/24, as `bodysmall`) and `monomedium` (20/30, as `bodymedium`) are the same font for code beside body text of those sizes; `mono` keeps 0.1.7's 20/24.
 
 5. **Compatibility with 0.1.7, recorded.** The generator's web spelling matches 0.1.7 (upper-case hex and two-decimal alphas in the preset, `0px` in text shadows, `0` in box shadows, prettier's 80-column wrap). `design/test/golden/0.1.7/` holds 0.1.7's files, and `design/test/golden_test.exs` compares the generated files with them:
 
-   - The preset and `css/base.css` are 0.1.7's files but for one line: the deprecated `floating` shadow is an alias of `prism-card`, so it is written `0 5px 20px 0` instead of `0px 5px 20px 0px`, the same computed value.
+   - The preset and `css/base.css` are 0.1.7's files but for these: the deprecated `floating` shadow is an alias of `prism-card`, so it is written `0 5px 20px 0` instead of `0px 5px 20px 0px`, the same computed value; and the code fonts (decision 4): `mono` is the system's monospaced font instead of Nunito Sans, in `fontFamily` and in its `.font-mono` class, and `monosmall` and `monomedium` are new.
    - The preset's plugin is a bare function, not wrapped in `plugin()` from `tailwindcss/plugin`, so the preset requires nothing (Flux 10470027933). An app that gets it from a Mix dependency has no `tailwindcss` next to it, and Node tools that load the app's Tailwind config (Prettier's Tailwind plugin) require the preset from there. Tailwind calls a bare function as it calls the wrapped one's handler, so the CSS is the same.
    - `css/components.css` is 0.1.7's file with every class renamed by the table of decision 10, which the test holds too. The test fails when a 0.1.7 class is missing from the table, or its new class from the generated CSS, so nothing is lost silently. What differs beyond the rename (the button with an icon, the spinner, the comments) is in the same reviewed diff.
 
@@ -36,7 +37,7 @@ Prism is a look for scientific software: a Tailwind preset plus component CSS, p
 
 8. **Typography.** Every role in either list (fonts and text sizes) has a `typography` token of the same name, and every font and text size is used by one; a test checks both. The format is in [ADR 0001](0001-design-format.md); this records Prism's pairings.
 
-   - **A role in both lists pairs with itself**, 22 in all: `typography :title1, font: :title1, text: :title1`.
+   - **A role in both lists pairs with itself**, 24 in all: `typography :title1, font: :title1, text: :title1`. `monosmall` and `monomedium`, added after 0.1.7, are among them.
    - **The nine roles in only one list** are paired as the main consumer app combines Prism 0.1.7's classes today (2026-10-31): its typography reference page (an admin page that shows each typography token with its font and size class), its screens, and its rich-text styles. Where nothing uses a role, it pairs like its closest sibling.
 
    | Typography | Font | Text size | Evidence |
@@ -148,5 +149,5 @@ Prism is a look for scientific software: a Tailwind preset plus component CSS, p
 - Prism's look is edited in `design/lib/tokens.ex` and `design/lib/components.ex` and regenerated with `cd design && mix prism.gen`; CI fails (`mix prism.gen --check`) when the committed files differ.
 - 0.2.0 breaks every app that uses 0.1.7's classes: each moves to the classes of decision 10 when it takes 0.2.0.
 - The generator can move to its own repository by moving `generator/` out and changing one dependency line in `design/mix.exs`; nothing in Prism's design changes.
-- The Swift package is `targets/swift/` ([ADR 0009](0009-swift-target.md)), named `Prism` by the `swift` declaration in `Prism.Design.Tokens`. It, and Kotlin later, get type from the 31 typography tokens; a new font or text size needs a typography token too, or the design's test fails.
+- The Swift package is `targets/swift/` ([ADR 0009](0009-swift-target.md)), named `Prism` by the `swift` declaration in `Prism.Design.Tokens`. It and the Kotlin library ([ADR 0015](0015-kotlin-target.md)) get type from the 33 typography tokens; a new font or text size needs a typography token too, or the design's test fails.
 - 0.1.7's inconsistencies stay until someone changes them on purpose.

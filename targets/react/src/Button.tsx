@@ -8,6 +8,9 @@ export type ButtonVariant = "primary" | "secondary" | "plain" | "link" | "text" 
 /** The button's tone. */
 export type ButtonTone = "accent" | "success" | "warning" | "danger" | "neutral" | "highlight";
 
+/** The button's size. */
+export type ButtonSize = "regular" | "small";
+
 /** The elements a button can be: `as`. */
 export const buttonElements = ["button", "a", "span", "div"] as const;
 export type ButtonElement = (typeof buttonElements)[number];
@@ -31,11 +34,18 @@ const toneClasses: Record<ButtonTone, string | undefined> = {
   highlight: "prism-button--highlight",
 };
 
+const sizeClasses: Record<ButtonSize, string | undefined> = {
+  regular: undefined,
+  small: "prism-button--small",
+};
+
 export interface ButtonOwnProps {
   /** No default: without one, it adds no class. */
   variant?: ButtonVariant;
   /** Default "accent", which has no class. */
   tone?: ButtonTone;
+  /** Default "regular", which has no class. */
+  size?: ButtonSize;
   /** Adds `prism-button--padded` with variant "plain" or "text". Default true. */
   padded?: boolean;
   /** The icon part's side of the content. Default "start". */
@@ -78,6 +88,7 @@ export const Button = forwardRef<HTMLElement, ButtonProps>(function Button(
     as: element = "button",
     variant,
     tone = "accent",
+    size = "regular",
     padded = true,
     iconPosition = "start",
     disabled,
@@ -108,6 +119,9 @@ export const Button = forwardRef<HTMLElement, ButtonProps>(function Button(
       `tone: ${JSON.stringify(tone)} is not one of "accent", "success", "warning", "danger", "neutral", "highlight"`,
     );
   }
+  if (!["regular", "small"].includes(size)) {
+    throw new Error(`size: ${JSON.stringify(size)} is not one of "regular", "small"`);
+  }
   if (iconPosition !== "start" && iconPosition !== "end") {
     throw new Error(`iconPosition: ${JSON.stringify(iconPosition)} is not one of "start", "end"`);
   }
@@ -120,6 +134,7 @@ export const Button = forwardRef<HTMLElement, ButtonProps>(function Button(
         "prism-button",
         variant && variantClasses[variant],
         toneClasses[tone],
+        sizeClasses[size],
         padded && (variant === "plain" || variant === "text") && "prism-button--padded",
         loading && "prism-button--loading",
         present(icon) && "prism-button--with-icon",

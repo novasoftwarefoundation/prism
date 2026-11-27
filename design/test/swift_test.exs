@@ -57,6 +57,28 @@ defmodule Prism.Design.SwiftTest do
     assert read("Button.swift") =~ "emphasis: .supporting,"
   end
 
+  # The code typography is the code family, the system font's monospaced design (SF Mono)
+  # on iOS and macOS; no other typography is.
+  test "mono, monosmall and monomedium are monospaced, at body text's sizes" do
+    tokens = read("Tokens.swift")
+
+    for {name, size, line_height, style} <- [
+          {"mono", 20, 24, "body"},
+          {"monosmall", 16, 24, "callout"},
+          {"monomedium", 20, 30, "body"}
+        ] do
+      assert tokens =~
+               """
+                       public static let #{name} = PrismTypography(
+                           family: Families.code, emphasis: .reading, italic: false, monospaced: true, size: #{size},
+                           lineHeight: #{line_height}, textStyle: .#{style})
+               """
+    end
+
+    assert length(String.split(tokens, "monospaced: true")) == 4
+    assert read("Look.swift") =~ "? .monospacedSystemFont(ofSize: size, weight: platformWeight)"
+  end
+
   # The base text styles an iOS app scales Prism's type by today, kept by the rule
   # that picks them: nothing it shows shifts.
   test "Dynamic Type keeps the base text styles of the typography an iOS app uses today" do

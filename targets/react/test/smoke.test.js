@@ -38,10 +38,10 @@ test("a button's classes are classes of the generated components.css", () => {
     "prism-spinner--20",
   ]);
 
-  // The icon part has no look of its own, so no rule: its class is a hook for the app.
+  // The icon part's only rule is the small size's: elsewhere its size is the app's.
   assert.deepEqual(
     classes(markup).filter((name) => !inCss(name)),
-    ["prism-button__icon"],
+    [],
   );
 });
 
@@ -113,8 +113,14 @@ test("every axis value and state of every component renders a class of the CSS",
   const elements = [
     ...["primary", "secondary", "plain", "link", "text", "soft", "icon"].flatMap((variant) =>
       ["accent", "success", "warning", "danger", "neutral", "highlight"].flatMap((tone) =>
-        [true, false].map((padded) =>
-          h(Prism.Button, { variant, tone, padded, loading: true, disabled: true, icon: "+" }, "x"),
+        ["regular", "small"].flatMap((size) =>
+          [true, false].map((padded) =>
+            h(
+              Prism.Button,
+              { variant, tone, size, padded, loading: true, disabled: true, icon: "+" },
+              "x",
+            ),
+          ),
         ),
       ),
     ),
@@ -152,9 +158,9 @@ test("every axis value and state of every component renders a class of the CSS",
   const rendered = classes(elements.map((element) => renderToStaticMarkup(element)).join(""));
   assert.ok(rendered.length > 50);
 
-  // Without a look of its own, the button's icon has no rule.
+  // Every class has a rule; the button's icon only in a small button.
   assert.deepEqual(
     rendered.filter((name) => !inCss(name)),
-    ["prism-button__icon"],
+    [],
   );
 });

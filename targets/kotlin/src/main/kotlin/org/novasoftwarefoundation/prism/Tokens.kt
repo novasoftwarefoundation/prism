@@ -159,6 +159,16 @@ public object Prism {
             strong = 700,
             headline = 800,
         )
+        /** Code */
+        public val code: PrismFontFamily = PrismFontFamily(
+            font = FontFamily.Monospace,
+            reading = 300,
+            data = 400,
+            supporting = 500,
+            subheading = 600,
+            strong = 700,
+            headline = 800,
+        )
     }
 
     /** The typography tokens. */
@@ -304,11 +314,25 @@ public object Prism {
             lineHeight = 16.sp,
         )
         public val mono: PrismTypography = PrismTypography(
-            family = Families.text,
+            family = Families.code,
             emphasis = PrismEmphasis.Reading,
             italic = false,
             size = 20.sp,
             lineHeight = 24.sp,
+        )
+        public val monosmall: PrismTypography = PrismTypography(
+            family = Families.code,
+            emphasis = PrismEmphasis.Reading,
+            italic = false,
+            size = 16.sp,
+            lineHeight = 24.sp,
+        )
+        public val monomedium: PrismTypography = PrismTypography(
+            family = Families.code,
+            emphasis = PrismEmphasis.Reading,
+            italic = false,
+            size = 20.sp,
+            lineHeight = 30.sp,
         )
         public val quote: PrismTypography = PrismTypography(
             family = Families.display,
