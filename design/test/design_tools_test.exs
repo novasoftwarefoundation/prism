@@ -68,29 +68,56 @@ defmodule Prism.Design.DesignToolsTest do
     end
   end
 
-  test "the mono fonts say they are monospaced; their typography is the text family" do
+  # The code family is the system's monospaced font: its CSS stack in tokens.css, and Menlo,
+  # the font of that stack every Mac has, where a tool takes one font's name.
+  test "the mono typographies are the code family, the monospaced system font" do
     json = JSON.decode!(read("tokens.json"))
+    code = json["font-family"]["code"]
+
+    assert code["$value"] == "Menlo"
+
+    assert code["$extensions"]["prism"] == %{
+             "web" => "system",
+             "ios" => "system",
+             "android" => "system",
+             "monospaced" => true
+           }
 
     monospaced =
-      for {name, token} <- json["font-weight"],
+      for {name, token} <- json["font-family"],
           token["$extensions"]["prism"]["monospaced"] == true,
           do: name
 
-    assert Enum.sort(monospaced) == ["mono", "monomedium", "monosmall"]
+    assert monospaced == ["code"]
 
-    for name <- monospaced do
+    mono =
+      for {name, token} <- json["typography"],
+          token["$value"]["fontFamily"] == "{font-family.code}",
+          do: name
+
+    assert Enum.sort(mono) == ["mono", "monomedium", "monosmall"]
+
+    for name <- mono do
       assert json["font-weight"][name]["$value"] == 300
-      assert json["typography"][name]["$value"]["fontFamily"] == "{font-family.text}"
+
+      assert json["font-weight"][name]["$extensions"]["prism"] == %{
+               "family" => "{font-family.code}"
+             }
     end
 
-    assert read("tokens.css") =~
-             "  --prism-typography-monosmall: var(--prism-font-weight-monosmall) var(--prism-font-size-monosmall)/var(--prism-line-height-monosmall) var(--prism-font-family-text);\n"
+    css = read("tokens.css")
+
+    assert css =~
+             "  --prism-font-family-code: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;\n"
+
+    assert css =~
+             "  --prism-typography-monosmall: var(--prism-font-weight-monosmall) var(--prism-font-size-monosmall)/var(--prism-line-height-monosmall) var(--prism-font-family-code);\n"
   end
 
   test "the overview names only the installed fonts, and shows every component" do
     svg = read("overview.svg")
     families = for [_, f] <- Regex.scan(~r/font-family="([^"]*)"/, svg), uniq: true, do: f
-    assert Enum.sort(families) == ["Nunito", "Nunito Sans"]
+    assert Enum.sort(families) == ["Menlo", "Nunito", "Nunito Sans"]
 
     for c <- Prism.Design.Components.__schema__().components,
         do: assert(svg =~ ~s(<g id="component/#{String.replace(to_string(c.name), "_", "-")}">))

@@ -8,7 +8,8 @@ defmodule Prism.Generator.Web do
   The templates in `web/` hold the web mechanics (the Tailwind plugin, the
   viewport, safe-area and scrollbar utilities, line clamps); every design value
   comes from the design's tokens, and names and comments from its `web` declaration.
-  Fonts come from each family's `web:` binding only.
+  Fonts come from each family's `web:` binding only; a monospaced family bound
+  to the system font is the system's monospaced font (`font_stack/1`).
 
   The spelling is fixed, so regenerating gives the same bytes:
   upper-case hex and two-decimal alphas in the preset, `0` in box shadows and
@@ -57,6 +58,22 @@ defmodule Prism.Generator.Web do
   # ------------------------------------------------------------- tokens
 
   defp tokens(design, kind), do: for(%{kind: ^kind} = t <- design, do: t)
+
+  # The system's monospaced font in CSS: `ui-monospace` (SF Mono in Safari), SF Mono where
+  # it is installed, Menlo on macOS, Consolas on Windows, then CSS's generic family.
+  @monospace ~w(ui-monospace SFMono-Regular Menlo Consolas monospace)
+
+  @doc """
+  A family's web font as CSS names it, most wanted first: its name and its
+  fallback, or for a family the web binds to the system font (only a monospaced
+  one), the system's monospaced font.
+  """
+  def font_stack(%{web: {:system, _}}), do: @monospace
+  def font_stack(%{web: web}), do: [web[:name], web[:fallback]]
+
+  @doc "A family's `font-family` value, its font's name quoted."
+  def css_family(%{web: {:system, _}} = family), do: Enum.join(font_stack(family), ", ")
+  def css_family(%{web: web}), do: "#{css_str(web[:name])}, #{web[:fallback]}"
 
   defp token(design, kind, name),
     do: Enum.find(tokens(design, kind), &(&1.name == name)) || raise("no #{kind} #{name}")
@@ -136,25 +153,25 @@ defmodule Prism.Generator.Web do
     |> Enum.map_join("\n", fn [first | _] = fonts ->
       family = token(design, :family, first.family)
 
-      "        // #{comment!(family_note(family.web, first.family, design))}\n" <>
+      "        // #{comment!(family_note(family))}\n" <>
         Enum.map_join(fonts, "\n", &fun.(&1, family))
     end)
   end
 
   defp preset_font_families(design) do
-    by_family(design, fn font, %{web: web} ->
-      "        #{key(font.name)}: [#{js_str(web[:name])}, #{js_str(web[:fallback])}],"
+    by_family(design, fn font, family ->
+      "        #{key(font.name)}: [#{Enum.map_join(font_stack(family), ", ", &js_str/1)}],"
     end)
   end
 
   defp preset_font_classes(design) do
-    by_family(design, fn font, %{web: web} = family ->
+    by_family(design, fn font, family ->
       italic = if font[:italic], do: ~s(\n          "font-style": "italic",), else: ""
       weight = Schema.weight(family, :web, font.emphasis)
 
       """
               #{js_str(".font-#{key_name(font.name)}")}: {
-                "font-family": #{js_str("#{web[:name]}, #{web[:fallback]}")},
+                "font-family": #{js_str(Enum.join(font_stack(family), ", "))},
                 "font-weight": #{js_str("#{weight}")},#{italic}
               },\
       """
@@ -164,7 +181,7 @@ defmodule Prism.Generator.Web do
   defp key_name(name), do: name |> to_string() |> String.replace("_", "-")
 
   defp font_faces(design) do
-    for family <- tokens(design, :family), web = family.web, face <- web[:faces] do
+    for %{web: [_ | _] = web} = family <- tokens(design, :family), face <- web[:faces] do
       {from, to} = face[:weights]
 
       %{
@@ -186,9 +203,12 @@ defmodule Prism.Generator.Web do
     end
   end
 
-  # The preset's comment above a family's fonts: "Acme Sans (> 20px sizes)".
-  defp family_note(web, name, design) do
-    case sizes(token(design, :family, name).doc) do
+  # The preset's comment above a family's fonts: "Acme Sans (> 20px sizes)", or "System
+  # monospace" for the system's monospaced font.
+  defp family_note(%{web: {:system, _}}), do: "System monospace"
+
+  defp family_note(%{web: web, doc: doc}) do
+    case sizes(doc) do
       nil -> web[:name]
       sizes -> "#{web[:name]} (#{sizes} sizes)"
     end

@@ -11,11 +11,13 @@
   /* Font families */
   --acme-font-family-display: "Acme Display", serif;
   --acme-font-family-text: "Acme Text", sans-serif;
+  --acme-font-family-code: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
   /* Font weights */
   --acme-font-weight-heading: 800;
   --acme-font-weight-body: 400;
   --acme-font-weight-hint: 300;
+  --acme-font-weight-code: 400;
 
   /* Font sizes */
   --acme-font-size-heading: 32px;
@@ -29,6 +31,7 @@
   --acme-typography-heading: var(--acme-font-weight-heading) var(--acme-font-size-heading)/var(--acme-line-height-heading) var(--acme-font-family-display);
   --acme-typography-body: var(--acme-font-weight-body) var(--acme-font-size-body)/var(--acme-line-height-body) var(--acme-font-family-text);
   --acme-typography-note: italic var(--acme-font-weight-hint) var(--acme-font-size-body)/var(--acme-line-height-body) var(--acme-font-family-text);
+  --acme-typography-code: var(--acme-font-weight-code) var(--acme-font-size-body)/var(--acme-line-height-body) var(--acme-font-family-code);
 
   /* Spacing */
   --acme-spacing-2px: 2px;

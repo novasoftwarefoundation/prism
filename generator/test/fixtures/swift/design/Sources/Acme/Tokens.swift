@@ -61,6 +61,8 @@ public enum Acme {
         public static let display = AcmeFontFamily(.system, aside: 300, reading: 400, headline: 700)
         /// Body text
         public static let text = AcmeFontFamily(.system, aside: 400, reading: 400, headline: 600)
+        /// Code
+        public static let code = AcmeFontFamily(.system, aside: 300, reading: 400, headline: 600)
     }
 
     /// The typography tokens.
@@ -74,5 +76,8 @@ public enum Acme {
         public static let note = AcmeTypography(
             family: Families.text, emphasis: .aside, italic: true, size: 16, lineHeight: 24,
             textStyle: .callout)
+        public static let code = AcmeTypography(
+            family: Families.code, emphasis: .reading, italic: false, monospaced: true, size: 16,
+            lineHeight: 24, textStyle: .callout)
     }
 }

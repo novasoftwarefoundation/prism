@@ -116,6 +116,19 @@ defmodule Prism.Generator.KotlinTest do
       assert tokens =~ "headline = 900,"
     end
 
+    # A monospaced family bound to the system font is Android's monospaced one.
+    test "a monospaced family is FontFamily.Monospace" do
+      tokens = body(Kotlin.files(ExampleDesign.__schema__()), "Tokens.kt")
+
+      assert tokens =~
+               "public val code: AcmeFontFamily = AcmeFontFamily(\n            font = FontFamily.Monospace,"
+
+      assert length(String.split(tokens, "FontFamily.Monospace")) == 2
+
+      assert tokens =~
+               "public val code: AcmeTypography = AcmeTypography(\n            family = Families.code,"
+    end
+
     test "a typography is its family, emphasis, italic, size and line height" do
       tokens = body(Kotlin.files(ExampleDesign.__schema__()), "Tokens.kt")
 

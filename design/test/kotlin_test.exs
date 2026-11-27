@@ -64,6 +64,23 @@ defmodule Prism.Design.KotlinTest do
     assert tokens =~ "headline = 800,"
   end
 
+  # The code family is Android's monospaced system font; design/test/compose measures it.
+  test "the code family is FontFamily.Monospace, and the mono typographies are its" do
+    tokens = read("Tokens.kt")
+
+    assert tokens =~
+             "public val code: PrismFontFamily = PrismFontFamily(\n            font = FontFamily.Monospace,"
+
+    assert length(String.split(tokens, "FontFamily.Monospace")) == 2
+
+    for name <- ["mono", "monosmall", "monomedium"] do
+      assert tokens =~
+               "public val #{name}: PrismTypography = PrismTypography(\n            family = Families.code,"
+    end
+
+    assert length(String.split(tokens, "family = Families.code,")) == 4
+  end
+
   test "a focused invalid text field keeps its warning border (ADR 0008)" do
     field = read("TextField.kt")
 

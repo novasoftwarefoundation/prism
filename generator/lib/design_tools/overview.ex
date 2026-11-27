@@ -22,8 +22,9 @@ defmodule Prism.Generator.DesignTools.Overview do
 
   The SVG holds no external references and no CSS: every look is a
   presentation attribute. Text is `<text>` (not outlined), its family the
-  web font's name alone (no fallback list), so a design tool matches it to
-  the installed font; a browser without the font falls back to its default.
+  web font's name alone (no fallback list; Menlo for the system's monospaced
+  font, `Prism.Generator.DesignTools.family_name/1`), so a design tool matches
+  it to the installed font; a browser without the font falls back to its default.
   A shadow is an SVG filter in the structure Figma writes for its own drop
   and inner shadows. Every group has an `id`, which design tools show as the
   layer's name: a token's path (`color/accent`; a text size is its font size's,
@@ -31,6 +32,7 @@ defmodule Prism.Generator.DesignTools.Overview do
   component's cell (`button/primary/pressed`).
   """
 
+  alias Prism.Generator.DesignTools
   alias Prism.Generator.Schema
   alias Prism.Generator.Web
   alias Prism.Generator.Web.{Components, Elements}
@@ -129,8 +131,8 @@ defmodule Prism.Generator.DesignTools.Overview do
       end
 
     case {font, ctx.by.(:family)} do
-      {%{family: family}, _} -> ctx.families[family].web[:name]
-      {nil, [family | _]} -> family.web[:name]
+      {%{family: family}, _} -> DesignTools.family_name(ctx.families[family])
+      {nil, [family | _]} -> DesignTools.family_name(family)
       {nil, []} -> "sans-serif"
     end
   end
@@ -220,13 +222,13 @@ defmodule Prism.Generator.DesignTools.Overview do
   defp families(ctx) do
     items =
       for t <- ctx.by.(:family) do
-        web = t.web
-        native = "iOS: #{native(t.ios)} · Android: #{native(t.android)}"
+        name = DesignTools.family_name(t)
+        native = "iOS: #{native(t.ios, t)} · Android: #{native(t.android, t)}"
 
         {"font-family/#{key(t.name)}", @width - 2 * @margin, 76,
          fn x, y ->
            [
-             text(x, y + 36, web[:name], family: web[:name], size: 36, weight: 400, fill: @ink),
+             text(x, y + 36, name, family: name, size: 36, weight: 400, fill: @ink),
              label(ctx, x, y + 60, "#{key(t.name)} · #{t.doc} · #{native}",
                size: 12,
                fill: @muted
@@ -238,13 +240,14 @@ defmodule Prism.Generator.DesignTools.Overview do
     flow(ctx, "font-families", "Font families", items, 12)
   end
 
-  defp native({:system, _}), do: "system font"
-  defp native(font), do: font[:name]
+  defp native({:system, _}, %{monospaced: true}), do: "monospaced system font"
+  defp native({:system, _}, _), do: "system font"
+  defp native(font, _), do: font[:name]
 
   defp fonts(ctx) do
     items =
       for t <- ctx.by.(:font) do
-        family = ctx.families[t.family].web[:name]
+        family = DesignTools.family_name(ctx.families[t.family])
         weight = Schema.weight(ctx.families[t.family], :web, t.emphasis)
         italic = if t[:italic], do: " italic", else: ""
 
@@ -1579,7 +1582,7 @@ defmodule Prism.Generator.DesignTools.Overview do
     family = ctx.families[font.family]
 
     %{
-      family: family.web[:name],
+      family: DesignTools.family_name(family),
       weight: Schema.weight(family, :web, font.emphasis),
       weigh: &Schema.weight(family, :web, &1),
       italic: font[:italic] == true,

@@ -18,16 +18,19 @@
        },
        spacing: {
          "1px": "1px",
-@@ -103,6 +101,8 @@
+@@ -102,7 +100,10 @@
+         tablehead: ["Nunito Sans", "sans-serif"],
          tablerow: ["Nunito Sans", "sans-serif"],
          bold: ["Nunito Sans", "sans-serif"],
-         mono: ["Nunito Sans", "sans-serif"],
-+        monosmall: ["Nunito Sans", "sans-serif"],
-+        monomedium: ["Nunito Sans", "sans-serif"],
+-        mono: ["Nunito Sans", "sans-serif"],
++        // System monospace
++        mono: ["ui-monospace", "SFMono-Regular", "Menlo", "Consolas", "monospace"],
++        monosmall: ["ui-monospace", "SFMono-Regular", "Menlo", "Consolas", "monospace"],
++        monomedium: ["ui-monospace", "SFMono-Regular", "Menlo", "Consolas", "monospace"],
        },
        fontSize: {
          title0: ["64px", "68px"],
-@@ -133,6 +133,8 @@
+@@ -133,6 +134,8 @@
          tablehead: ["14px", "16px"],
          tablerow: ["14px", "16px"],
          mono: ["20px", "24px"],
@@ -36,7 +39,7 @@
          quote: ["24px", "30px"],
        },
        maxHeight: {
-@@ -141,7 +143,7 @@
+@@ -141,7 +144,7 @@
      },
    },
    plugins: [
@@ -45,16 +48,22 @@
        // Utility classes
        addUtilities({
          ".h-viewport": {
-@@ -269,7 +271,15 @@
+@@ -265,11 +268,20 @@
            "font-family": "Nunito Sans, sans-serif",
+           "font-weight": "700",
+         },
++        // System monospace
+         ".font-mono": {
+-          "font-family": "Nunito Sans, sans-serif",
++          "font-family": "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
            "font-weight": "300",
          },
 +        ".font-monosmall": {
-+          "font-family": "Nunito Sans, sans-serif",
++          "font-family": "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
 +          "font-weight": "300",
 +        },
 +        ".font-monomedium": {
-+          "font-family": "Nunito Sans, sans-serif",
++          "font-family": "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
 +          "font-weight": "300",
 +        },
        });

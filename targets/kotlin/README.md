@@ -133,7 +133,7 @@ Prism.Radii.default               // PrismRadius: .shape
 Prism.Shadows.prismCard           // PrismShadow: .shadow for Modifier.dropShadow
 ```
 
-Lengths are dp. Type is sp, so it follows the user's font size, to 200% on Android 14 and later; a box that holds text (a text field, a select, a message bar, a step indicator) grows with it, so the largest sizes cut nothing off. A line is as high as its typography's line height, as on the web, except where that is less than the font's own height, which Android never goes below. The fonts are the system font (Roboto); the library bundles no fonts.
+Lengths are dp. Type is sp, so it follows the user's font size, to 200% on Android 14 and later; a box that holds text (a text field, a select, a message bar, a step indicator) grows with it, so the largest sizes cut nothing off. A line is as high as its typography's line height, as on the web, except where that is less than the font's own height, which Android never goes below. The fonts are the system font (Roboto), and for code (`mono`, `monosmall`, `monomedium`) the system's monospaced font (`FontFamily.Monospace`); the library bundles no fonts.
 
 ## License
 

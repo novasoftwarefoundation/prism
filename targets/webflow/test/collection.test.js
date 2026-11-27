@@ -302,3 +302,17 @@ test("Prism's tokens.json: the site's hand copy is updated by name, and every ot
   assert.equal(collection.variables.length, variables.length, "one variable per token Webflow can hold");
   assert.equal(collection.variable("Grey 1").value, prismTokens.color.grey1.$value.hex);
 });
+
+// A font family variable holds one font's name, as tokens.json's $value gives it: for the
+// mono typographies, Menlo, the font of the web's monospaced stack every Mac has.
+test("Prism's tokens.json: the code family is a font family variable of Menlo", () => {
+  const prismTokens = JSON.parse(readFileSync(new URL("../../design-tools/tokens.json", import.meta.url), "utf8"));
+  const { variables } = prismVariables(prismTokens);
+  const families = variables.filter(({ type }) => type === "FontFamily").map(({ name, value }) => [name, value]);
+
+  assert.deepEqual(families, [
+    ["font-family/display", "Nunito"],
+    ["font-family/text", "Nunito Sans"],
+    ["font-family/code", "Menlo"],
+  ]);
+});

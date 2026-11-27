@@ -89,8 +89,8 @@ defmodule Prism.Generator.SwiftTest do
                "family: Families.text, emphasis: .aside, italic: true, size: 16, lineHeight: 24"
     end
 
-    # A monospaced font of the system font is its monospaced design (SF Mono); the
-    # argument is written only where it is true, since it defaults to false.
+    # A typography of a monospaced family bound to the system font is its monospaced design
+    # (SF Mono); the argument is written only where it is true, since it defaults to false.
     test "a monospaced typography is the system font's monospaced design" do
       files =
         Swift.files(
@@ -101,8 +101,14 @@ defmodule Prism.Generator.SwiftTest do
             web: [name: "Fonty", fallback: "sans-serif", faces: [[file: "Fonty", weights: {100, 900}, style: :normal]], scale: [reading: 400]],
             ios: {:system, scale: [reading: 300]},
             android: {:system, scale: [reading: 400]}
+          family :mono,
+            doc: "Code",
+            monospaced: true,
+            web: {:system, scale: [reading: 400]},
+            ios: {:system, scale: [reading: 300]},
+            android: {:system, scale: [reading: 400]}
           font :body, :text, :reading
-          font :code, :text, :reading, monospaced: true
+          font :code, :mono, :reading
           text :body, 16, 24
           typography(:body, font: :body, text: :body)
           typography(:code, font: :code, text: :body)
@@ -113,7 +119,7 @@ defmodule Prism.Generator.SwiftTest do
 
       assert tokens =~
                "public static let code = FontyTypography(\n" <>
-                 "            family: Families.text, emphasis: .reading, italic: false, monospaced: true, size: 16,\n"
+                 "            family: Families.mono, emphasis: .reading, italic: false, monospaced: true, size: 16,\n"
 
       assert tokens =~
                "public static let body = FontyTypography(\n" <>

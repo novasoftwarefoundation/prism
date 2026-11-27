@@ -1557,11 +1557,11 @@ defmodule Prism.Generator.Web.Components do
 
   defp declaration(:typography, value) do
     {font, {size, line_height}} = typography(value)
-    family = token!(:family, font.family).web
+    family = token!(:family, font.family)
     italic = if font[:italic], do: ["font-style: italic"], else: []
 
     [
-      "font-family: #{Web.css_str(family[:name])}, #{family[:fallback]}",
+      "font-family: #{Web.css_family(family)}",
       "font-weight: #{Schema.weight(token!(:family, font.family), :web, font.emphasis)}"
     ] ++ italic ++ ["font-size: #{css_length(size)}", "line-height: #{css_length(line_height)}"]
   end

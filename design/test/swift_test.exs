@@ -57,8 +57,8 @@ defmodule Prism.Design.SwiftTest do
     assert read("Button.swift") =~ "emphasis: .supporting,"
   end
 
-  # The code typography is the system font's monospaced design (SF Mono) on iOS and
-  # macOS; no other typography is.
+  # The code typography is the code family, the system font's monospaced design (SF Mono)
+  # on iOS and macOS; no other typography is.
   test "mono, monosmall and monomedium are monospaced, at body text's sizes" do
     tokens = read("Tokens.swift")
 
@@ -70,7 +70,7 @@ defmodule Prism.Design.SwiftTest do
       assert tokens =~
                """
                        public static let #{name} = PrismTypography(
-                           family: Families.text, emphasis: .reading, italic: false, monospaced: true, size: #{size},
+                           family: Families.code, emphasis: .reading, italic: false, monospaced: true, size: #{size},
                            lineHeight: #{line_height}, textStyle: .#{style})
                """
     end
