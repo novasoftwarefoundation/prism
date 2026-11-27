@@ -455,6 +455,7 @@ defmodule Prism.Generator.PhoenixTest do
                         name: :inverse,
                         style: [],
                         states: [%{name: :invalid, style: [opacity: 0.5], parts: [], web: []}],
+                        with_variants: [],
                         web: []
                       }
                     ],

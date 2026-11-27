@@ -314,6 +314,52 @@
   color: #ffcf60;
 }
 
+/* Sizes */
+/* Small button */
+.prism-button--small {
+  font-family: "Nunito Sans", sans-serif;
+  font-weight: 700;
+  font-size: 16px;
+  line-height: 16px;
+}
+
+.prism-button--small .prism-button__icon {
+  width: 16px;
+  height: 16px;
+}
+
+.prism-button--primary.prism-button--small {
+  padding: 8px 12px;
+}
+
+.prism-button--primary.prism-button--small:active {
+  padding-top: 9px;
+  padding-bottom: 7px;
+}
+
+.prism-button--soft.prism-button--small {
+  padding: 8px 12px;
+}
+
+.prism-button--soft.prism-button--small:active {
+  padding-top: 9px;
+  padding-bottom: 7px;
+}
+
+.prism-button--secondary.prism-button--small {
+  padding: 6px 12px;
+}
+
+.prism-button--secondary.prism-button--small:active {
+  padding-top: 7px;
+  padding-bottom: 5px;
+}
+
+.prism-button--icon.prism-button--small {
+  width: 16px;
+  height: 16px;
+}
+
 /* Plain and text buttons with padding */
 .prism-button--plain.prism-button--padded {
   padding: 15px 16px;
@@ -324,6 +370,15 @@
   padding-bottom: 14px;
 }
 
+.prism-button--plain.prism-button--padded.prism-button--small {
+  padding: 8px 12px;
+}
+
+.prism-button--plain.prism-button--padded.prism-button--small:active {
+  padding-top: 9px;
+  padding-bottom: 7px;
+}
+
 .prism-button--text.prism-button--padded {
   padding: 15px 16px;
 }
@@ -331,6 +386,15 @@
 .prism-button--text.prism-button--padded:active {
   padding-top: 16px;
   padding-bottom: 14px;
+}
+
+.prism-button--text.prism-button--padded.prism-button--small {
+  padding: 8px 12px;
+}
+
+.prism-button--text.prism-button--padded.prism-button--small:active {
+  padding-top: 9px;
+  padding-bottom: 7px;
 }
 
 /* ==========================================================================

@@ -24,6 +24,10 @@ struct DynamicTypeTests {
                 name: "button", text: "Save", look: PrismButtonLooks(.primary).root,
                 view: AnyView(Button("Save") {}.buttonStyle(.prism(.primary)))),
             Sample(
+                name: "small button", text: "Save",
+                look: PrismButtonLooks(.primary, size: .small).root,
+                view: AnyView(Button("Save") {}.buttonStyle(.prism(.primary, size: .small)))),
+            Sample(
                 name: "text field", text: "someone@example.org", look: PrismTextFieldLooks().root,
                 view: AnyView(TextField("", text: .constant("someone@example.org")).prismTextField())),
             Sample(
@@ -96,7 +100,8 @@ struct DynamicTypeTests {
     ]
 
     static let names = [
-        "button", "text field", "text field with prefix", "text field with a picker prefix",
+        "button", "small button", "text field", "text field with prefix",
+        "text field with a picker prefix",
         "text area", "field", "radio group", "radio", "select",
         "spinner", "checkbox", "tag", "message bar", "step indicator", "image picker",
     ]

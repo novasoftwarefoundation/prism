@@ -90,10 +90,12 @@ defmodule Prism.Generator.Schema do
       the name of the `variants` block it is in; `parts` are the changes it
       makes to the component's parts, `[%{name, style, states}]`;
       `with_variants` are its looks with a variant of another axis,
-      `[%{name, style, states}]`, `name` being that variant's;
+      `[%{name, style, states, with_variants}]`, `name` being that variant's
+      (`with_variants` is `[]` there);
     - `flags`: `[%{name, default, style, with_variants, states}]`, the looks
       the app turns on or off, `default` `true` or `false`; `with_variants`
-      as a variant's, naming a variant of any axis;
+      as a variant's, naming a variant of any axis, each with its own
+      `with_variants`: its looks with a variant of a third axis too;
     - `default`: the default of the `:variant` axis, and `axes`:
       `[%{name, default}]`, the `variants` blocks. A default is the name of
       one of the axis's variants, a name without a look of its own (no class),

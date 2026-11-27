@@ -31,6 +31,10 @@ Button("Save", action: save)
 Button(action: next) { Label("Next", systemImage: "arrow.right") }
     .buttonStyle(.prism(.plain, padded: false, icon: .end))
 
+// A small button, of any variant and tone; without `size`, it is `.regular`.
+Button("Save", action: save)
+    .buttonStyle(.prism(.secondary, size: .small))
+
 // A ProgressViewStyle: without a value it turns, with one it shows it.
 ProgressView().progressViewStyle(.prism(.accent, size: .size20))
 ProgressView(value: upload.fraction).progressViewStyle(.prism(.accent, size: .size32))

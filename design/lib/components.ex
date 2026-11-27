@@ -170,11 +170,34 @@ defmodule Prism.Design.Components do
       end
     end
 
+    # Without a size, a button is regular, which has no class: the looks above.
+    # A small button has every variant and tone, with the buttonsmall typography,
+    # less padding (the secondary's border taken off it, as above) and a 16px icon.
+    variants :size, default: :regular, web: [doc: "Sizes"] do
+      variant :small, typography: :buttonsmall, web: [doc: "Small button"] do
+        part :icon, size: 16
+
+        with_variant [:primary, :soft], padding: [y: 8, x: 12] do
+          state :pressed, padding: [top: 9, bottom: 7]
+        end
+
+        with_variant :secondary, padding: [y: 6, x: 12] do
+          state :pressed, padding: [top: 7, bottom: 5]
+        end
+
+        with_variant(:icon, size: 16)
+      end
+    end
+
     # On by default: a plain or text button as tall as a primary or secondary one
-    # beside it.
+    # beside it, of its size.
     flag :padded, default: true, web: [doc: "Plain and text buttons with padding"] do
       with_variant [:plain, :text], padding: [y: 15, x: 16] do
         state :pressed, padding: [top: 16, bottom: 14]
+
+        with_variant :small, padding: [y: 8, x: 12] do
+          state :pressed, padding: [top: 9, bottom: 7]
+        end
       end
     end
   end

@@ -702,6 +702,22 @@ defmodule Prism.Generator.DesignTools.Overview do
         {Enum.map_join(pair, " + ", &key(&1.name)), rest ++ pair ++ on}
       end
 
+    # Each flag's look with two variants: the two, the :variant axis's first, with
+    # the flag on.
+    nested_rows =
+      for f <- c.flags, w <- f.with_variants, n <- w.with_variants do
+        pair =
+          [w, n]
+          |> Enum.map(fn x -> Enum.find(c.variants, &(&1.name == x.name)) end)
+          |> Enum.sort_by(&(&1.axis != :variant))
+
+        axes = Enum.map(pair, & &1.axis)
+        rest = for d <- defaults.(nil), d.axis not in axes, do: d
+        flags = if f.default, do: on, else: on ++ [f]
+        label = Enum.map_join(pair, " + ", &key(&1.name))
+        {if(f.default, do: label, else: "#{label} + #{key(f.name)}"), rest ++ pair ++ flags}
+      end
+
     # Each flag the other way round from its default: on its own look's base, or
     # with each variant it has a look with.
     flag_rows =
@@ -732,10 +748,10 @@ defmodule Prism.Generator.DesignTools.Overview do
         {"#{label} #{@sample}", sel ++ looks}
       end
 
-    Enum.uniq_by(none ++ own_rows ++ other_rows ++ with_rows ++ flag_rows ++ value_rows, fn {_,
-                                                                                             sel} ->
-      Enum.map(sel, & &1.name)
-    end)
+    Enum.uniq_by(
+      none ++ own_rows ++ other_rows ++ with_rows ++ nested_rows ++ flag_rows ++ value_rows,
+      fn {_, sel} -> Enum.map(sel, & &1.name) end
+    )
   end
 
   # The component with the part it wraps (a text field with its prefix), on its
@@ -785,7 +801,8 @@ defmodule Prism.Generator.DesignTools.Overview do
             [c | c.variants] ++
               c.parts ++
               Enum.flat_map(c.variants, &(&1.parts ++ &1.with_variants)) ++
-              c.flags ++ Enum.flat_map(c.flags, & &1.with_variants),
+              c.flags ++
+              for(f <- c.flags, w <- f.with_variants, x <- [w | w.with_variants], do: x),
           s <- node.states,
           into: MapSet.new(),
           do: s.name
@@ -842,7 +859,12 @@ defmodule Prism.Generator.DesignTools.Overview do
   # has no axis).
   defp with_variants(sel) do
     names = for n <- sel, Map.has_key?(n, :axis), do: n.name
-    for n <- sel, w <- Map.get(n, :with_variants, []), w.name in names, do: w
+
+    for n <- sel,
+        w <- Map.get(n, :with_variants, []),
+        w.name in names,
+        x <- [w | for(n <- w.with_variants, n.name in names, do: n)],
+        do: x
   end
 
   defp state_nodes(_node, nil), do: []

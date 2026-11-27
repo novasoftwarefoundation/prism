@@ -36,6 +36,7 @@ defmodule Prism.Design.ComponentsTest do
 
     assert axes == %{
              button: [
+               size: [:small],
                tone: [:success, :warning, :danger, :neutral, :highlight],
                variant: [:primary, :secondary, :plain, :link, :text, :soft, :icon]
              ],
@@ -165,6 +166,49 @@ defmodule Prism.Design.ComponentsTest do
       for v <- button.variants, v.name in [:plain, :text], do: {v.name, v.style[:padding]}
 
     assert unpadded == [plain: [y: 4, x: 0], text: [y: 1, x: 0]]
+  end
+
+  # Regular, the default, is the button's own look, without a class; small has every
+  # variant and tone, the buttonsmall typography and less padding, the secondary's
+  # inside its 2px border, as the regular one's.
+  test "a button is regular by default, or small" do
+    button = Enum.find(@design.components, &(&1.name == :button))
+    assert %{name: :size, default: :regular} = Enum.find(button.axes, &(&1.name == :size))
+    assert [small] = for(v <- button.variants, v.axis == :size, do: v)
+    assert button.style[:typography] == :button
+    assert %{name: :small, style: [typography: :buttonsmall]} = small
+    assert [%{name: :icon, style: [size: 16]}] = small.parts
+
+    looks = Map.new(small.with_variants, &{&1.name, &1})
+    assert Map.keys(looks) |> Enum.sort() == [:icon, :primary, :secondary, :soft]
+
+    for name <- [:primary, :soft] do
+      assert looks[name].style == [padding: [y: 8, x: 12]]
+      assert [%{name: :pressed, style: [padding: [top: 9, bottom: 7]]}] = looks[name].states
+    end
+
+    assert looks[:secondary].style == [padding: [y: 6, x: 12]]
+    assert [%{name: :pressed, style: [padding: [top: 7, bottom: 5]]}] = looks[:secondary].states
+    assert looks[:icon].style == [size: 16]
+
+    # A padded plain or text button: the flag's look with the variant and small.
+    [padded] = button.flags
+
+    for w <- padded.with_variants do
+      assert [%{name: :small, style: [padding: [y: 8, x: 12]], states: [pressed]}] =
+               w.with_variants
+
+      assert pressed.style == [padding: [top: 9, bottom: 7]]
+    end
+
+    {_, css, _} =
+      @design |> Prism.Generator.Web.files() |> List.keyfind("css/components.css", 0)
+
+    assert css =~
+             "\n.prism-button--small {\n  font-family: \"Nunito Sans\", sans-serif;\n  font-weight: 700;\n  font-size: 16px;\n  line-height: 16px;\n}\n"
+
+    assert css =~
+             "\n.prism-button--text.prism-button--padded.prism-button--small {\n  padding: 8px 12px;\n}\n"
   end
 
   # A button element has padding and a background of its own; the CSS doesn't rely

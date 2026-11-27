@@ -29,6 +29,11 @@ public enum class PrismButtonTone {
     Accent, Success, Warning, Danger, Neutral, Highlight
 }
 
+/** The size of a button. */
+public enum class PrismButtonSize {
+    Regular, Small
+}
+
 /**
  * The look of a button and of each of its parts in one choice of its variants,
  * flags, parts and states, laid over each other as on the web.
@@ -37,6 +42,7 @@ public enum class PrismButtonTone {
 public class PrismButtonLooks(
     variant: PrismButtonVariant? = null,
     tone: PrismButtonTone = PrismButtonTone.Accent,
+    size: PrismButtonSize = PrismButtonSize.Regular,
     padded: Boolean = true,
     withIcon: Boolean = false,
     pressed: Boolean = false,
@@ -56,7 +62,7 @@ public class PrismButtonLooks(
     init {
         var root = PrismLook()
         var label = PrismLook()
-        val icon = PrismLook()
+        var icon = PrismLook()
         val spinner = PrismLook()
         root += PrismLook(
             radius = Prism.Radii.default,
@@ -114,6 +120,9 @@ public class PrismButtonLooks(
                 padding = PrismInsets(top = 0.dp, start = 0.dp, bottom = 0.dp, end = 0.dp),
                 size = 24.dp,
             )
+        }
+        if (size == PrismButtonSize.Small) {
+            root += PrismLook(typography = Prism.Typography.buttonsmall)
         }
         if (loading) {
             label += PrismLook(opacity = 0f)
@@ -272,6 +281,27 @@ public class PrismButtonLooks(
         if (variant == PrismButtonVariant.Text && tone == PrismButtonTone.Highlight) {
             root += PrismLook(foreground = Prism.Colors.tertiary)
         }
+        if (size == PrismButtonSize.Small) {
+            icon += PrismLook(size = 16.dp)
+        }
+        if (variant == PrismButtonVariant.Primary && size == PrismButtonSize.Small) {
+            root += PrismLook(
+                padding = PrismInsets(top = 8.dp, start = 12.dp, bottom = 8.dp, end = 12.dp),
+            )
+        }
+        if (variant == PrismButtonVariant.Soft && size == PrismButtonSize.Small) {
+            root += PrismLook(
+                padding = PrismInsets(top = 8.dp, start = 12.dp, bottom = 8.dp, end = 12.dp),
+            )
+        }
+        if (variant == PrismButtonVariant.Secondary && size == PrismButtonSize.Small) {
+            root += PrismLook(
+                padding = PrismInsets(top = 6.dp, start = 12.dp, bottom = 6.dp, end = 12.dp),
+            )
+        }
+        if (variant == PrismButtonVariant.Icon && size == PrismButtonSize.Small) {
+            root += PrismLook(size = 16.dp)
+        }
         if (variant == PrismButtonVariant.Plain && padded) {
             root += PrismLook(
                 padding = PrismInsets(top = 15.dp, start = 16.dp, bottom = 15.dp, end = 16.dp),
@@ -288,11 +318,36 @@ public class PrismButtonLooks(
         if (variant == PrismButtonVariant.Soft && withIcon && pressed) {
             root += PrismLook(padding = PrismInsets(top = 5.dp, bottom = 3.dp))
         }
+        if (variant == PrismButtonVariant.Primary && size == PrismButtonSize.Small && pressed) {
+            root += PrismLook(padding = PrismInsets(top = 9.dp, bottom = 7.dp))
+        }
+        if (variant == PrismButtonVariant.Soft && size == PrismButtonSize.Small && pressed) {
+            root += PrismLook(padding = PrismInsets(top = 9.dp, bottom = 7.dp))
+        }
+        if (variant == PrismButtonVariant.Secondary && size == PrismButtonSize.Small && pressed) {
+            root += PrismLook(padding = PrismInsets(top = 7.dp, bottom = 5.dp))
+        }
         if (variant == PrismButtonVariant.Plain && padded && pressed) {
             root += PrismLook(padding = PrismInsets(top = 16.dp, bottom = 14.dp))
         }
+        if (variant == PrismButtonVariant.Plain && size == PrismButtonSize.Small && padded) {
+            root += PrismLook(
+                padding = PrismInsets(top = 8.dp, start = 12.dp, bottom = 8.dp, end = 12.dp),
+            )
+        }
         if (variant == PrismButtonVariant.Text && padded && pressed) {
             root += PrismLook(padding = PrismInsets(top = 16.dp, bottom = 14.dp))
+        }
+        if (variant == PrismButtonVariant.Text && size == PrismButtonSize.Small && padded) {
+            root += PrismLook(
+                padding = PrismInsets(top = 8.dp, start = 12.dp, bottom = 8.dp, end = 12.dp),
+            )
+        }
+        if (variant == PrismButtonVariant.Plain && size == PrismButtonSize.Small && padded && pressed) {
+            root += PrismLook(padding = PrismInsets(top = 9.dp, bottom = 7.dp))
+        }
+        if (variant == PrismButtonVariant.Text && size == PrismButtonSize.Small && padded && pressed) {
+            root += PrismLook(padding = PrismInsets(top = 9.dp, bottom = 7.dp))
         }
         this.root = root
         this.label = label
@@ -315,6 +370,7 @@ public fun PrismButton(
     modifier: Modifier = Modifier,
     variant: PrismButtonVariant? = null,
     tone: PrismButtonTone = PrismButtonTone.Accent,
+    size: PrismButtonSize = PrismButtonSize.Regular,
     padded: Boolean = true,
     loading: Boolean = false,
     enabled: Boolean = true,
@@ -329,6 +385,7 @@ public fun PrismButton(
     val looks = PrismButtonLooks(
         variant = variant,
         tone = tone,
+        size = size,
         padded = padded,
         withIcon = icon != null,
         pressed = pressed,

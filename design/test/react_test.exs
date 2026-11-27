@@ -38,7 +38,7 @@ defmodule Prism.Design.ReactTest do
     # The loading button's spinner is 20px.
     assert "prism-spinner--20" in classes
 
-    # The icon part has no look of its own, so no rule: its class is a hook for the app.
-    assert Enum.reject(classes, &in_css?/1) == ["prism-button__icon"]
+    # The icon part's only rule is the small size's: elsewhere its size is the app's.
+    assert Enum.reject(classes, &in_css?/1) == []
   end
 end
