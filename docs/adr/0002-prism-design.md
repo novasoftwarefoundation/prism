@@ -20,7 +20,7 @@ Prism is a look for scientific software: a Tailwind preset plus component CSS, p
    - `:display` for headings (> 20px): Nunito on the web;
    - `:text` for body text (≤ 20px): Nunito Sans on the web.
 
-   Both are the system font on iOS and Android, with SF Pro's weight of each emphasis on iOS ([ADR 0013](0013-emphasis-per-family.md)). While iOS uses the system font, the Swift package bundles no fonts. Whether iOS binds Nunito and Nunito Sans instead is not decided yet; the Swift target supports it, as a change to the iOS binding and the `swift` declaration ([ADR 0009](0009-swift-target.md), decision 7). `font :mono` stays as it is in 0.1.7 for now: the `:text` role at `:reading` (300 on the web), not a monospaced font.
+   Both are the system font on iOS and Android, with SF Pro's weight of each emphasis on iOS ([ADR 0013](0013-emphasis-per-family.md)). While iOS uses the system font, the Swift package bundles no fonts. Whether iOS binds Nunito and Nunito Sans instead is not decided yet; the Swift target supports it, as a change to the iOS binding and the `swift` declaration ([ADR 0009](0009-swift-target.md), decision 7). `font :mono` stays as it is in 0.1.7 on the web: the `:text` role at `:reading` (300 on the web), not a monospaced font. It is `monospaced: true` ([ADR 0001](0001-design-format.md)), so on iOS and macOS it is the system font's monospaced design (SF Mono) at the same weight; Android draws the `:text` role. `monosmall` (16/24, as `bodysmall`) and `monomedium` (20/30, as `bodymedium`) are the same font for code beside body text of those sizes; `mono` keeps 0.1.7's 20/24.
 
 5. **Compatibility with 0.1.7, recorded.** The generator's web spelling matches 0.1.7 (upper-case hex and two-decimal alphas in the preset, `0px` in text shadows, `0` in box shadows, prettier's 80-column wrap). `design/test/golden/0.1.7/` holds 0.1.7's files, and `design/test/golden_test.exs` compares the generated files with them:
 
@@ -36,7 +36,7 @@ Prism is a look for scientific software: a Tailwind preset plus component CSS, p
 
 8. **Typography.** Every role in either list (fonts and text sizes) has a `typography` token of the same name, and every font and text size is used by one; a test checks both. The format is in [ADR 0001](0001-design-format.md); this records Prism's pairings.
 
-   - **A role in both lists pairs with itself**, 22 in all: `typography :title1, font: :title1, text: :title1`.
+   - **A role in both lists pairs with itself**, 24 in all: `typography :title1, font: :title1, text: :title1`. `monosmall` and `monomedium`, added after 0.1.7, are among them.
    - **The nine roles in only one list** are paired as the main consumer app combines Prism 0.1.7's classes today (2026-10-31): its typography reference page (an admin page that shows each typography token with its font and size class), its screens, and its rich-text styles. Where nothing uses a role, it pairs like its closest sibling.
 
    | Typography | Font | Text size | Evidence |

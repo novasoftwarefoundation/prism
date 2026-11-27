@@ -18,7 +18,25 @@
        },
        spacing: {
          "1px": "1px",
-@@ -141,7 +139,7 @@
+@@ -103,6 +101,8 @@
+         tablerow: ["Nunito Sans", "sans-serif"],
+         bold: ["Nunito Sans", "sans-serif"],
+         mono: ["Nunito Sans", "sans-serif"],
++        monosmall: ["Nunito Sans", "sans-serif"],
++        monomedium: ["Nunito Sans", "sans-serif"],
+       },
+       fontSize: {
+         title0: ["64px", "68px"],
+@@ -133,6 +133,8 @@
+         tablehead: ["14px", "16px"],
+         tablerow: ["14px", "16px"],
+         mono: ["20px", "24px"],
++        monosmall: ["16px", "24px"],
++        monomedium: ["20px", "30px"],
+         quote: ["24px", "30px"],
+       },
+       maxHeight: {
+@@ -141,7 +143,7 @@
      },
    },
    plugins: [
@@ -27,9 +45,18 @@
        // Utility classes
        addUtilities({
          ".h-viewport": {
-@@ -270,6 +268,6 @@
+@@ -269,7 +271,15 @@
+           "font-family": "Nunito Sans, sans-serif",
            "font-weight": "300",
          },
++        ".font-monosmall": {
++          "font-family": "Nunito Sans, sans-serif",
++          "font-weight": "300",
++        },
++        ".font-monomedium": {
++          "font-family": "Nunito Sans, sans-serif",
++          "font-weight": "300",
++        },
        });
 -    }),
 +    },

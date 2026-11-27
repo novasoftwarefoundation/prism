@@ -66,6 +66,7 @@ Today the generator has the schema (tokens, typography and components), the web 
    - Every family must name `web`, `ios` and `android`, so adding a platform forces a choice. A binding is the system font or a named font with its faces, for a brand font, each with its `scale:`, the font's weight of every emphasis ([ADR 0013](0013-emphasis-per-family.md)).
    - The system font is SF Pro on iOS (`Font.system`, which picks the Display or Text optical size itself and supports Dynamic Type) and Roboto on Android (`FontFamily.Default`). The web has no system binding yet.
    - Emphases, italic, sizes and line heights are shared by all platforms; each binding's scale gives an emphasis its weight in that platform's font. Sizes are px on the web, pt on iOS and sp on Android.
+   - A font may be `monospaced: true`, for code. On iOS and macOS the system font has a monospaced design (SF Mono), so there such a font of a family bound to the system font is that design; a named font, the web and Android draw the family as it is.
    - Each generator reads only its own platform's binding. The web target reads `web:`; the family names don't appear in it.
 
 3. **Components: a shared look, mechanics per target, and bindings only where a value really differs** (`Prism.Generator.Schema.Components`).

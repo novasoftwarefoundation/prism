@@ -68,6 +68,25 @@ defmodule Prism.Design.DesignToolsTest do
     end
   end
 
+  test "the mono fonts say they are monospaced; their typography is the text family" do
+    json = JSON.decode!(read("tokens.json"))
+
+    monospaced =
+      for {name, token} <- json["font-weight"],
+          token["$extensions"]["prism"]["monospaced"] == true,
+          do: name
+
+    assert Enum.sort(monospaced) == ["mono", "monomedium", "monosmall"]
+
+    for name <- monospaced do
+      assert json["font-weight"][name]["$value"] == 300
+      assert json["typography"][name]["$value"]["fontFamily"] == "{font-family.text}"
+    end
+
+    assert read("tokens.css") =~
+             "  --prism-typography-monosmall: var(--prism-font-weight-monosmall) var(--prism-font-size-monosmall)/var(--prism-line-height-monosmall) var(--prism-font-family-text);\n"
+  end
+
   test "the overview names only the installed fonts, and shows every component" do
     svg = read("overview.svg")
     families = for [_, f] <- Regex.scan(~r/font-family="([^"]*)"/, svg), uniq: true, do: f

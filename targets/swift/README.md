@@ -99,6 +99,7 @@ PrismSelect(icon: Image(systemName: "chevron.down")) {
 Prism.Colors.primary          // Color
 Prism.Typography.title4       // PrismTypography: .font, .uiFont() (iOS, Dynamic Type), .nsFont() (macOS)
 Prism.Typography.title4.emphasis  // PrismEmphasis: .headline; .weight is SF Pro's 700
+Prism.Typography.monosmall    // code beside bodysmall (16/24), in SF Mono: .monospaced is true
 Prism.Spacing.px10            // CGFloat
 Prism.Radii.default           // PrismRadius
 Prism.Shadows.prismCard       // PrismShadow

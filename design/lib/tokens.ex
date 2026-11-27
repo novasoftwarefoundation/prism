@@ -160,7 +160,11 @@ defmodule Prism.Design.Tokens do
   font :tablehead, :text, :strong
   font :tablerow, :text, :data
   font :bold, :text, :strong
-  font :mono, :text, :reading
+  # Code: the text family at its reading weight; on iOS and macOS the system font's
+  # monospaced design (`monospaced: true`). Sizes as the body text beside it.
+  font :mono, :text, :reading, monospaced: true
+  font :monosmall, :text, :reading, monospaced: true
+  font :monomedium, :text, :reading, monospaced: true
 
   # Text sizes: size and line height in px (`text-…`).
   text :title0, 64, 68
@@ -191,6 +195,8 @@ defmodule Prism.Design.Tokens do
   text :tablehead, 14, 16
   text :tablerow, 14, 16
   text :mono, 20, 24
+  text :monosmall, 16, 24
+  text :monomedium, 20, 30
   text :quote, 24, 30
 
   # Typography: one font and one text size. Native targets read type only from
@@ -217,6 +223,8 @@ defmodule Prism.Design.Tokens do
   typography(:tablehead, font: :tablehead, text: :tablehead)
   typography(:tablerow, font: :tablerow, text: :tablerow)
   typography(:mono, font: :mono, text: :mono)
+  typography(:monosmall, font: :monosmall, text: :monosmall)
+  typography(:monomedium, font: :monomedium, text: :monomedium)
   typography(:quote, font: :quote, text: :quote)
 
   # Roles in only one list, paired as the main consumer app combines them.

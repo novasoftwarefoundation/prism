@@ -102,6 +102,8 @@ module.exports = {
         tablerow: ["Nunito Sans", "sans-serif"],
         bold: ["Nunito Sans", "sans-serif"],
         mono: ["Nunito Sans", "sans-serif"],
+        monosmall: ["Nunito Sans", "sans-serif"],
+        monomedium: ["Nunito Sans", "sans-serif"],
       },
       fontSize: {
         title0: ["64px", "68px"],
@@ -132,6 +134,8 @@ module.exports = {
         tablehead: ["14px", "16px"],
         tablerow: ["14px", "16px"],
         mono: ["20px", "24px"],
+        monosmall: ["16px", "24px"],
+        monomedium: ["20px", "30px"],
         quote: ["24px", "30px"],
       },
       maxHeight: {
@@ -265,6 +269,14 @@ module.exports = {
           "font-weight": "700",
         },
         ".font-mono": {
+          "font-family": "Nunito Sans, sans-serif",
+          "font-weight": "300",
+        },
+        ".font-monosmall": {
+          "font-family": "Nunito Sans, sans-serif",
+          "font-weight": "300",
+        },
+        ".font-monomedium": {
           "font-family": "Nunito Sans, sans-serif",
           "font-weight": "300",
         },

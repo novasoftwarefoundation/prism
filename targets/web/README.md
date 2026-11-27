@@ -196,6 +196,8 @@ Prism uses a two-font system:
 
 Font classes: `font-title0` through `font-title7`, `font-body`, `font-button`, `font-label`, etc.
 
+Code: `font-mono text-mono` (20/24), `font-monomedium text-monomedium` (20/30, beside `text-bodymedium`) and `font-monosmall text-monosmall` (16/24, beside `text-bodysmall`). On the web they are Nunito Sans at 300; the Swift package draws them in SF Mono.
+
 ## Component Classes
 
 ### Buttons

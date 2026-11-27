@@ -214,24 +214,27 @@ public struct KitFontFamily: Sendable, Hashable {
     }
 }
 
-/// A typography token: a font (family, emphasis, italic) at a size and line height in
-/// points, scaled by Dynamic Type as `textStyle` is. macOS has no Dynamic Type: there
-/// the font and the line height are the token's.
+/// A typography token: a font (family, emphasis, italic, monospaced) at a size and line
+/// height in points, scaled by Dynamic Type as `textStyle` is. macOS has no Dynamic Type:
+/// there the font and the line height are the token's. A monospaced typography of the
+/// system font is its monospaced design (SF Mono); a named font is drawn as it is.
 public struct KitTypography: Sendable, Hashable {
     public var family: KitFontFamily
     public var emphasis: KitEmphasis
     public var italic: Bool
+    public var monospaced: Bool
     public var size: CGFloat
     public var lineHeight: CGFloat
     public var textStyle: Font.TextStyle
 
     public init(
-        family: KitFontFamily, emphasis: KitEmphasis, italic: Bool, size: CGFloat,
-        lineHeight: CGFloat, textStyle: Font.TextStyle
+        family: KitFontFamily, emphasis: KitEmphasis, italic: Bool,
+        monospaced: Bool = false, size: CGFloat, lineHeight: CGFloat, textStyle: Font.TextStyle
     ) {
         self.family = family
         self.emphasis = emphasis
         self.italic = italic
+        self.monospaced = monospaced
         self.size = size
         self.lineHeight = lineHeight
         self.textStyle = textStyle
@@ -271,7 +274,10 @@ public struct KitTypography: Sendable, Hashable {
         let base: KitPlatformFont
         switch family.font {
         case .system:
-            base = .systemFont(ofSize: size, weight: platformWeight)
+            base =
+                monospaced
+                ? .monospacedSystemFont(ofSize: size, weight: platformWeight)
+                : .systemFont(ofSize: size, weight: platformWeight)
         case .named(let name):
 #if os(iOS)
             let variation = UIFontDescriptor.AttributeName(

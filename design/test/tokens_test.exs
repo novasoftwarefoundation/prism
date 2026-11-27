@@ -38,7 +38,9 @@ defmodule Prism.Design.TokensTest do
     tablehead: 700,
     tablerow: 400,
     bold: 700,
-    mono: 300
+    mono: 300,
+    monosmall: 300,
+    monomedium: 300
   ]
 
   test "a font names an emphasis: Nunito and Nunito Sans keep its weight, SF Pro has its own" do
@@ -74,6 +76,27 @@ defmodule Prism.Design.TokensTest do
     assert MapSet.new(typographies, & &1.name) == MapSet.union(names.(:font), names.(:text))
     assert MapSet.new(typographies, & &1.font) == names.(:font)
     assert MapSet.new(typographies, & &1.text) == names.(:text)
+  end
+
+  # Code beside body text: mono keeps 0.1.7's 20/24, monosmall and monomedium have the
+  # sizes of bodysmall and bodymedium. All three are the text family at reading, and the
+  # only monospaced fonts (SF Mono on iOS and macOS).
+  test "mono, monosmall and monomedium: the mono font at body text's sizes" do
+    tokens = Prism.Design.Tokens.__schema__().tokens
+    find = fn kind, name -> Enum.find(tokens, &(&1.kind == kind and &1.name == name)) end
+    size = fn name -> {find.(:text, name).size, find.(:text, name).line_height} end
+
+    assert size.(:mono) == {20, 24}
+    assert size.(:monosmall) == size.(:bodysmall)
+    assert size.(:monomedium) == size.(:bodymedium)
+
+    monospaced = for %{kind: :font, monospaced: true} = f <- tokens, do: f.name
+    assert monospaced == [:mono, :monosmall, :monomedium]
+
+    for name <- monospaced do
+      assert %{family: :text, emphasis: :reading} = find.(:font, name)
+      assert %{font: ^name, text: ^name} = find.(:typography, name)
+    end
   end
 
   test "mix prism.gen generates Prism's whole design into targets/web, react, design-tools, swift and kotlin" do
